@@ -120,8 +120,8 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
     <a className="skip-link" href="#main-content">Перейти к содержимому</a>
     <header className="topbar">
       <div className="topbar-inner">
-        <a className="brand" href="#home" aria-label="Halyk Career Quest — развитие сотрудников" onClick={(event) => { event.preventDefault(); showScreen("employee"); }}>
-          <img src="/brand/halyk.svg" width="114" height="40" alt="Halyk" /><span className="brand-caption">Career Quest<span>Развитие сотрудников</span></span>
+        <a className="brand" href="#home" aria-label="Career Quest — развитие сотрудников" onClick={(event) => { event.preventDefault(); showScreen("employee"); }}>
+          <span className="brand-caption">Career Quest<span>Развитие сотрудников</span></span>
         </a>
         <nav className="topbar-nav" aria-label="Разделы">
           <button className={`nav-link ${screen === "employee" ? "selected" : ""}`} aria-current={screen === "employee" ? "page" : undefined} onClick={() => showScreen("employee")}>Развитие</button>

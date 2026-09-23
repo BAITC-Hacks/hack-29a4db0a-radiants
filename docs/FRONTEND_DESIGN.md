@@ -4,9 +4,9 @@
 
 Updated 2026-09-23 on `feat/halyk-design`, based on team main `85a7f26`.
 
-- Reference: https://halykbank.kz/ and its current public stylesheet. Primary interface green #00805F, Halyk wordmark green #00896B, white surfaces and restrained neutral backgrounds.
+- Reference: https://halykbank.kz/ and its current public stylesheet. Primary interface green #00805F, white surfaces and restrained neutral backgrounds. Only the visual style is used; the application identity is Career Quest.
 - Typeface: Manrope, also used on the official website. The complete variable font is self-hosted in `public/fonts`, includes Cyrillic, and loads without contacting a font service. Weights 200–800; source https://github.com/google/fonts/tree/main/ofl/manrope; OFL license bundled alongside the font.
-- Header wordmark: `public/brand/halyk.svg`, from https://halykbank.kz/storage/app/uploads/public/6a5/75a/f7a/6a575af7a9880610279451.svg . Halyk branding remains the bank's mark. Career Quest is the hackathon application identity.
+- Header: a text-only Career Quest name. The bank logo, its public SVG asset and the bank name in the accessible header label were removed at the user's request. The name remains visible on small screens.
 
 ## Product decisions
 
@@ -30,4 +30,5 @@ Backend, domain formulas, contracts and recommendation request control are uncha
 - ESLint: pass.
 - Automated tests were not run for this design request. Earlier test totals in FINAL_VALIDATION.md describe the team's pre-redesign baseline, not this change.
 - Browser presentation review uses the real API with a separate scratch SQLite database and no AI key; no production data is modified.
-- Reviewed the employee, team and import screens at desktop width, and the employee layout at 390px. Manrope and the local wordmark render correctly; the mobile document has no horizontal overflow. A cramped file-format line found during review was separated into its own line.
+- Reviewed the employee, team and import screens at desktop width, and the employee layout at 390px. Manrope renders correctly; the mobile document has no horizontal overflow. A cramped file-format line found during review was separated into its own line.
+- Logo-removal follow-up: production build, TypeScript and ESLint pass. Employee/team/import screens contain no bank logo; the Career Quest name is visible at 1280px and 320px, with no document overflow at 320px. The removed SVG is absent from public assets. No automated tests were run for this change.
