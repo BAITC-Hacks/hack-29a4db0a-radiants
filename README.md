@@ -146,3 +146,5 @@ The homepage is a scaffold for participant 3. A working deterministic implementa
 ## Data and privacy
 
 The included starter data is synthetic and belongs to the private hackathon repository. Do not replace it with real personal data or expose employee engagement details in public employee views.
+
+Official dataset adapter: see [docs/STARTER_DATASET_ADAPTER.md](docs/STARTER_DATASET_ADAPTER.md).
