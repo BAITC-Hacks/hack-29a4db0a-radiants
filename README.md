@@ -1,6 +1,6 @@
 # Career Quest
 
-Career Quest makes employee development steps visible and explainable. The repository contains a deterministic TypeScript recommendation/HR engine and a React/Vite demo frontend.
+Career Quest makes employee development steps visible and explainable. The repository contains a deterministic TypeScript recommendation/HR engine and a React/Vite API-driven frontend.
 
 ## Run locally
 
@@ -16,55 +16,47 @@ Open the local URL printed by Vite. Other useful commands:
 ```sh
 npm test                # Vitest suite
 npm run typecheck       # Strict TypeScript check
-npm run lint            # ESLint for the frontend and import adapter
+npm run lint            # ESLint for frontend components, hooks and adapter
 npm run build           # Production Vite bundle
 npm run preview         # Serve the production bundle locally
 ```
 
-## Current app and data boundary
+## Frontend and API boundary
 
-- The active branch has no server, API routes, or authentication layer. The frontend calls the repository's `getEmployeeView` recommendation engine and `buildHrSummary` directly; the suggested `/api/*` endpoints are not present in this repository revision.
-- When no imported data is saved, the app loads a small **synthetic demo dataset** from `src/lib/frontend/demo-data.ts`. It is clearly marked as a demo workspace and does not pretend to be the case dataset.
-- Imports and activity completion are kept in this browser's local storage. Clear the site's storage to reset the demo state.
-- The HR navigation is a product-level view switch, not an authorization boundary. Add server-side identity and access control before using non-synthetic employee data.
-- No API key is needed. The existing AI explainer is a server-side optional module; this static frontend uses the engine's deterministic, evidence-derived explanation and does not expose API credentials in the browser.
+The React/Vite frontend is presentation-only. It requests shared `EmployeeView` and `HrSummary` shapes through `src/lib/frontend/api.ts`; it does not run the recommendation engine, parse imports, aggregate HR metrics or persist employee data in the browser.
 
-## Import data
+**HTTP routes are not yet implemented in this repository revision.** The complete proposed endpoint contract, response shapes, backend responsibilities and remaining fields are in [docs/FRONTEND_API.md](docs/FRONTEND_API.md). Without a backend the UI displays a recoverable error, not synthetic demo data.
 
-Use **Import data** to add `employees.json`, `activity_history.csv`, or a complete JSON dataset. JSON accepts an employee array, a history array, or an object such as:
+For local backend integration, copy `.env.example` to `.env.local` and set `CAREER_API_TARGET` to the server origin. Run `npm run dev`; Vite forwards `/api` to that origin. Production needs the same-origin API or a public `VITE_API_BASE_URL` configured at build time. Never put `OPENAI_API_KEY` in a `VITE_*` variable.
 
-```json
-{
-  "employees": [],
-  "history": [],
-  "events": [],
-  "skills": [],
-  "roleProfiles": []
-}
-```
+## Import and completion
 
-`events`, `skills`, and `roleProfiles` are optional when extending the demo catalog and are merged by their IDs. A complete dataset containing all five arrays replaces the demo data. The employee and event objects must follow `src/types/career.ts`; an employee's target role/grade needs a matching role profile. CSV accepts the `activity_history.csv` columns from the team contract, or employee rows with `employee_id`, `full_name`, `role`, and `grade`; nested `skills` and `career_goal` columns are JSON text. Malformed files and missing role requirements are reported in the dialog.
+**Import data** uploads the original JSON/CSV file as multipart field `file`. Backend owns parsing, normalization, validation and persistence. The dialog displays backend messages, refreshes employees and selects an affected/new profile. If upload succeeds but refresh fails, retry refresh does not resend the file.
 
-The recommendation engine uses the fixed snapshot date **2026-10-01**, reconstructs effective skills from post-review completions, excludes mandatory/ineligible events, simulates skill effects, and cites target requirements and relevant participation history.
+Completing an activity sends its IDs to the API and displays the returned employee view (or refetches after a success-only response). The success panel compares backend-computed readiness and effective skills before/after. It does not predict actual completion results from event gains. Uncertain mutation failures require profile reload before retrying.
 
-## Demo path
+## Demo flow with a connected backend
 
-1. Open Amina Sadykova (Backend Engineer, Middle → Senior) or select another profile.
-2. Review the readiness snapshot, target skill levels, and ranked activity evidence.
-3. Complete “Designing high-load systems”; its System design level and readiness recalculate without a reload, and the activity leaves the recommendation list.
-4. Import employee/history or a full dataset to extend the profiles.
-5. Open **HR overview** for common competency gaps, employees without an eligible next step, and activity participation.
+1. Select an employee and inspect returned readiness, target requirements and expected skill changes.
+2. Read all recommendation reasons; an optional nonempty AI explanation appears below them.
+3. Complete an activity and inspect actual readiness/skill changes from the refreshed profile.
+4. Open an employee with no recommendations to see the explicit no-next-step state.
+5. Upload an additional profile/history file and open the refreshed imported employee.
+6. Open **HR overview** for supplied competency counts, every no-step employee and participation status counts. Missing aggregate metrics remain hidden.
+
+The synthetic fixture lives only in `tests/fixtures/career-dataset.ts`. Browser verification with a fixture API is not verification of backend persistence or official dataset import.
 
 ## Repository structure
 
 - `src/types/career.ts` — shared domain contract.
-- `src/lib/recommendation/` — deterministic eligibility, skill reconstruction, ranking, and explanations.
+- `src/lib/recommendation/` — deterministic eligibility, skill reconstruction, ranking and explanations.
 - `src/lib/analytics/` — HR summary aggregation.
 - `src/lib/ai/` — optional validated server-side explanation adapter.
-- `src/components/`, `src/styles/`, `src/lib/frontend/` — demo UI and browser-only adapter.
-- `tests/` — engine, HR, AI validation, and frontend import tests.
+- `src/components/`, `src/hooks/`, `src/styles/` — presentation and request state.
+- `src/lib/frontend/` — typed HTTP adapter and response shape guards.
+- `tests/` — unchanged PR #1 engine/HR/AI tests plus frontend transport/render tests.
 
-The official case context and detailed behavior rules are in [HACKATHON_CONTEXT.md](HACKATHON_CONTEXT.md) and [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md).
+The official context and behavior rules are in [HACKATHON_CONTEXT.md](HACKATHON_CONTEXT.md) and [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md).
 
 ## AI/Data module
 

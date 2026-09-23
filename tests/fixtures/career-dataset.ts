@@ -1,6 +1,6 @@
-import type { CareerDataset } from "../../types/career";
+import type { CareerDataset } from "../../src/types/career";
 
-/** Small, clearly labeled synthetic fallback for running the UI without the team dataset/API. */
+/** Synthetic server-side test fixture. Never imported by the application. */
 export const demoDataset: CareerDataset = {
   skills: [
     { skill_id: "SK_SYS", name: "System design", type: "hard", category: "Engineering", description: "Design scalable systems" },

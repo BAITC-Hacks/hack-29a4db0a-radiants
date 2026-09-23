@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "lint": "eslint src/components src/lib/frontend src/main.tsx tests/frontend-import.test.ts --max-warnings=0",
+    "lint": "eslint src/components src/hooks src/lib/frontend src/main.tsx tests/frontend-*.test.ts --max-warnings=0",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
