@@ -2,3 +2,15 @@
 @media(max-width:1260px){.page{margin:0 30px}.topbar{padding:0 30px}}
 @media(max-width:900px){.topbar-right{gap:9px}.demo-tag{display:none}.page{padding-top:27px}.overview-grid{grid-template-columns:1.2fr 1fr}.content-grid{grid-template-columns:1fr}.left-stack{grid-template-columns:1fr 1fr;align-items:start}.recommendations-panel{grid-row:1}.skill-list{gap:12px}.hr-grid{grid-template-columns:1fr}.participation-card{grid-column:auto}.metric-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:620px){body{min-width:360px}.topbar{height:60px;padding:0 16px}.brand{font-size:16px}.brand-mark{width:27px;height:27px}.topbar-right{gap:2px}.nav-link{font-size:0;padding:0 8px}.nav-link svg{width:18px;height:18px}.top-import{font-size:0;padding:9px;margin-left:5px}.top-import svg{width:17px}.page{margin:0 15px;padding-top:24px}.page-heading{align-items:flex-start;gap:16px;flex-direction:column;margin-bottom:17px}.page-heading h1{font-size:26px}.select-wrap{width:100%}.overview-grid{grid-template-columns:1fr;gap:10px}.profile-panel,.readiness-panel{padding:15px 16px}.readiness-content{margin-top:10px}.content-grid{margin-top:10px}.left-stack{grid-template-columns:1fr;gap:10px}.path-panel,.skills-panel,.recommendations-panel{padding:16px}.section-header{margin-bottom:13px}.recommendations-panel{grid-row:auto}.footnote{flex-direction:column;line-height:1.5}.metric-grid{gap:8px}.metric-card{min-height:104px;padding:12px}.metric-card>strong{font-size:21px}.hr-grid{gap:10px}.hr-card{padding:15px}.hr-gap-row{grid-template-columns:17px minmax(90px,1fr) .8fr 48px;gap:6px}.hr-gap-row>strong{font-size:8px}.reason-tag{font-size:0;padding:5px}.reason-tag:first-letter{font-size:8px}.scope-tag{font-size:9px}.participation-card{padding:13px 9px}th,td{padding-left:7px;padding-right:7px}.dialog{padding:19px}.dialog-head h2{font-size:17px}.toast{left:12px;right:12px;top:69px;font-size:10px}}
+/* Recommendation service status stays visible alongside fallback content. */
+.ai-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 18px; padding: 10px 0; border-top: 1px solid #dce4e1; border-bottom: 1px solid #dce4e1; color: #435b50; font-size: 13px; line-height: 1.5; }
+.ai-status span { min-width: 0; overflow-wrap: anywhere; }
+.ai-status .icon-button { flex: 0 0 36px; width: 36px; height: 36px; }
+.ai-status-error, .ai-status-unavailable, .ai-status-not_configured { color: #82511c; }
+.recommendation-explanation { color: #33483e; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; margin: 10px 0; }
+@media (max-width: 620px) {
+  .overview-grid > .panel { min-width: 0; }
+  .role-pair { gap: 12px; }
+  .role-pair > div { grid-template-columns: minmax(0, 1fr); flex: 1; }
+  .role-pair strong { white-space: normal; overflow-wrap: anywhere; }
+}

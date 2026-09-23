@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 0.0.0.0",
-    "lint": "eslint src/components src/lib/frontend src/main.tsx tests/frontend-import.test.ts --max-warnings=0",
+    "preview": "vite preview --host 127.0.0.1",
+    "lint": "eslint src/components src/hooks src/server src/lib/frontend src/main.tsx tests/frontend-import.test.ts tests/recommendations-api.test.ts --max-warnings=0",
     "test": "vitest run",
     "test:ai-live": "vitest run tests/openai-live.test.ts",
     "test:watch": "vitest",

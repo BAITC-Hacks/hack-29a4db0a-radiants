@@ -1,6 +1,6 @@
 # Career Quest
 
-Career Quest makes employee development steps visible and explainable. The repository contains a deterministic TypeScript recommendation/HR engine and a React/Vite demo frontend.
+Career Quest makes employee development steps visible and explainable. The app combines a deterministic TypeScript recommendation/HR engine, a React frontend, and a Node server endpoint that generates OpenAI explanations for the selected development steps.
 
 ## Run locally
 
@@ -11,7 +11,9 @@ npm install
 npm run dev
 ```
 
-Open the local URL printed by Vite. Other useful commands:
+For AI, configure `OPENAI_API_KEY` in the server environment or ignored `.env.local` before starting (see `.env.example`). Optionally set `OPENAI_MODEL`; the existing default is `gpt-6-astra`. Restart the server after changing credentials. Without a key, the interface explicitly reports that AI is unavailable and shows rule-based explanations.
+
+Open the local URL printed by Vite. The UI and API start together on loopback with `npm run dev`. Other useful commands:
 
 ```sh
 npm test                # Vitest suite
@@ -19,15 +21,17 @@ npm run typecheck       # Strict TypeScript check
 npm run lint            # ESLint for the frontend and import adapter
 npm run build           # Production Vite bundle
 npm run preview         # Serve the production bundle locally
+npm run test:ai-live    # One real OpenAI call; requires a key and uses API credits
 ```
 
 ## Current app and data boundary
 
-- The active branch has no server, API routes, or authentication layer. The frontend calls the repository's `getEmployeeView` recommendation engine and `buildHrSummary` directly; the suggested `/api/*` endpoints are not present in this repository revision.
+- `POST /api/recommendations` runs on the Node/Vite server in both dev and local preview. It validates the selected profile/catalog/history, recomputes eligible recommendations, calls OpenAI, and returns `{ view: EmployeeView, aiStatus }`. Keys never enter the browser bundle.
 - When no imported data is saved, the app loads a small **synthetic demo dataset** from `src/lib/frontend/demo-data.ts`. It is clearly marked as a demo workspace and does not pretend to be the case dataset.
-- Imports and activity completion are kept in this browser's local storage. Clear the site's storage to reset the demo state.
+- Imports and activity completion are kept in this browser's local storage. Selecting or updating a profile sends that profile, its history, and the catalog to the same-origin API. Only the target and selected recommendation evidence are passed to OpenAI. Clear the site's storage to reset demo state.
 - The HR navigation is a product-level view switch, not an authorization boundary. Add server-side identity and access control before using non-synthetic employee data.
-- No API key is needed. The existing AI explainer is a server-side optional module; this static frontend uses the engine's deterministic, evidence-derived explanation and does not expose API credentials in the browser.
+- The interface renders validated AI text, loading/error states, and a retry control. It cancels outdated requests when the employee or dataset changes and regenerates explanations after completion/import. Fallback is labeled rule-based, never presented as a successful AI response.
+- The API is stateless; persistent server storage, authentication, and the other planned `/api/*` endpoints are not implemented here. Local preview includes this demo API, but copying only `dist/` to a static host will not provide AI. See [product AI integration](docs/AI_PRODUCT_INTEGRATION.md).
 
 ## Import data
 
@@ -67,7 +71,7 @@ const normalized = normalizeDataset(data);
 ## Demo path
 
 1. Open Amina Sadykova (Backend Engineer, Middle → Senior) or select another profile.
-2. Review the readiness snapshot, target skill levels, and ranked activity evidence.
+2. Review readiness and ranked evidence, wait for the server AI explanation, and confirm the card says `AI EXPLANATION`. A fallback label means the real AI step has not succeeded.
 3. Complete “Designing high-load systems”; its System design level and readiness recalculate without a reload, and the activity leaves the recommendation list.
 4. Import employee/history or a full dataset to extend the profiles.
 5. Open **HR overview** for common competency gaps, employees without an eligible next step, and activity participation.
@@ -77,7 +81,9 @@ const normalized = normalizeDataset(data);
 - `src/types/career.ts` — shared domain contract.
 - `src/lib/recommendation/` — deterministic eligibility, skill reconstruction, ranking, and explanations.
 - `src/lib/analytics/` — HR summary aggregation.
-- `src/lib/ai/` — optional validated server-side explanation adapter.
+- `src/lib/ai/` — validated server-side explanation adapter and API response contract.
+- `src/server/` — recommendation HTTP endpoint; mounted by `vite.config.ts`.
+- `src/hooks/` — API loading, cancellation, and retry behavior.
 - `src/components/`, `src/styles/`, `src/lib/frontend/` — demo UI and browser-only adapter.
 - `tests/` — engine, HR, AI validation, and frontend import tests.
 
