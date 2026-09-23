@@ -138,3 +138,5 @@ See [jury rehearsal](docs/JURY_DEMO.md) for the three importable evaluation prof
 Starter data is synthetic. Server sessions and role checks protect employee/HR access. Employee listing and catalog endpoints do not expose engagement history. Corporate SSO, account recovery, consent-based peer sharing and an organizational retention policy remain deployment work; this local account system is the hackathon implementation.
 
 See [the 3–5 minute demo and startup guide](docs/DEMO.md), [the frontend API contract](docs/FRONTEND_API.md), [previous validation results](docs/FINAL_VALIDATION.md), and [privacy integration validation](docs/PRIVACY_VALIDATION.md).
+
+Authenticated real-AI screenshots for E0058, the deployed build SHA and the saved successful live-test output are in [LIVE_AI_PROOF.md](docs/LIVE_AI_PROOF.md).
