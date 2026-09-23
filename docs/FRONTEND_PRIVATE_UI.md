@@ -25,7 +25,7 @@ Logout immediately removes protected content. Failed logout stays locked with an
 
 ## Verification
 
-The evidence below concerns the earlier delivery. The new full-name login and duplicate-name card flow have not yet completed validation.
+The results below concern the earlier delivery unless explicitly listed under the current full-name login change. Its automated suite and duplicate-name card flow have not yet been exercised.
 
 - Production `next build`: pass, including TypeScript.
 - ESLint with `--max-warnings=0`: pass.
@@ -38,13 +38,20 @@ The evidence below concerns the earlier delivery. The new full-name login and du
 - After integration with main, the individual-login browser smoke check passed again with `DEMO_EMPLOYEE_LOGIN=false`: no shared-password hint, own Jury Demo profile, persisted 76.9% readiness, three recommendation variants, no HR actions, confirmed logout. A dev preview remains available at `http://127.0.0.1:3100/` using the separate ignored test database.
 - Docker Compose build, production startup and container healthcheck passed on revision `0c29cf6`. This supersedes the earlier local Docker-engine and direct `next start` limitations; it does not verify the subsequent full-name login/card changes.
 
-## Waiting for backend
+### Current full-name login change
 
-The current main has no career-goal mutation endpoint. The role/grade catalog is available, but a working goal editor and save action require the backend request/response contract and authorization rules. No fake save button or unsupported mutation has been added. This is the remaining dependent item from the frontend handoff.
+- The first Docker build containing the new login form passed.
+- The second Docker integration build passed at `0b1fa90`, including merged `main` at `cedd34d`; TypeScript passed and the container was recreated. No automated test suite was run for this change.
+- The form was confirmed in the Docker-served application: the field is labeled **Имя и фамилия**, and there is no instruction to enter an employee ID. This confirms the displayed form, not the complete login flow.
+- The current change's automated suite, duplicate-name cards and follow-up selection request have not yet been exercised.
+
+## Remaining frontend integration
+
+Integrated `main` at `cedd34d` now provides `PATCH /api/employees/:employeeId/career-goal`; it permits employees to update only their own goal and returns the updated `EmployeeDetail`. The remaining frontend work is the role/grade editor using `catalog.roleProfiles`, save/clear actions, validation and uncertain-result recovery, plus AI cancellation and profile replacement around the mutation. Clearing an explicit goal can restore the default next-grade target. The API contract and authorization rules are documented in [the completion and career-goal handoff](FRONTEND_COMPLETION_GOAL_HANDOFF.md); this is now frontend integration work, not a missing backend endpoint.
 
 ## Remaining validation and scope
 
-- The new full-name demo login, duplicate-name selection cards and follow-up login request still need their final checks. Earlier test counts and browser evidence above are not results for this change.
+- End-to-end full-name demo login, duplicate-name selection cards and the follow-up login request still need their checks. The Docker form inspection above does not replace those checks; earlier test counts are not results for this change.
 - Live OpenAI, corporate SSO/MFA, account recovery, peer-sharing consent and organization-specific access scopes are outside this frontend delivery.
 
 Local test credentials and SQLite data remain under ignored `.data/privacy-ui`; they are not included in Git or this report.
