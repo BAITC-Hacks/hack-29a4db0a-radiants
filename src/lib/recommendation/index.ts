@@ -297,8 +297,14 @@ function calculateHistorySignal(
   history: ActivityRecord[],
   eventById: Map<string, DevelopmentEvent>,
 ): HistorySignal {
-  let penalty = 0;
+  let topicPenalty = 0;
+  let formatPenalty = 0;
+  let topicNegativeCount = 0;
+  let formatNegativeCount = 0;
+  let assignedDeclines = 0;
+  let comparableCount = 0;
   const matchingFeedback: number[] = [];
+  const skillIds = new Set(event.develops_skills.filter((effect) => effect.gain > 0).map((effect) => effect.skill_id));
 
   for (const record of history) {
     if (!isRecent(record.date)) {
@@ -308,10 +314,21 @@ function calculateHistorySignal(
     if (!historicalEvent || historicalEvent.type !== event.type || historicalEvent.format !== event.format) {
       continue;
     }
+    const relatedTopic = historicalEvent.event_id === event.event_id ||
+      historicalEvent.develops_skills.some((effect) => effect.gain > 0 && skillIds.has(effect.skill_id));
+    if (relatedTopic) comparableCount++;
     if (["no_show", "dropped", "declined"].includes(record.status)) {
-      penalty = Math.max(-30, penalty - 10);
+      const assignedDecline = record.status === "declined" && record.assigned_by !== "self";
+      if (assignedDecline) assignedDeclines++;
+      if (relatedTopic) {
+        topicNegativeCount++;
+        topicPenalty += assignedDecline ? 5 : 10;
+      } else {
+        formatNegativeCount++;
+        formatPenalty += assignedDecline ? 1 : 2;
+      }
     }
-    if (record.status === "completed" && record.feedback_rating !== null) {
+    if (relatedTopic && record.status === "completed" && record.feedback_rating !== null) {
       matchingFeedback.push(record.feedback_rating);
     }
   }
@@ -320,17 +337,30 @@ function calculateHistorySignal(
     ? matchingFeedback.reduce((sum, rating) => sum + rating, 0) / matchingFeedback.length
     : null;
   const feedbackAdjustment = averageFeedback === null ? 0 : averageFeedback >= 4 ? 5 : averageFeedback <= 2 ? -5 : 0;
-  const adjustment = penalty + feedbackAdjustment;
+  // Shared delivery format is weak evidence when the activities teach unrelated skills.
+  const penalty = Math.min(30, topicPenalty + Math.min(6, formatPenalty));
+  const adjustment = -penalty + feedbackAdjustment;
   const parts: string[] = [];
-  if (penalty) {
-    parts.push(`${Math.abs(penalty) / 10} recent attendance signal(s) reduce suitability.`);
+  if (topicNegativeCount) {
+    parts.push(`${topicNegativeCount} recent participation signal(s) on related skills and this format reduce suitability.`);
+  }
+  if (formatNegativeCount) {
+    parts.push(`${formatNegativeCount} format-only negative record(s) on unrelated topics have limited weight.`);
+  }
+  if (assignedDeclines) {
+    parts.push(`${assignedDeclines} externally assigned decline(s) receive reduced weight; this is not a motivation assessment.`);
   }
   if (feedbackAdjustment > 0) {
-    parts.push("Positive feedback on similar activities supports this format.");
+    parts.push("Positive feedback on related skills in this format supports this activity.");
   } else if (feedbackAdjustment < 0) {
-    parts.push("Low feedback on similar activities reduces suitability.");
+    parts.push("Low feedback on related skills in this format reduces suitability.");
   }
-  return { adjustment, text: parts.join(" ") || "No recent negative participation signal for this activity type." };
+  if (parts.length === 0) {
+    parts.push(comparableCount
+      ? `${comparableCount} recent comparable participation record(s), with no negative signal or strong feedback adjustment.`
+      : "No recent comparable participation records; evidence is insufficient to infer a preference.");
+  }
+  return { adjustment, text: parts.join(" ") };
 }
 
 function isRecent(date: string): boolean {

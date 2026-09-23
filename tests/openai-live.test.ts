@@ -21,35 +21,35 @@ it.runIf(enabled).each(["E0178", "E0058"])("gets a real explanation from the SQL
   process.env.CAREER_QUEST_DB_PATH = path.join(directory, "live.sqlite");
   process.env.CAREER_QUEST_DATA_DIR = path.resolve("data");
   try {
-  const baseline = getEmployeeProjection(employeeId);
-  expect(baseline.recommendations.length).toBeGreaterThan(0);
-  const transport = createOpenAIExplainer({ apiKey, model: process.env.OPENAI_MODEL || undefined });
-  let failure = "No explanations passed evidence validation";
-  const explainer: RecommendationExplainer = {
-    async explain(input) {
-      try {
-        return await transport.explain(input);
-      } catch (error) {
-        failure = error instanceof Error ? error.message : "Transport failed";
-        throw error;
-      }
-    },
-  };
-  const start = performance.now();
-  const result = await getRecommendations(employeeId, getDatabase(), explainer);
-  if (result.recommendations.some((rec) => rec.explanationSource !== "llm")) {
-    throw new Error(`Live AI check used fallback: ${failure}`);
-  }
-  expect(performance.now() - start).toBeLessThan(10_000);
-  result.recommendations.forEach((rec, index) => {
-    expect(rec.aiExplanation?.trim().length).toBeGreaterThan(0);
-    expect(rec).toEqual({ ...baseline.recommendations[index],
-      explanationSource: "llm", aiExplanation: rec.aiExplanation,
+    const baseline = getEmployeeProjection(employeeId);
+    expect(baseline.recommendations.length).toBeGreaterThan(0);
+    const transport = createOpenAIExplainer({ apiKey, model: process.env.OPENAI_MODEL || undefined });
+    let failure = "No explanations passed evidence validation";
+    const explainer: RecommendationExplainer = {
+      async explain(input) {
+        try {
+          return await transport.explain(input);
+        } catch (error) {
+          failure = error instanceof Error ? error.message : "Transport failed";
+          throw error;
+        }
+      },
+    };
+    const start = performance.now();
+    const result = await getRecommendations(employeeId, getDatabase(), explainer);
+    if (result.recommendations.some((rec) => rec.explanationSource !== "llm")) {
+      throw new Error(`Live AI check used fallback: ${failure}`);
+    }
+    expect(performance.now() - start).toBeLessThan(10_000);
+    result.recommendations.forEach((rec, index) => {
+      expect(rec.aiExplanation?.trim().length).toBeGreaterThan(0);
+      expect(rec).toEqual({ ...baseline.recommendations[index],
+        explanationSource: "llm", aiExplanation: rec.aiExplanation,
+      });
     });
-  });
-  expect(result.completedActivities).toEqual(baseline.completedActivities);
-  console.info(JSON.stringify({ employeeId, elapsedMs: Math.round(performance.now() - start),
-    explanations: result.recommendations.map((rec) => ({ eventId: rec.eventId, source: rec.explanationSource, explanation: rec.aiExplanation })) }));
+    expect(result.completedActivities).toEqual(baseline.completedActivities);
+    console.info(JSON.stringify({ employeeId, elapsedMs: Math.round(performance.now() - start),
+      explanations: result.recommendations.map((rec) => ({ eventId: rec.eventId, source: rec.explanationSource, explanation: rec.aiExplanation })) }));
   } finally {
     closeDatabase();
     if (previousPath === undefined) delete process.env.CAREER_QUEST_DB_PATH;

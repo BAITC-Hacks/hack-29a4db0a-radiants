@@ -86,6 +86,10 @@ Error codes: 400 invalid JSON/multipart or empty import; 422 validation/referenc
 
 The shared engine returns up to three eligible voluntary recommendations with reasons, expectedChanges (before/after/required), historySignal and deterministicExplanation. It considers target gaps, critical requirements, audience, prerequisites, availability and participation history. A Lead without a career goal has `targetStatus: "needs_career_goal"`, readiness 0 and no recommendations. Empty recommendation lists are valid.
 
+Readiness is the weighted mean of `min(current / required, 1)`: critical requirements weigh 2, others weigh 1, then multiply by 100 and round to one decimal. Zero-level requirements are fulfilled. This is a development indicator, not a promotion probability. Recommendations are alternative next steps evaluated against the current profile, not a precomputed sequential course plan.
+
+Ranking awards 40 points per reduced critical gap level and 10 per other reduced gap level. History uses the previous 365 days at the fixed snapshot. Matching type/format plus a shared developed skill gives a strong signal: each no-show/drop/decline costs 10, or 5 for declining an external assignment. Same-type/format records on unrelated topics cost only 2 (1 for external declines), capped at 6; total negative adjustment is capped at 30. Feedback adds 5 for a mean of at least 4, subtracts 5 for at most 2, and applies only to the related-topic group. These are transparent heuristic weights, not learned or empirically calibrated preferences. Sparse history is reported as insufficient evidence. Attendance is not a judgment of employee performance.
+
 The profile and completion routes return deterministic data immediately. `GET /api/employees/:id/recommendations` reconstructs that same profile from SQLite and enriches only its selected recommendations with OpenAI explanations. The response remains `{ data: EmployeeDetail }`, including completed activities. No client-supplied dataset or Vite middleware is involved; AI requests run outside database transactions.
 
 The provider has an 8-second deadline. Missing keys, network failures, refusals and invalid evidence leave `explanationSource: "fallback"`; valid text sets it to `"llm"`. Event IDs, ordering, scores and skills never come from the model. References must include target, history and an actually reduced skill gap. These checks do not prove every natural-language sentence true; factual evidence remains available independently of AI text.
@@ -105,5 +109,7 @@ Defaults: `CAREER_QUEST_DB_PATH=.data/career-quest.sqlite`, `CAREER_QUEST_DATA_D
 3. Reload: the completed history and updated progress remain.
 4. Import an additional profile, optionally with its history in the same request.
 5. Open HR: official population, gaps, all employees without steps, and all activity participation rows are accessible.
+
+See [jury rehearsal](docs/JURY_DEMO.md) for the three importable evaluation profiles, adversarial checks and a three-minute demonstration. [Release checklist](docs/RELEASE_CHECKLIST.md) separates verified behavior from the remaining live-AI and frontend gates.
 
 Starter data is synthetic. Authentication is outside this MVP: employee/HR views are logically separated but not protected by an authorization layer. Employee listing and catalog endpoints do not expose engagement history.

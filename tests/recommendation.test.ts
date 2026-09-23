@@ -219,7 +219,7 @@ describe("recommendation engine", () => {
     expect(view.recommendations.map((item) => [item.eventId, item.score])).toEqual([
       ["EV_CRITICAL", 40], ["EV_SPEAKING", -10],
     ]);
-    expect(view.recommendations[1]?.historySignal).toContain("3 recent attendance signal");
+    expect(view.recommendations[1]?.historySignal).toContain("3 recent participation signal");
   });
 
   it("excludes mandatory, completed, in-progress, prerequisite-blocked, and unavailable events", () => {
@@ -273,7 +273,7 @@ describe("recommendation engine", () => {
       employee.employee_id,
     );
     expect(withMissedSession.recommendations[0]?.score).toBe(baseline.recommendations[0]?.score! - 10);
-    expect(withMissedSession.recommendations[0]?.historySignal).toContain("1 recent attendance signal");
+    expect(withMissedSession.recommendations[0]?.historySignal).toContain("1 recent participation signal");
   });
 
   it("uses an explicit career goal and requests one for Lead without a goal", () => {
@@ -294,5 +294,57 @@ describe("recommendation engine", () => {
       employee.employee_id,
     );
     expect(goalView.target?.grade).toBe("Lead");
+  });
+
+  it("treats same-format unrelated topics as weak evidence, not an equivalent topic penalty", () => {
+    const candidate = makeEvent("CANDIDATE");
+    const unrelated = makeEvent("UNRELATED", {
+      mandatory: true, develops_skills: [{ skill_id: "SK_PUBLIC_SPEAKING", gain: 1, max_level: 5 }],
+    });
+    const records = [1, 2, 3].map((day) => makeRecord("UNRELATED", "no_show", "2026-08-0" + day));
+    const ranked = getEmployeeView(normalizeDataset(makeDataset([candidate, unrelated], records)), employee.employee_id);
+    expect(ranked.recommendations[0]?.score).toBe(34);
+    expect(ranked.recommendations[0]?.historySignal).toContain("format-only");
+  });
+
+  it("does not promote a topic using feedback about unrelated skills", () => {
+    const candidate = makeEvent("CANDIDATE");
+    const unrelated = makeEvent("UNRELATED", {
+      mandatory: true, develops_skills: [{ skill_id: "SK_PUBLIC_SPEAKING", gain: 1, max_level: 5 }],
+    });
+    const source = makeDataset([candidate, unrelated], [makeRecord("UNRELATED", "completed", "2025-12-01", 5)]);
+    const ranked = getEmployeeView(normalizeDataset(source), employee.employee_id);
+    expect(ranked.recommendations[0]?.score).toBe(40);
+    expect(ranked.recommendations[0]?.historySignal).not.toContain("Positive feedback");
+  });
+
+  it("distinguishes externally assigned declines from self-initiated attendance failures", () => {
+    const candidate = makeEvent("CANDIDATE");
+    const record = { ...makeRecord("CANDIDATE", "declined"), assigned_by: "manager" as const };
+    const ranked = getEmployeeView(normalizeDataset(makeDataset([candidate], [record])), employee.employee_id);
+    expect(ranked.recommendations[0]?.score).toBe(35);
+    expect(ranked.recommendations[0]?.historySignal).toContain("externally assigned");
+  });
+
+  it("reports the actual negative-history count even after the score penalty is capped", () => {
+    const candidate = makeEvent("CANDIDATE");
+    const records = [1, 2, 3, 4, 5].map((day) => makeRecord("CANDIDATE", "no_show", "2026-08-0" + day));
+    const ranked = getEmployeeView(normalizeDataset(makeDataset([candidate], records)), employee.employee_id);
+    expect(ranked.recommendations[0]?.score).toBe(10);
+    expect(ranked.recommendations[0]?.historySignal).toContain("5 recent participation");
+  });
+
+  it("does not interpret missing history as evidence of a positive preference", () => {
+    const ranked = getEmployeeView(normalizeDataset(makeDataset([makeEvent("CANDIDATE")])), employee.employee_id);
+    expect(ranked.recommendations[0]?.historySignal).toContain("insufficient");
+  });
+
+  it("changes an equally useful next step when its relevant participation history changes", () => {
+    const early = makeEvent("EV_A", { format: "online", upcoming_sessions: ["2026-10-02"] });
+    const alternative = makeEvent("EV_B", { format: "offline", upcoming_sessions: ["2026-10-03"] });
+    const baseline = getEmployeeView(normalizeDataset(makeDataset([early, alternative])), employee.employee_id);
+    const missed = getEmployeeView(normalizeDataset(makeDataset([early, alternative], [makeRecord("EV_A", "no_show")])), employee.employee_id);
+    expect(baseline.recommendations[0]?.eventId).toBe("EV_A");
+    expect(missed.recommendations[0]?.eventId).toBe("EV_B");
   });
 });
