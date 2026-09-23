@@ -46,3 +46,7 @@ Temporary known-password browser accounts were created only in the isolated test
 No new billed OpenAI request was needed for this change; previous live evidence remains in AI_VERIFICATION.md and FINAL_VALIDATION.md. Auth checks precede the AI endpoint and disabling AI prevents the provider call. Corporate SSO, credential recovery, peer-sharing consent, cross-tab refresh and account-management UI are explicitly scoped in BACKEND_PRIVACY.md and FRONTEND_PRIVACY_PLAN.md.
 
 PR #13's independent report was merged. The old frontend branch `b422db2` was not merged wholesale; useful retry/history UI was adapted while preserving current contracts and safeguards.
+
+## Final rollout
+
+A clean Git clone of commit 575aded built and started with Compose, without a local `.env` or node_modules. The resulting production image was deployed to the existing main application volume on port 3000. Health returned schemaVersion 2 and anonymous employee access returned 401. A SHA-256 checksum of every employee/history row before and after migration matched exactly (2746 existing history records); E0178 remained at readiness 74.1. Three initial accounts were generated, employee login and logout were verified without printing credentials. The main service now binds to 127.0.0.1:3000. The isolated acceptance service was stopped after testing.
