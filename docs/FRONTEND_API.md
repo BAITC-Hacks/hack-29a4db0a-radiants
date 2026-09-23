@@ -57,7 +57,7 @@ The UI adapts to the existing domain types without extending them:
 - `EmployeeView` has no detailed no-recommendation reason. Empty recommendations show a generic message; `targetStatus: "needs_career_goal"` adds the explicit goal prompt. Catalog exhaustion, blocked prerequisites and insufficient data need a server reason field before the UI can distinguish them.
 - Expected changes contain skill IDs, not names. Names are resolved from supplied skill gaps, with the ID as a fallback. An optional server skill-name dictionary would improve names for changes outside target requirements.
 - Recommendation status, duration and format are not supplied. No invented availability/status or duration is shown; `nextSession` appears only when present.
-- Optional nonempty `aiExplanation` appears as **AI insight**. All deterministic reasons remain visible without it. No browser OpenAI request or API key is involved. A live server AI endpoint/key was not available or verified in this iteration.
+- Optional nonempty `aiExplanation` appears under a small **AI-assisted explanation** label. All deterministic reasons remain visible without it. No browser OpenAI request or API key is involved. A live server AI endpoint/key was not available or verified in this iteration.
 
 ## Configuration
 

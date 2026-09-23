@@ -47,7 +47,7 @@ export function ImportDialog({ api, onClose, onImported }: {
   }
   return <dialog ref={dialog} className="dialog import-dialog" aria-labelledby="import-title"
     onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
-    <div className="dialog-head"><div><span className="eyebrow">BRING YOUR DATA</span><h2 id="import-title">Import profile or activity history</h2></div>
+    <div className="dialog-head"><h2 id="import-title">Import profile or activity history</h2>
       <button className="icon-button" autoFocus disabled={busy} aria-label="Close import dialog" onClick={onClose}><X size={18} /></button>
     </div>
     <p className="dialog-copy">Choose a JSON or CSV file. Your profile will refresh after the upload has been processed.</p>
