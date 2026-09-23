@@ -70,7 +70,7 @@ describe("jury workflow: profile JSON, then history CSV", () => {
     const api = createCareerApi({ fetcher });
     const profileResult = await api.importData(new File([profileJson], "jury-employee.json"));
     expect(profileResult.employeeIds).toEqual([employeeId]);
-    expect(profileResult.message).toContain("1 new profiles");
+    expect(profileResult.message).toContain("Добавлено профилей: 1");
     expect(await api.getEmployees()).toHaveLength(201);
     const baseline = await detail();
     expect(baseline.readiness).toBe(71.3);
@@ -80,7 +80,7 @@ describe("jury workflow: profile JSON, then history CSV", () => {
 
     const historyResult = await api.importData(new File([historyCsv], "jury-history.csv"));
     expect(historyResult.employeeIds).toEqual([employeeId]);
-    expect(historyResult.message).toContain("2 history records");
+    expect(historyResult.message).toContain("Добавлено записей истории: 2");
     const imported = await detail();
     expect(imported.readiness).toBe(74.1);
     expect(imported.effectiveSkills).toMatchObject({ SK_SYSTEM_DESIGN: 2, SK_API_DESIGN: 4 });
@@ -97,7 +97,7 @@ describe("jury workflow: profile JSON, then history CSV", () => {
     expect((await recommendations.json()).data).toEqual(imported);
 
     const repeated = await api.importData(new File([historyCsv], "jury-history.csv"));
-    expect(repeated.warnings).toEqual(["Skipped 2 existing history records."]);
+    expect(repeated.warnings).toEqual(["Пропущено существующих записей истории: 2."]);
     expect(databaseCounts(getDatabase()).activityHistory).toBe(2745);
     await expect(api.completeActivity(employeeId, "EV_005")).rejects.toMatchObject({ phase: "rejected" });
 

@@ -4,47 +4,53 @@ import { EmptyState, formatNumber } from "./States";
 export function HRDashboard({ summary, onSelect }: { summary: HrSummaryResponse; onSelect: (id: string) => void }) {
   const metrics = summary.metrics;
   return <>
-    {metrics && <section className="metric-grid">
-      {metrics.totalEmployees !== undefined && <Metric label="Employees" value={String(metrics.totalEmployees)} />}
-      {metrics.completionRate !== undefined && <Metric label="Completion rate" value={`${formatNumber(metrics.completionRate)}%`} />}
-      {metrics.coverage !== undefined && <Metric label="Recommendation coverage" value={`${formatNumber(metrics.coverage)}%`} />}
+    {metrics && <section className="metric-grid hr-metrics" aria-label="Обзор команды">
+      {metrics.totalEmployees !== undefined && <Metric label="Сотрудников" value={String(metrics.totalEmployees)} />}
+      {metrics.completionRate !== undefined && <Metric label="Завершённых активностей" value={`${formatNumber(metrics.completionRate)}%`} />}
+      {metrics.coverage !== undefined && <Metric label="Охват рекомендациями" value={`${formatNumber(metrics.coverage)}%`} />}
     </section>}
-    <section className="hr-grid">
-      <section className="hr-section" aria-labelledby="common-gaps-heading">
-        <div className="section-header"><h2 id="common-gaps-heading">Common skill gaps</h2><p className="section-note">Employees below target requirements</p></div>
-        {summary.weakCompetencies.length ? <div className="table-wrap" role="region" aria-label="Common skill gaps table" tabIndex={0}><table>
-          <thead><tr><th scope="col">Skill</th><th scope="col" className="number">Employees</th></tr></thead>
+    <div className="hr-grid">
+      <section className="hr-section hr-development-section" aria-labelledby="development-needs-heading">
+        <div className="section-header"><div><h2 id="development-needs-heading">Развитие команды</h2><p className="section-note">Где сотрудникам нужна поддержка</p></div></div>
+        <div className="hr-development-grid">
+        <section className="hr-subsection" aria-labelledby="common-gaps-heading">
+        <div className="hr-table-heading"><h3 id="common-gaps-heading">Навыки для развития</h3><span className="section-note">Уровень ниже целевого</span></div>
+        {summary.weakCompetencies.length ? <div className="table-wrap hr-table-scroll" role="region" aria-label="Навыки для развития" tabIndex={0}><table>
+          <thead><tr><th scope="col">Навык</th><th scope="col" className="number">Сотрудников</th></tr></thead>
           <tbody>{summary.weakCompetencies.map((skill) => <tr key={skill.skillId}>
             <th scope="row">{skill.name}</th><td className="number">{skill.employeesBelowRequirement}</td>
           </tr>)}</tbody>
-        </table></div> : <EmptyState text="No competency gaps were reported." />}
-      </section>
-      <section className="hr-section" aria-labelledby="followup-heading">
-        <div className="section-header"><h2 id="followup-heading">Employees without a next step</h2><p className="section-note">Open a profile to review its development needs</p></div>
-        {summary.employeesWithoutRecommendations.length ? <div className="table-wrap" role="region" aria-label="Employees requiring follow-up" tabIndex={0}><table>
-          <thead><tr><th scope="col">Employee</th><th scope="col">Status</th></tr></thead>
+        </table></div> : <EmptyState text="Пробелов в навыках не выявлено." />}
+        </section>
+        <section className="hr-subsection" aria-labelledby="followup-heading">
+        <div className="hr-table-heading"><h3 id="followup-heading">Сотрудники без рекомендаций</h3><span className="section-note">Нажмите на имя, чтобы открыть профиль</span></div>
+        {summary.employeesWithoutRecommendations.length ? <div className="table-wrap hr-table-scroll" role="region" aria-label="Сотрудники без рекомендаций" tabIndex={0}><table>
+          <thead><tr><th scope="col">Сотрудник</th><th scope="col">Причина</th></tr></thead>
           <tbody>{summary.employeesWithoutRecommendations.map((item) => <tr key={item.employeeId}>
-            <th scope="row"><button className="text-button" onClick={() => onSelect(item.employeeId)}>{item.fullName || item.employeeId}</button><small>{item.employeeId}</small></th>
-            <td>{item.reason === "needs_career_goal" ? "Career goal needed" : "No eligible step"}</td>
+            <th scope="row"><button className="text-button" title={item.employeeId} onClick={() => onSelect(item.employeeId)}>{item.fullName || item.employeeId}</button></th>
+            <td><span className="hr-followup-status">{item.reason === "needs_career_goal" ? "Нужна карьерная цель" : "Нет подходящей рекомендации"}</span></td>
           </tr>)}</tbody>
-        </table></div> : <EmptyState text="No employees without a next step were reported." />}
+        </table></div> : <EmptyState text="Сотрудников без рекомендаций нет." />}
+        </section>
+        </div>
       </section>
       <section className="hr-section participation-section" aria-labelledby="participation-heading">
-        <div className="section-header"><h2 id="participation-heading">Activity participation</h2><p className="section-note">Participation counts by activity and status</p></div>
-        {summary.participationByEvent.length ? <div className="table-wrap" tabIndex={0} role="region" aria-label="Activity participation table">
-          <table><caption className="sr-only">Participation counts reported for each activity</caption>
-            <thead><tr><th scope="col">Activity</th><th scope="col">Completed</th><th scope="col">In progress</th><th scope="col">Dropped</th><th scope="col">No show</th><th scope="col">Declined</th><th scope="col">Overdue</th><th scope="col">Total</th></tr></thead>
+        <div className="section-header"><div><h2 id="participation-heading">Участие в обучении</h2><p className="section-note">Количество участников по статусу</p></div><span className="section-count">Активностей: {summary.participationByEvent.length}</span></div>
+        {summary.participationByEvent.length ? <div className="table-wrap hr-table-scroll hr-participation-scroll" tabIndex={0} role="region" aria-label="Участие в обучении">
+          <table><caption className="sr-only">Количество участников каждой активности</caption>
+            <thead><tr><th scope="col">Активность</th><th scope="col" className="number">Завершили</th><th scope="col" className="number">В процессе</th><th scope="col" className="number">Прервали</th><th scope="col" className="number">Не пришли</th><th scope="col" className="number">Отказались</th><th scope="col" className="number">Просрочили</th><th scope="col" className="number">Всего</th></tr></thead>
             <tbody>{summary.participationByEvent.map((event) => <tr key={event.eventId}>
-              <th scope="row"><strong>{event.title}</strong><small>{event.eventId}</small></th>
-              <td className="status-number done">{event.byStatus.completed ?? "—"}</td>
-              <td>{event.byStatus.in_progress ?? "—"}</td><td>{event.byStatus.dropped ?? "—"}</td>
-              <td>{event.byStatus.no_show ?? "—"}</td><td>{event.byStatus.declined ?? "—"}</td>
-              <td>{event.byStatus.overdue ?? "—"}</td><td>{event.total}</td>
+              <th scope="row" title={event.eventId}>{event.title || event.eventId}</th>
+              <td className="number status-number done">{event.byStatus.completed ?? "—"}</td>
+              <td className="number">{event.byStatus.in_progress ?? "—"}</td><td className="number">{event.byStatus.dropped ?? "—"}</td>
+              <td className="number">{event.byStatus.no_show ?? "—"}</td><td className="number">{event.byStatus.declined ?? "—"}</td>
+              <td className="number">{event.byStatus.overdue ?? "—"}</td><td className="number hr-total">{event.total}</td>
             </tr>)}</tbody>
-          </table><p className="table-note">— means no count was supplied.</p>
-        </div> : <EmptyState text="No activity participation was reported." />}
+          </table>
+        </div> : <EmptyState text="Пока нет данных об участии." />}
+        {summary.participationByEvent.length > 0 && <p className="table-note">— Нет данных</p>}
       </section>
-    </section>
+    </div>
   </>;
 }
 function Metric({ label, value }: { label: string; value: string }) {

@@ -1,86 +1,71 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import type { AuthSession } from "../contracts/auth";
-import { createAuthApi } from "../lib/frontend/auth-api";
+import { AuthLifecycle, bindAuthPageEvents, createAuthApi } from "../lib/frontend/auth-api";
 import { ApiError, createCareerApi } from "../lib/frontend/api";
 import App from "./App";
 import { ErrorState, LoadingState } from "./States";
 
 const auth = createAuthApi();
 
-/** Protected data exists only inside one authenticated session's mounted App. */
+/** Protected data is visible only after the server confirms the current session. */
 export default function AuthBoundary() {
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [checking, setChecking] = useState(true);
-  const [initialError, setInitialError] = useState("");
-  const [revision, setRevision] = useState(0);
-  const [notice, setNotice] = useState("");
-  const [signingOut, setSigningOut] = useState(false);
-  const [signOutError, setSignOutError] = useState("");
-  const currentSession = useRef(session);
-  currentSession.current = session;
-  const sessionRequests = useMemo(() => ({ session, controller: new AbortController() }), [session]);
-  const { controller } = sessionRequests;
-  const invalidate = useCallback(() => {
-    controller.abort();
-    setSession(null);
-    setSigningOut(false);
-    setSignOutError("");
-    setNotice("Your session ended. Sign in to continue.");
-  }, [controller]);
-  const api = useMemo(() => createCareerApi({ csrfToken: session?.csrfToken, sessionSignal: controller.signal,
-    onUnauthorized: () => { if (currentSession.current === session) invalidate(); },
-  }), [controller, invalidate, session]);
+  const [lifecycle] = useState(() => new AuthLifecycle(auth));
+  const state = useSyncExternalStore(lifecycle.subscribe, lifecycle.getSnapshot, lifecycle.getSnapshot);
+  const { session, generation, signal } = state;
+  const api = useMemo(() => createCareerApi({ csrfToken: session?.csrfToken, sessionSignal: signal,
+    onUnauthorized: () => lifecycle.unauthorized(generation),
+  }), [generation, lifecycle, session, signal]);
 
   useEffect(() => {
-    const request = new AbortController();
-    setChecking(true);
-    setInitialError("");
-    void auth.getSession(request.signal).then((value) => {
-      if (!request.signal.aborted) setSession(value);
-    }, (error: unknown) => {
-      if (!request.signal.aborted && !(error instanceof ApiError && error.status === 401)) {
-        setInitialError("Could not check your session. Please retry.");
+    // Hide synchronously on pagehide so a restored browser page starts with a covered private view.
+    const unbind = bindAuthPageEvents(lifecycle, window, document, flushSync);
+    let channel: BroadcastChannel | undefined;
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        channel = new BroadcastChannel("career-quest-auth");
+        channel.onmessage = (event: MessageEvent<unknown>) => flushSync(() => {
+          lifecycle.receive(event.data);
+          if (document.visibilityState === "hidden") lifecycle.suspend();
+        });
+        lifecycle.broadcast = (message) => channel?.postMessage(message);
       }
-    }).finally(() => { if (!request.signal.aborted) setChecking(false); });
-    return () => request.abort();
-  }, [revision]);
+    } catch { /* Focus and visibility checks remain available when cross-tab messaging is unsupported. */ }
+    if (document.visibilityState === "hidden") lifecycle.suspend();
+    else void lifecycle.check();
+    return () => {
+      unbind();
+      if (channel) { channel.onmessage = null; channel.close(); }
+      lifecycle.dispose();
+    };
+  }, [lifecycle]);
 
   useEffect(() => {
     if (!session) return;
     const expiresIn = Date.parse(session.expiresAt) - Date.now();
-    if (expiresIn <= 0) { invalidate(); return; }
-    const timer = setTimeout(invalidate, Math.min(expiresIn, 2_147_483_647));
+    const timer = setTimeout(() => lifecycle.expire(generation), Math.max(0, Math.min(expiresIn, 2_147_483_647)));
     return () => clearTimeout(timer);
-  }, [invalidate, session]);
+  }, [generation, lifecycle, session]);
 
-  async function logout() {
-    if (!session) return;
-    controller.abort();
-    setSigningOut(true);
-    setSignOutError("");
-    try {
-      await auth.logout(session.csrfToken);
-      if (currentSession.current !== session) return;
-      setSession(null);
-      setNotice("You have signed out.");
-      setSigningOut(false);
-    } catch (error) {
-      if (currentSession.current !== session) return;
-      if (error instanceof ApiError && error.status === 401) {
-        setSession(null);
-        setSigningOut(false);
-      } else setSignOutError("Could not confirm sign-out. Your profile is hidden. Retry to end the server session.");
-    }
-  }
+  // Keep same-session dialog state (including a native file chooser/import receipt) while revalidating.
+  // The whole subtree is hidden and inert until the server confirms that exact identity and token.
+  const protectedApp = session && ["ready", "checking", "hidden"].includes(state.phase)
+    ? <div className="protected-app" hidden={state.phase !== "ready"} inert={state.phase !== "ready"}>
+      <App key={generation} api={api} session={session} onSignOut={() => void lifecycle.logout()} />
+    </div> : null;
+  let authScreen: ReactNode = null;
+  if (state.phase === "checking" || state.phase === "hidden") authScreen = <AuthStatus><LoadingState text="Проверяем вход…" /></AuthStatus>;
+  else if (state.phase === "checkFailed") authScreen = <AuthStatus><ErrorState title="Не удалось проверить вход" detail="Данные профиля скрыты. Проверьте подключение и попробуйте ещё раз." onRetry={() => void lifecycle.check()} /></AuthStatus>;
+  else if (state.phase === "signingOut") authScreen = <AuthStatus><LoadingState text="Выходим из аккаунта…" /></AuthStatus>;
+  else if (state.phase === "logoutFailed") authScreen = <AuthStatus><ErrorState title="Не удалось подтвердить выход" detail="Профиль скрыт. Повторите выход, когда подключение восстановится." onRetry={() => void lifecycle.logout()} /></AuthStatus>;
+  else if (!session || state.phase !== "ready") authScreen = <LoginForm notice={state.notice} onSignedIn={(value) => lifecycle.accept(value)} />;
+  return <>{protectedApp}{authScreen}</>;
+}
 
-  if (checking) return <main className="auth-shell"><LoadingState text="Checking your session…" /></main>;
-  if (initialError) return <main className="auth-shell"><ErrorState title={initialError} detail="Protected profiles remain hidden until the server confirms your session." onRetry={() => setRevision((value) => value + 1)} /></main>;
-  if (signingOut) return <main className="auth-shell">{signOutError
-    ? <ErrorState title={signOutError} detail="Keep this page open and retry when the connection returns." onRetry={() => void logout()} /> : <LoadingState text="Signing out…" />}</main>;
-  if (!session) return <LoginForm notice={notice} onSignedIn={(value) => { setNotice(""); setSession(value); }} />;
-  return <App key={`${session.user.id}:${session.expiresAt}`} api={api} session={session} onSignOut={() => void logout()} />;
+function AuthStatus({ children }: { children: ReactNode }) {
+  return <main className="auth-shell"><section className="auth-status-card"><p className="brand">Career Quest</p>{children}</section></main>;
 }
 
 export function LoginForm({ notice = "", onSignedIn }: { notice?: string; onSignedIn: (session: AuthSession) => void }) {
@@ -88,8 +73,11 @@ export function LoginForm({ notice = "", onSignedIn }: { notice?: string; onSign
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const usernameInput = useRef<HTMLInputElement>(null);
+  const errorMessage = useRef<HTMLParagraphElement>(null);
   const request = useRef<AbortController | null>(null);
-  useEffect(() => () => request.current?.abort(), []);
+  useEffect(() => { usernameInput.current?.focus(); return () => request.current?.abort(); }, []);
+  useEffect(() => { if (error) errorMessage.current?.focus(); }, [error]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (request.current) return;
@@ -101,24 +89,24 @@ export function LoginForm({ notice = "", onSignedIn }: { notice?: string; onSign
       const session = await auth.login(username.trim(), password, controller.signal);
       if (!controller.signal.aborted) { setPassword(""); onSignedIn(session); }
     } catch (reason) {
-      if (!controller.signal.aborted) setError(reason instanceof ApiError ? reason.message : "Could not sign in. Please check your connection.");
+      if (!controller.signal.aborted) setError(reason instanceof ApiError ? reason.message : "Не удалось войти. Проверьте подключение и попробуйте ещё раз.");
     } finally {
-      request.current = null;
+      if (request.current === controller) request.current = null;
       if (!controller.signal.aborted) { setPassword(""); setPending(false); }
     }
   }
   return <main className="auth-shell"><section className="auth-card" aria-labelledby="login-heading">
-    <p className="brand">Career Quest</p><h1 id="login-heading">Sign in</h1>
-    <p className="section-note">Use your individual account. Your profile and activity history are private to you and authorized HR staff.</p>
+    <p className="brand">Career Quest</p><h1 id="login-heading">Вход в аккаунт</h1>
+    <p className="section-note" id="login-privacy">Ваш профиль и история обучения доступны вам и HR с правами доступа.</p>
     {notice && <p role="status" className="inline-success">{notice}</p>}
-    <form onSubmit={(event) => void submit(event)} aria-busy={pending}>
-      <label htmlFor="login-username">Username</label>
-      <input id="login-username" name="username" autoComplete="username" required minLength={3} maxLength={80} pattern="[a-zA-Z0-9_.\-]+" value={username} onChange={(event) => setUsername(event.target.value)} disabled={pending} />
-      <label htmlFor="login-password">Password</label>
+    <form onSubmit={(event) => void submit(event)} aria-busy={pending} aria-describedby="login-privacy">
+      <label htmlFor="login-username">Логин</label>
+      <input ref={usernameInput} id="login-username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} required minLength={3} maxLength={80} pattern="[a-zA-Z0-9_.\-]+" value={username} onChange={(event) => setUsername(event.target.value)} disabled={pending} />
+      <label htmlFor="login-password">Пароль</label>
       <input id="login-password" name="password" type="password" autoComplete="current-password" required maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} disabled={pending} />
-      {error && <p role="alert" className="import-error">{error}</p>}
-      <button className="button button-green" disabled={pending}>{pending ? "Signing in…" : "Sign in"}</button>
+      {error && <p ref={errorMessage} role="alert" tabIndex={-1} className="import-error">{error}</p>}
+      <button className="button button-green" disabled={pending}>{pending ? "Входим…" : "Войти"}</button>
     </form>
-    <p className="section-note">Need access? Ask the application operator. Setup instructions are in the README; credentials are never shared on this page.</p>
+    <p className="section-note auth-caption">Чтобы получить доступ, обратитесь к HR.</p>
   </section></main>;
 }

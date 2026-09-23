@@ -1,5 +1,7 @@
 # Frontend presentation update
 
+> Historical presentation notes. The current authenticated Russian interface, Manrope styling and validation are documented in [FRONTEND_PRIVATE_UI.md](FRONTEND_PRIVATE_UI.md).
+
 ## Audit and direction
 
 The previous view used a slogan, uppercase section labels, repeated bordered cards, a readiness ring alongside a bar, decorative icons, tinted badges, and small body text. This spread a short employee profile across several panels and pushed skills and recommendations down the page.
