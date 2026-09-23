@@ -62,3 +62,16 @@ docker compose -p career-quest-independent-20260923 up --build -d --wait --wait-
 - The recommendations endpoint still returned three `fallback` explanations without a key. This is an independent Docker/fallback check, not an additional live OpenAI verification.
 
 The disposable review instance is available locally at http://127.0.0.1:5196 while Docker Desktop is running. It already contains the completion/import above; it is not a fresh demo seed. No team database or existing volume was deleted. A non-blocking `/favicon.ico` 404 was observed; no functional fix was needed for this check.
+
+## Follow-up after privacy PR #14
+
+While the backup recording was being prepared, main advanced to `1e0bab4`. The review branch incorporated it as `a99d2eb`; the application matches that main, with only documentation differences. The old recording was not represented as a current release demo. A new 1:47 browser recording and role-aware speaker notes are described in [FINAL_REHEARSAL.md](FINAL_REHEARSAL.md).
+
+- Rechecked `npm test`: 229 passed, 2 live cases skipped; typecheck and lint passed. A new isolated Docker production build passed, including TypeScript and healthcheck.
+- Project `career-quest-auth-recording-20260923`, port 5198, exact matching APP_ORIGIN, separate fresh volume, no key and AI_EXPLANATIONS_ENABLED=false. Schema version 2 and official seed counts matched.
+- Anonymous employee API returned 401. After actual employee UI login, another employee's profile and HR API returned 403; employee selector/import/HR navigation were absent.
+- Employee E0178 completed EV_005 through the UI: readiness 71.3 -> 74.1, System Design 1 -> 2, API Design remained 4, seven completed records. Authenticated reload retained the progress.
+- UI sign-out hid the private profile. Separate HR sign-in exposed selection/import/HR but no completion buttons. A direct HR completion request with valid CSRF and Origin returned 403 without a write.
+- HR UI JSON then CSV import added JURY_DEMO_001 and two records. HR tables rendered 60 / 27 / 40 rows. E0175 retained visible current skills and an explicit missing-goal state.
+- After forced container recreation, successful employee login, readiness 74.1, seven completed activities and exact 201 employee / 2746 history totals were retained. The recommendation endpoint returned fallback; logout made the private API return 401 again.
+- Generated passwords were read into process memory for the test, not printed or committed. No credentials were copied to the host or exposed in video. This is focused functional acceptance, not a comprehensive security audit or a new live model call.

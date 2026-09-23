@@ -12,16 +12,16 @@ Check `GET /api/health`: 200 employees, 40 events, 60 skills, 32 role profiles, 
 
 ## Three-minute demonstration
 
-1. Open E0178, Backend Engineer Middle -> Senior, readiness 71.3. Show assessed versus effective skills, completed history and recommendation evidence.
+1. Sign in as the individual employee account linked to E0178, Backend Engineer Middle -> Senior, readiness 71.3. Show assessed versus effective skills, completed history and recommendation evidence. Obtain bootstrap passwords privately before screen sharing; never show initial-access.json on the projector.
 2. Explain EV_005 with the actual target, critical System Design gap, current history signal and skill effect. Identify whether the text is LLM-generated or fallback; do not call deterministic output a live AI answer.
 3. Complete EV_005. System Design rises 1 -> 2, API Design stays 4 despite the course cap of 3, readiness rises 71.3 -> 74.1 (+2.8 percentage points). The next recommendations change. Health history is now 2744.
-4. Reload and select E0178 again; persisted progress must remain. Restart the server/container and repeat.
-5. Import the three profiles below, then their CSV. Open JURY_CRITICAL and explain why a critical engineering gap wins over the lowest speaking skill. Show HR's complete lists.
+4. Reload; the employee's own profile and persisted progress must remain. Restart the server/container and repeat.
+5. Sign out, then sign in as HR. Import the three profiles below, then their CSV. Open JURY_CRITICAL and explain why a critical engineering gap wins over the lowest speaking skill. Show HR's complete lists. HR cannot complete activities for another employee; an imported profile needs its own provisioned account for self-completion.
 
 Keep a short recording of the actual successful run as a presentation backup, clearly identified as a recording.
 Do not promise measured engagement improvement, promotion, or production access control. These are not established by the prototype.
 
-The independently recorded two-minute fallback run, Russian speaker notes and remaining team handoff are documented in [FINAL_REHEARSAL.md](FINAL_REHEARSAL.md). It does not replace the Backend laptop's live-AI rehearsal.
+The independently recorded 1:47 fallback run with employee/HR sign-in after PR #14, Russian speaker notes and remaining team handoff are documented in [FINAL_REHEARSAL.md](FINAL_REHEARSAL.md). It does not replace the Backend laptop's live-AI rehearsal.
 
 ## Importable check profiles
 
