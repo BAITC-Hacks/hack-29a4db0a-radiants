@@ -1,0 +1,7 @@
+record_id,employee_id,event_id,date,due_date,status,completion_pct,score,feedback_rating,assigned_by
+JURY_R001,JURY_CRITICAL,EV_036,2026-07-10,,no_show,0,,,self
+JURY_R002,JURY_CRITICAL,EV_036,2026-08-10,,no_show,0,,,self
+JURY_R003,JURY_CRITICAL,EV_036,2026-09-10,,no_show,0,,,self
+JURY_R004,JURY_HISTORY,EV_009,2026-07-10,,completed,100,80,4,self
+JURY_R005,JURY_HISTORY,EV_005,2026-09-10,,completed,100,85,5,self
+JURY_R006,JURY_HISTORY,EV_037,2026-09-15,,completed,100,,4,self
