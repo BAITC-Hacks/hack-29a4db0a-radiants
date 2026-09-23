@@ -10,7 +10,12 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "eslint src/components src/lib/frontend src/main.tsx tests/frontend-import.test.ts --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "dev:demo": "vite --host 0.0.0.0",
+    "build:demo": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
@@ -18,7 +23,8 @@
     "next": "^16.3.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "lucide-react": "^1.47.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
@@ -26,6 +32,14 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.1"
-  }
+    "vitest": "^5.0.1",
+    "@eslint/js": "^10.0.1",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "typescript-eslint": "^8.70.1",
+    "vite": "^8.3.0"
+  },
+  "type": "module"
 }

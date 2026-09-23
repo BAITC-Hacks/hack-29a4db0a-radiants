@@ -36,7 +36,7 @@ Build a web application with a contextual AI layer for employee development. The
 
 - Start from `employees.skills`; an absent skill has level 0.
 - Apply every `completed` history record dated after `last_review_date` using the corresponding event’s `develops_skills`.
-- For every gain: `new_level = min(current_level + gain, max_level)`.
+- Team implementation policy for every gain: `new_level = max(current_level, min(current_level + gain, max_level))`. The activity cap limits growth and never lowers an attained level.
 - Use the fixed snapshot date `2026-10-01` for availability logic.
 
 ### Target And Gap Logic
@@ -46,6 +46,7 @@ Build a web application with a contextual AI layer for employee development. The
 - Compare `effective_skills` against every required skill.
 - Mark `critical_skills` as special promotion blockers and weight them above non-critical gaps.
 - Never represent readiness as a guaranteed promotion decision.
+- Readiness is the weighted mean of `min(current / required, 1)` across target requirements, with critical weight 2 and other weight 1, multiplied by 100 and rounded to one decimal. Zero-level requirements are fulfilled; an empty requirements list yields 100. No target yields readiness 0.
 
 ### Candidate Eligibility
 
@@ -82,13 +83,13 @@ Use deterministic code for business rules. An LLM may order pre-filtered candida
 | AC-04 | Critical target gap versus unrelated lowest score | Critical target gap can win. |
 | AC-05 | Repeated misses for similar events | Ranking considers the negative history. |
 | AC-06 | Completed activity after review | Effective skill reconstruction includes it. |
-| AC-07 | Gain over cap | Skill stops at `max_level`. |
+| AC-07 | Gain over cap | Growth stops at `max_level`; an already higher level is preserved in preview and completion. |
 | AC-08 | Mandatory event | It is absent from career recommendations. |
 | AC-09 | Completed event | It is absent unless it is `EV_036`. |
 | AC-10 | Unmet prerequisite | Activity is absent from candidates. |
 | AC-11 | Self-paced empty sessions | Activity can be eligible. |
 | AC-12 | Scheduled activity with no future session | Activity is unavailable. |
-| AC-13 | Completion action | Skills, trajectory, and recommendations refresh. |
+| AC-13 | Completion action | Skills, trajectory, and recommendations refresh; partial target-gap reduction increases readiness, and no skill or readiness decreases. |
 | AC-14 | Hidden import data | Valid extra profiles/history work without code changes. |
 | AC-15 | LLM returns unknown/ineligible event | Backend rejects it and uses a safe fallback. |
 | AC-16 | Reviewer starts project | One documented command works. |
