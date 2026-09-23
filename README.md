@@ -35,6 +35,8 @@ For local backend integration, copy `.env.example` to `.env.local` and set `CARE
 
 Completing an activity sends its IDs to the API and displays the returned employee view (or refetches after a success-only response). The success panel compares backend-computed readiness and effective skills before/after. It does not predict actual completion results from event gains. Uncertain mutation failures require profile reload before retrying.
 
+Readiness and its delta use at most one decimal everywhere, including accessible progress labels. Zero delta reports the unchanged readiness; negative values are displayed as returned. Skill **Current progress** comes from the engine's effective `currentLevel`, not assessed baseline. See the [progress display contract](docs/FRONTEND_API.md#progress-display-contract).
+
 ## Demo flow with a connected backend
 
 1. Select an employee and inspect returned readiness, target requirements and expected skill changes.

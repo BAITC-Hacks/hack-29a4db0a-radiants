@@ -4,6 +4,7 @@ import type { EmployeeView, Recommendation, SkillGap } from "../types/career";
 import type { CompletionError } from "../lib/frontend/api";
 import { NoNextStepState } from "./NoNextStepState";
 import { EmptyState, formatNumber, initials } from "./States";
+import { formatReadiness, formatReadinessDelta, readinessBarValue, readinessDelta } from "../lib/frontend/readiness";
 
 export interface CompletionSnapshot { before: EmployeeView; after: EmployeeView }
 interface Props {
@@ -15,7 +16,7 @@ export function EmployeeScreen({ view, completing, completionDisabled, completio
   return <>
     {completion && <CompletionFeedback snapshot={completion} onDismiss={onDismissCompletion} />}
     {failure && <section className="panel error-state" role="alert">
-      <h2>{failure.phase === "refresh" ? "Activity completed. Profile refresh needed." : "Could not confirm this activity."}</h2>
+      <h2>{failure.phase === "refresh" ? "Activity completed. Profile refresh needed." : failure.phase === "rejected" ? "Could not complete this activity." : "Could not confirm this activity."}</h2>
       <p>{failure.message}</p>
       <p>{failure.phase === "rejected" ? "Your progress has not been changed." : "Reload your profile before attempting this activity again."}</p>
       {failure.phase !== "rejected" && <button className="button button-outline" disabled={completing} onClick={onRefresh}>{completing ? "Refreshing…" : "Reload profile"}</button>}
@@ -34,10 +35,10 @@ export function EmployeeScreen({ view, completing, completionDisabled, completio
       <article className="panel readiness-panel">
         <div className="panel-top"><span className="eyebrow">READINESS SNAPSHOT</span><Gauge size={17} className="muted-icon" /></div>
         <div className="readiness-content">
-          <div className="ring" style={{ "--progress": `${view.readiness}%` } as CSSProperties}><div><strong>{formatNumber(view.readiness)}%</strong><span>ready</span></div></div>
+          <div className="ring" style={{ "--progress": `${readinessBarValue(view.readiness)}%` } as CSSProperties}><div><strong>{formatReadiness(view.readiness)}</strong><span>ready</span></div></div>
           <div className="readiness-copy"><h3>{view.target ? `Readiness for ${view.target.grade}` : "Career goal needed"}</h3>
             <p>{view.target?.role ?? "Set a career goal to see development requirements."}</p>
-            <progress className="readiness-progress" aria-label="Readiness" value={view.readiness} max={100}>{view.readiness}%</progress>
+            <progress className="readiness-progress" aria-label="Readiness" aria-valuetext={formatReadiness(view.readiness)} value={readinessBarValue(view.readiness)} max={100}>{formatReadiness(view.readiness)}</progress>
             <small>Development indicator · not a promotion decision</small>
           </div>
         </div>
@@ -74,7 +75,7 @@ function SkillRow({ gap }: { gap: SkillGap }) {
     <div className="skill-title"><span>{gap.name}{gap.critical && <span className="tiny-critical">Critical</span>}</span>
       <span className={`gap-badge ${gap.gap ? "gap-open" : "gap-met"}`}>Gap: {gap.gap}</span></div>
     <div className="skill-track" aria-hidden="true"><span className="track-current" style={{ width: `${gap.currentLevel / 5 * 100}%` }} /><span className="track-effective" style={{ left: `${gap.projectedLevel / 5 * 100}%` }} /><span className="track-target" style={{ left: `${gap.requiredLevel / 5 * 100}%` }} /></div>
-    <div className="skill-values"><span>Current <b>{gap.currentLevel}</b> · Effective / projected <b>{gap.projectedLevel}</b></span><span>Required <b>{gap.requiredLevel}</b></span></div>
+    <div className="skill-values"><span>Current progress <b>{gap.currentLevel}</b> · Projected <b>{gap.projectedLevel}</b></span><span>Required <b>{gap.requiredLevel}</b></span></div>
   </div>;
 }
 function RecommendationCard({ recommendation: rec, rank, view, busy, disabled, onComplete }: {
@@ -101,15 +102,15 @@ function RecommendationCard({ recommendation: rec, rank, view, busy, disabled, o
   </article>;
 }
 export function CompletionFeedback({ snapshot: { before, after }, onDismiss }: { snapshot: CompletionSnapshot; onDismiss: () => void }) {
-  const delta = after.readiness - before.readiness;
+  const delta = readinessDelta(before.readiness, after.readiness);
   const ids = [...new Set([...Object.keys(before.effectiveSkills), ...Object.keys(after.effectiveSkills)])];
   const changes = ids.filter((id) => before.effectiveSkills[id] !== after.effectiveSkills[id]);
   return <section className="completion-feedback" role="status" aria-label="Progress updated">
     <div className="completion-heading"><div><h2>{delta === 0 ? "Activity completed." : "Progress updated"}</h2>
-      <p>{delta === 0 ? "Your profile has been updated." : `Readiness ${delta > 0 ? "increased" : "changed"} from ${formatNumber(before.readiness)}% to ${formatNumber(after.readiness)}%.`}</p></div>
+      <p>{delta === 0 ? `Your development profile has been updated. Readiness remains at ${formatReadiness(after.readiness)}.` : `Readiness ${delta > 0 ? "increased" : "changed"} from ${formatReadiness(before.readiness)} to ${formatReadiness(after.readiness)}.`}</p></div>
       <button className="icon-button" aria-label="Dismiss progress update" onClick={onDismiss}><X size={16} /></button>
     </div>
-    {delta !== 0 && <div className="completion-readiness">Readiness <strong>{formatNumber(before.readiness)}% → {formatNumber(after.readiness)}%</strong><span>{delta > 0 ? "+" : ""}{formatNumber(delta)} percentage points</span></div>}
+    {delta !== 0 && <div className="completion-readiness">Readiness <strong>{formatReadiness(before.readiness)} → {formatReadiness(after.readiness)}</strong><span>{formatReadinessDelta(delta)}</span></div>}
     {changes.length > 0 && <ul className="completion-skills">{changes.map((id) => <li key={id}><span>{skillName(after, id, before)}</span><strong>{before.effectiveSkills[id] ?? "Not reported"} → {after.effectiveSkills[id] ?? "Not reported"}</strong></li>)}</ul>}
   </section>;
 }

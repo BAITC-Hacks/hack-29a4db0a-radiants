@@ -4,6 +4,19 @@
 
 The React/Vite frontend now uses HTTP exclusively. No domain engine, dataset, file parser, or local-storage persistence is bundled into the application. Shared `Employee`, `EmployeeView`, and `HrSummary` are imported as types. Domain code and PR #1 tests are unchanged.
 
+## Progress display contract
+
+The follow-up audit rechecked the requirements, `docs/PROGRESS_VALIDATION.md`, PR #1's `cd2bc40` update, and current remote branches. The shared view shape and progression formulas remain unchanged.
+
+- `employee.skills` is assessed baseline. Completion must append history server-side and return/refetch a recomputed view; the frontend replaces the view without increasing baseline skills.
+- In the actual `calculateSkillGaps` implementation, **`currentLevel` already comes from `effectiveSkills`**; `projectedLevel` is currently initialized to the same value. The task's conditional example of currentLevel being assessed does not apply to this revision. UI labels are **Current progress**, **Projected**, **Required**, rendering each supplied field independently.
+- Recommendation `expectedChanges` are previews. Completion feedback compares actual old/new `effectiveSkills`, even if the result differs from the preview.
+- `src/lib/frontend/readiness.ts` owns readiness labels, delta precision and visual bounds. Numeric labels and accessible progress text use at most one decimal. Delta is normalized to one decimal before choosing positive/negative/zero feedback; zero reports the unchanged readiness without a +0 achievement. Differences are labeled **percentage points** to distinguish an absolute change in readiness from relative percentage growth.
+- Only progress geometry is clamped to 0–100; the returned value and state are unchanged. HTTP response validation continues to reject invalid out-of-range readiness.
+- Rejected completion retains the old profile. Uncertain network/server outcomes still require reloading rather than claiming that no server write occurred.
+
+Follow-up checks: TypeScript, lint, all **52 tests** (including unchanged PR #1 tests) and production build pass. New regressions cover 64/64.2 formatting, 64.2 → 71.5 (+7.3), negative and zero deltas, floating point noise, accessible labels, frozen assessed skills and rejected/pending completion. In the built UI with the temporary fixture server, a rejected request retained 87.5%; a delayed successful request disabled the CTA and retained 87.5% until the response, then showed 100%, +12.5 percentage points, actual skill 3 → 4, and NoNextStepState. No console errors or warnings were captured.
+
 **These routes are a proposed integration contract, not an existing server.** At implementation time `main` was `1bf2026`; the published starter adapter branch supplied pure data conversion but no HTTP routes. Backend should implement the routes below or update only `src/lib/frontend/api.ts` to match its routes/envelopes.
 
 ## HTTP contract
