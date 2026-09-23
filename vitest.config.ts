@@ -9,8 +9,12 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    // SQLite fixtures and password derivation are memory intensive on demo laptops.
-    maxWorkers: 2,
+    // SQLite fixtures and password derivation compete for CPU on demo laptops.
+    // Run files serially; allow fixture creation/cleanup on slow Docker Desktop
+    // disks. API/AI deadline assertions and explicit live-test limits stay intact.
+    maxWorkers: 1,
+    testTimeout: 20_000,
+    hookTimeout: 30_000,
     include: ["tests/**/*.test.ts"],
     sequence: { concurrent: false },
   },

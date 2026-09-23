@@ -44,6 +44,8 @@ it.runIf(enabled).each(["E0178", "E0058"])("gets a real explanation from the SQL
     expect(performance.now() - start).toBeLessThan(10_000);
     result.recommendations.forEach((rec, index) => {
       expect(rec.aiExplanation?.trim().length).toBeGreaterThan(0);
+      expect((rec.aiExplanation?.match(/[а-яё]{2,}/giu) ?? []).length).toBeGreaterThanOrEqual(6);
+      expect(rec.aiExplanation).not.toMatch(/supports the|advances the|participation signal|evidence is insufficient/i);
       expect(rec).toEqual({ ...baseline.recommendations[index],
         explanationSource: "llm", aiExplanation: rec.aiExplanation,
       });

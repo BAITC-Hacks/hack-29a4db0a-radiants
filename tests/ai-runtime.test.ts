@@ -30,7 +30,7 @@ afterEach(() => {
 
 const grounded: RecommendationExplainer = {
   explain: async ({ recommendations }) => recommendations.map((rec) => ({
-    eventId: rec.eventId, explanation: "Model explanation for " + rec.eventId,
+    eventId: rec.eventId, explanation: "Занятие поможет развить навык для вашей цели: " + rec.eventId,
     evidenceRefs: ["target", "history", rec.allowedEvidenceRefs.find((ref) => ref.startsWith("skill:"))!],
   })),
 };
@@ -41,7 +41,7 @@ describe("AI on the persisted official dataset", () => {
     const after = await getRecommendations("E0178", getDatabase(), grounded);
     expect(after.completedActivities.length).toBeGreaterThan(0);
     expect(after).toEqual({ ...before, recommendations: before.recommendations.map((rec) => ({
-      ...rec, aiExplanation: "Model explanation for " + rec.eventId, explanationSource: "llm",
+      ...rec, aiExplanation: "Занятие поможет развить навык для вашей цели: " + rec.eventId, explanationSource: "llm",
     })) });
     expect(databaseCounts().activityHistory).toBe(2743);
   });

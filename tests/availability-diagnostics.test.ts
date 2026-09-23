@@ -76,7 +76,7 @@ describe("recommendation availability diagnostics", () => {
       expect.objectContaining({ code: "completed" }),
     ]));
     expect(blocked.find((item) => item.title === "Architecture Review Circle")?.reasons).toEqual(expect.arrayContaining([
-      expect.objectContaining({ code: "prerequisites", message: expect.stringContaining("System Design: current 0, required 2") }),
+      expect.objectContaining({ code: "prerequisites", message: expect.stringContaining("System Design: сейчас 0, нужен уровень 2") }),
     ]));
     expect(blocked.every((item) => item.eventId !== "EV_036")).toBe(true);
   });
@@ -91,10 +91,15 @@ describe("recommendation availability diagnostics", () => {
     expect(diagnostics.status).toBe("available");
     expect(diagnostics.eligibleEventCount).toBe(1);
     expect(diagnostics.exclusionCounts).toEqual({ mandatory: 1, audience: 1, prerequisites: 1, unavailable: 1, completed: 1, in_progress: 1, no_gap_reduction: 1 });
-    expect(diagnostics.blockedEvents.find((item) => item.eventId === "PREREQUISITE")?.reasons[0].message).toContain("System Design: current 1, required 2");
+    expect(diagnostics.blockedEvents.find((item) => item.eventId === "PREREQUISITE")?.reasons[0].message).toContain("System Design: сейчас 1, нужен уровень 2");
     expect(diagnostics.blockedEvents.map((item) => item.eventId)).not.toContain("MANDATORY");
+    expect(diagnostics.summary).toContain("Подходящих добровольных занятий");
+    expect(diagnostics.blockedEvents.flatMap((item) => item.reasons).every((reason) => /[А-Яа-яЁё]/u.test(reason.message))).toBe(true);
     expect(JSON.stringify(raw)).toBe(before);
     expect(diagnostics.readinessExplanation).toMatchObject({ criticalWeight: 2, standardWeight: 1, precision: 1 });
+    expect(diagnostics.readinessExplanation.formula).toContain("Мы сравниваем ваши навыки");
+    expect(diagnostics.readinessExplanation.formula).toContain("вдвое сильнее");
+    expect(diagnostics.readinessExplanation.formula).not.toMatch(/Readiness|sum\(|weight/);
   });
 
   it("diagnostic eligibility agrees with the real recommendation pool for all starter employees", () => {
@@ -129,7 +134,7 @@ describe("recommendation availability diagnostics", () => {
     expect(diagnostics.status).toBe("target_reached");
     expect(diagnostics.remainingGapCount).toBe(0);
     expect(diagnostics.eligibleEventCount).toBe(0);
-    expect(diagnostics.summary).toContain("not a promotion decision");
+    expect(diagnostics.summary).toContain("не решение о повышении");
     expect(getEmployeeView(dataset, "DIAGNOSTIC_EMPLOYEE").readiness).toBe(100);
   });
 

@@ -116,7 +116,7 @@ export function getRecommendationDiagnostics(dataset: NormalizedDataset, employe
   const view = getEmployeeView(dataset, employeeId);
   const diagnostics: RecommendationDiagnostics = {
     status: "needs_career_goal",
-    summary: "A career goal is needed before the next development step can be selected.",
+    summary: "Выберите карьерную цель, чтобы подобрать следующие занятия.",
     snapshotDate: SNAPSHOT_DATE,
     catalogEventCount: dataset.events.length,
     evaluatedEventCount: 0,
@@ -125,7 +125,7 @@ export function getRecommendationDiagnostics(dataset: NormalizedDataset, employe
     exclusionCounts: { mandatory: 0, audience: 0, prerequisites: 0, unavailable: 0, completed: 0, in_progress: 0, no_gap_reduction: 0 },
     blockedEvents: [],
     readinessExplanation: {
-      formula: "Readiness = 100 × sum(weight × min(current level / required level, 1)) / sum(weight), rounded to one decimal. Critical skills have weight 2; other skills have weight 1. A zero requirement counts as fulfilled; no requirements means 100%. Without a career target, readiness is 0%.",
+      formula: "Мы сравниваем ваши навыки с требованиями выбранной цели. Например, уровень 2 при требуемом 4 — это 50% по этому навыку. Навык на нужном уровне или выше считается выполненным. В общем проценте критические навыки учитываются вдвое сильнее остальных. Это ориентир для развития, а не решение о повышении.",
       criticalWeight: 2,
       standardWeight: 1,
       precision: 1,
@@ -140,7 +140,7 @@ export function getRecommendationDiagnostics(dataset: NormalizedDataset, employe
     const reasons = eligibilityExclusions(event, view.employee, view.target, view.effectiveSkills, history, getNextSession(event), dataset.skillById);
     const { totalGapLevelsClosed } = simulateEvent(event, profile, view.effectiveSkills);
     if (totalGapLevelsClosed === 0) {
-      reasons.push({ code: "no_gap_reduction", message: "This activity would not reduce any remaining target skill gap at the current skill levels and teaching caps." });
+      reasons.push({ code: "no_gap_reduction", message: "При ваших текущих уровнях навыков это занятие не сократит разницу с требованиями цели: его программа не даёт нужного прироста." });
     }
     if (reasons.length === 0) {
       diagnostics.eligibleEventCount++;
@@ -155,13 +155,13 @@ export function getRecommendationDiagnostics(dataset: NormalizedDataset, employe
   diagnostics.blockedEvents = diagnostics.blockedEvents.slice(0, 10);
   if (diagnostics.remainingGapCount === 0) {
     diagnostics.status = "target_reached";
-    diagnostics.summary = "All skill requirements for the current career target are met. Readiness is a development indicator, not a promotion decision.";
+    diagnostics.summary = "Все требования к навыкам для выбранной цели выполнены. Это ориентир для развития, а не решение о повышении.";
   } else if (diagnostics.eligibleEventCount > 0) {
     diagnostics.status = "available";
-    diagnostics.summary = `${diagnostics.eligibleEventCount} eligible voluntary activity or activities can reduce current target skill gaps; up to three are shown.`;
+    diagnostics.summary = `Подходящих добровольных занятий: ${diagnostics.eligibleEventCount}. Они помогают развить недостающие для цели навыки. Показаны до трёх вариантов.`;
   } else {
     diagnostics.status = "no_eligible_events";
-    diagnostics.summary = `${diagnostics.remainingGapCount} target skill gaps remain, but the current catalog has no eligible voluntary activity that reduces them. Completed non-repeatable activities, prerequisites, audience and availability rules still apply.`;
+    diagnostics.summary = `Навыков ниже требований цели: ${diagnostics.remainingGapCount}. Сейчас в каталоге нет подходящего добровольного занятия, которое поможет их развить. Мы учитываем уже пройденное обучение, входные требования, роль, уровень должности и доступные даты.`;
   }
   return diagnostics;
 }
@@ -276,12 +276,17 @@ function toCandidate(
   const historySignal = calculateHistorySignal(event, history, dataset.eventById);
   const score = criticalGapLevelsClosed * 40 + (totalGapLevelsClosed - criticalGapLevelsClosed) * 10 + historySignal.adjustment;
   const reasons = buildReasons(expectedChanges, profile, dataset, historySignal.text);
-  const availability = nextSession ? `Next session: ${nextSession}.` : "Available self-paced.";
+  const availability = nextSession ? `Ближайшее занятие: ${nextSession}.` : "Можно пройти в своём темпе.";
   const targetLabel = `${target.role} ${target.grade}`;
   const changesText = expectedChanges
     .filter((change) => change.before !== change.after)
-    .map((change) => `${dataset.skillById.get(change.skillId)?.name ?? change.skillId} ${change.before}->${change.after}`)
-    .join(", ");
+    .map((change) => {
+      const requirement = change.required > 0
+        ? `для цели нужен уровень ${change.required}${change.critical ? ", ключевой навык" : ""}`
+        : "для этой цели уровень не задан";
+      return `${dataset.skillById.get(change.skillId)?.name ?? change.skillId}: ${change.before} → ${change.after} (${requirement})`;
+    })
+    .join("; ");
 
   return {
     eventId: event.event_id,
@@ -291,7 +296,7 @@ function toCandidate(
     expectedChanges,
     historySignal: historySignal.text,
     ...(nextSession ? { nextSession } : {}),
-    deterministicExplanation: `${event.title} advances the ${targetLabel} trajectory by changing ${changesText}. ${historySignal.text} ${availability}`,
+    deterministicExplanation: `${event.title} поможет подготовиться к роли ${targetLabel}. Ожидаемые изменения: ${changesText}. ${historySignal.text} ${availability}`,
     explanationSource: "fallback",
     criticalGapLevelsClosed,
     totalGapLevelsClosed,
@@ -319,21 +324,21 @@ function eligibilityExclusions(
   skillById?: Map<string, Skill>,
 ): RecommendationExclusion[] {
   const reasons: RecommendationExclusion[] = [];
-  if (event.mandatory) reasons.push({ code: "mandatory", message: "Mandatory obligations are shown separately and are never career recommendations." });
-  if (!matchesAudience(event, employee, target)) reasons.push({ code: "audience", message: "The activity does not match the employee's current or target role and grade." });
+  if (event.mandatory) reasons.push({ code: "mandatory", message: "Обязательное обучение показано отдельно и не входит в рекомендации по развитию." });
+  if (!matchesAudience(event, employee, target)) reasons.push({ code: "audience", message: "Занятие не предназначено для вашей текущей или выбранной роли и уровня должности." });
   const missingPrerequisites = getUnmetPrerequisites(event, skills);
   if (missingPrerequisites.length > 0) {
     const missing = missingPrerequisites
-      .map(({ skillId, current, required }) => `${skillById?.get(skillId)?.name ?? skillId}: current ${current}, required ${required}`);
-    reasons.push({ code: "prerequisites", message: `Prerequisites are not met: ${missing.join("; ")}.` });
+      .map(({ skillId, current, required }) => `${skillById?.get(skillId)?.name ?? skillId}: сейчас ${current}, нужен уровень ${required}`);
+    reasons.push({ code: "prerequisites", message: `Для участия сначала нужно развить навыки: ${missing.join("; ")}.` });
   }
-  if (event.format !== "self_paced" && !nextSession) reasons.push({ code: "unavailable", message: `No scheduled session is available on or after ${SNAPSHOT_DATE}.` });
+  if (event.format !== "self_paced" && !nextSession) reasons.push({ code: "unavailable", message: `В расписании нет доступных занятий на ${SNAPSHOT_DATE} или более позднюю дату.` });
   const recordsForEvent = history.filter((record) => record.event_id === event.event_id);
   if (event.event_id !== "EV_036" && recordsForEvent.some((record) => record.status === "completed")) {
-    reasons.push({ code: "completed", message: "This activity is already completed and cannot be repeated. Only EV_036 allows repeated completion." });
+    reasons.push({ code: "completed", message: "Вы уже завершили это занятие. Повторное прохождение разрешено только для EV_036." });
   }
   if (recordsForEvent.some((record) => record.status === "in_progress")) {
-    reasons.push({ code: "in_progress", message: "This activity is already in progress and is not offered as a new step." });
+    reasons.push({ code: "in_progress", message: "Вы уже проходите это занятие, поэтому оно не предлагается как новый шаг." });
   }
   return reasons;
 }
@@ -411,23 +416,23 @@ function calculateHistorySignal(
   const adjustment = -penalty + feedbackAdjustment;
   const parts: string[] = [];
   if (topicNegativeCount) {
-    parts.push(`${topicNegativeCount} recent participation signal(s) on related skills and this format reduce suitability.`);
+    parts.push(`За последний год в похожих занятиях того же формата были пропуски, отказы или незавершённое участие: ${topicNegativeCount}. Поэтому приоритет этого варианта снижен.`);
   }
   if (formatNegativeCount) {
-    parts.push(`${formatNegativeCount} format-only negative record(s) on unrelated topics have limited weight.`);
+    parts.push(`В занятиях того же формата на другие темы были пропуски, отказы или незавершённое участие: ${formatNegativeCount}. Их влияние на подбор небольшое, поскольку темы разные.`);
   }
   if (assignedDeclines) {
-    parts.push(`${assignedDeclines} externally assigned decline(s) receive reduced weight; this is not a motivation assessment.`);
+    parts.push(`Отказов от занятий, назначенных руководителем или HR: ${assignedDeclines}. Их влияние на подбор снижено; это не оценка вашей мотивации.`);
   }
   if (feedbackAdjustment > 0) {
-    parts.push("Positive feedback on related skills in this format supports this activity.");
+    parts.push("Высокие оценки похожих занятий того же формата повышают приоритет этого варианта.");
   } else if (feedbackAdjustment < 0) {
-    parts.push("Low feedback on related skills in this format reduces suitability.");
+    parts.push("Низкие оценки похожих занятий того же формата снижают приоритет этого варианта.");
   }
   if (parts.length === 0) {
     parts.push(comparableCount
-      ? `${comparableCount} recent comparable participation record(s), with no negative signal or strong feedback adjustment.`
-      : "No recent comparable participation records; evidence is insufficient to infer a preference.");
+      ? `За последний год есть записи об участии в похожих занятиях: ${comparableCount}. Они не дают оснований заметно повысить или снизить приоритет этого варианта.`
+      : "За последний год нет записей об участии в похожих занятиях. Данных недостаточно, чтобы судить о ваших предпочтениях.");
   }
   return { adjustment, text: parts.join(" ") };
 }
@@ -447,11 +452,11 @@ function buildReasons(
     .filter((change) => change.required > change.before)
     .map((change) => {
       const name = dataset.skillById.get(change.skillId)?.name ?? change.skillId;
-      const label = change.critical ? "critical" : "target";
-      return `${name}: ${change.before}->${change.after} toward required ${change.required} (${label} skill).`;
+      const label = change.critical ? "ключевой навык" : "навык для цели";
+      return `${name}: ${change.before} → ${change.after}; для цели нужен уровень ${change.required} (${label}).`;
     });
   return [
-    `Supports requirements for ${profile.role} ${profile.grade}.`,
+    `Помогает развить навыки для роли ${profile.role} ${profile.grade}.`,
     ...impactReasons,
     historySignal,
   ];
