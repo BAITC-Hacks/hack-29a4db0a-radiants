@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { applyAiExplanations, validateAiExplanations } from "../src/lib/ai/explanations";
 import { createOpenAIExplainer } from "../src/lib/ai/openai-explainer";
 import type { EmployeeView, Recommendation } from "../src/types/career";
@@ -39,6 +39,7 @@ const view: EmployeeView = {
 };
 
 describe("AI recommendation explanations", () => {
+  afterEach(() => vi.useRealTimers());
   it("rejects unknown events and explanations with fewer than three valid evidence refs", () => {
     const allowed = new Map([["EV_001", ["target", "history", "availability", "skill:SK_SYSTEM_DESIGN"]]]);
     const accepted = validateAiExplanations(
@@ -88,6 +89,7 @@ describe("AI recommendation explanations", () => {
         requestBody = String(init?.body);
         return new Response(
           JSON.stringify({
+            status: "completed",
             output_text: JSON.stringify({
               recommendations: [
                 {
@@ -111,4 +113,113 @@ describe("AI recommendation explanations", () => {
     expect(requestBody).toContain('"type":"json_schema"');
     expect(requestBody).toContain('"strict":true');
   });
+
+  it.each([undefined, "", "   "])("does not send a request when the API key is empty", async (apiKey) => {
+    const fetchImpl = vi.fn<typeof fetch>();
+    const result = await applyAiExplanations(view, createOpenAIExplainer({ apiKey, fetchImpl }));
+    expect(result).toEqual(view);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each(["incomplete", "failed", "cancelled", "in_progress"])("falls back for response status %s even if text looks valid", async (status) => {
+    const result = await withPayload({ status, output_text: validText() });
+    expect(result).toEqual(view);
+  });
+
+  it("reads a REST message after a reasoning item and preserves deterministic fields", async () => {
+    const result = await withPayload({ status: "completed", output: [
+      { type: "reasoning", summary: [] },
+      { type: "message", content: [{ type: "output_text", text: validText() }] },
+    ] });
+    expect(result).toEqual({ ...view, recommendations: [{
+      ...recommendation, aiExplanation: "Grounded explanation", explanationSource: "llm",
+    }] });
+    expect(view.recommendations[0]?.explanationSource).toBe("fallback");
+  });
+
+  it.each([
+    null,
+    { output_text: validText() },
+    { status: "completed", output: [] },
+    { status: "completed", output_text: "{broken" },
+    { status: "completed", output_text: JSON.stringify({ ...JSON.parse(validText()), extra: true }) },
+    { status: "completed", output_text: JSON.stringify({ recommendations: [{ ...JSON.parse(validText()).recommendations[0], score: 999 }] }) },
+    { status: "completed", output_text: JSON.stringify({ recommendations: [null] }) },
+    { status: "completed", output: [{ type: "message", content: [{ type: "refusal", refusal: "Refused" }] }], output_text: validText() },
+  ])("uses fallback for malformed output or refusal (%#)", async (payload) => {
+    expect(await withPayload(payload)).toEqual(view);
+  });
+
+  it.each([401, 429, 500])("uses fallback for HTTP %s without retrying", async (status) => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response("Request failed", { status }));
+    expect(await applyAiExplanations(view, createOpenAIExplainer({ apiKey: "test", fetchImpl }))).toEqual(view);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["headers", "body"])("enforces the deadline when %s never resolves, even if the transport ignores abort", async (stage) => {
+    vi.useFakeTimers();
+    let signal: AbortSignal | null | undefined;
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      signal = init?.signal;
+      if (stage === "headers") return new Promise<Response>(() => {});
+      const response = new Response();
+      vi.spyOn(response, "json").mockImplementation(() => new Promise(() => {}));
+      return response;
+    };
+    let settled = false;
+    const pending = applyAiExplanations(view, createOpenAIExplainer({ apiKey: "test", timeoutMs: 25, fetchImpl }))
+      .then((value) => { settled = true; return value; });
+    await vi.advanceTimersByTimeAsync(25);
+    expect(signal?.aborted).toBe(true);
+    expect(settled).toBe(true);
+    expect(await pending).toEqual(view);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("does not call AI when there are no recommendations", async () => {
+    const explain = vi.fn();
+    const empty = { ...view, recommendations: [] };
+    expect(await applyAiExplanations(empty, { explain })).toBe(empty);
+    expect(explain).not.toHaveBeenCalled();
+  });
+
+  it("clears the deadline after success and leaves fallback intact when a timed-out request finishes late", async () => {
+    vi.useFakeTimers();
+    await withPayload({ status: "completed", output_text: validText() });
+    expect(vi.getTimerCount()).toBe(0);
+    let finish!: (response: Response) => void;
+    const pending = applyAiExplanations(view, createOpenAIExplainer({
+      apiKey: "test", timeoutMs: 25,
+      fetchImpl: () => new Promise<Response>((resolve) => { finish = resolve; }),
+    }));
+    await vi.advanceTimersByTimeAsync(25);
+    const fallback = await pending;
+    finish(new Response(JSON.stringify({ status: "completed", output_text: validText() })));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fallback).toEqual(view);
+    expect(fallback.recommendations[0]?.explanationSource).toBe("fallback");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("ignores event substitution, unknown evidence, repeated refs, and empty text", async () => {
+    for (const item of [
+      { eventId: "OTHER", explanation: "Invented", evidenceRefs: ["target", "history", "availability"] },
+      { eventId: "EV_001", explanation: "Invented", evidenceRefs: ["target", "history", "skill:UNKNOWN"] },
+      { eventId: "EV_001", explanation: "Repeated", evidenceRefs: ["target", "target", "history"] },
+      { eventId: "EV_001", explanation: " ", evidenceRefs: ["target", "history", "availability"] },
+    ]) {
+      expect(await withPayload({ status: "completed", output_text: JSON.stringify({ recommendations: [item] }) })).toEqual(view);
+    }
+  });
 });
+
+function validText(): string {
+  return JSON.stringify({ recommendations: [{ eventId: "EV_001", explanation: "Grounded explanation", evidenceRefs: ["target", "history", "skill:SK_SYSTEM_DESIGN"] }] });
+}
+
+async function withPayload(payload: unknown): Promise<EmployeeView> {
+  return applyAiExplanations(view, createOpenAIExplainer({
+    apiKey: "test-key",
+    fetchImpl: async () => new Response(JSON.stringify(payload), { headers: { "Content-Type": "application/json" } }),
+  }));
+}

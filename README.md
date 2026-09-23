@@ -101,3 +101,9 @@ An activity never lowers an attained skill: `before=4, gain=1, max_level=3` stay
 Backend: append a completed history record and rebuild `EmployeeView` from the updated dataset. Do not also mutate assessed skills, which would count the gain twice. Frontend: display the returned readiness (which may be decimal), its change, and recommendation `expectedChanges`; do not recalculate business rules. The `EmployeeView` shape is unchanged.
 
 Run the AI/Data checks with `npm test` and `npm run typecheck`.
+
+### AI reliability and live check
+
+The OpenAI adapter defaults to an 8-second deadline covering the request and response body. Missing keys, HTTP failures, incomplete responses, refusals, malformed JSON, and invalid evidence preserve deterministic recommendations. No automatic retries are added to the demo request path.
+
+Run `npm run test:ai-live` on the server/developer machine to make one real request using a synthetic demo profile. It reads `OPENAI_API_KEY` from the environment or `.env.local`, with optional `OPENAI_MODEL`. It fails without a key or when the response falls back; ordinary `npm test` skips this network test. The command incurs normal API usage. See [AI verification and handoff](docs/AI_VERIFICATION.md).
