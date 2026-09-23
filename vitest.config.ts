@@ -9,8 +9,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    // SQLite fixtures and password derivation are memory intensive on demo laptops.
-    maxWorkers: 2,
+    // SQLite fixtures and password derivation compete for CPU on demo laptops.
+    // Run files serially so setup and login checks keep their existing time limits.
+    maxWorkers: 1,
     include: ["tests/**/*.test.ts"],
     sequence: { concurrent: false },
   },
