@@ -13,15 +13,21 @@ import { GET as employeeRoute } from "@/app/api/employees/[employeeId]/route";
 import { POST as completionRoute } from "@/app/api/employees/[employeeId]/activities/[eventId]/complete/route";
 import { POST as importRoute } from "@/app/api/import/route";
 import { createCareerApi } from "@/lib/frontend/api";
+import { authHeaders, testIdentity, type TestIdentity } from "./helpers/auth";
 
 let temporaryDirectory: string;
+let hrIdentity: TestIdentity;
+let employeeIdentity: TestIdentity;
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.stubEnv("OPENAI_API_KEY", "");
+  vi.stubEnv("APP_ORIGIN", "http://localhost");
   closeDatabase();
   temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "career-quest-test-"));
   process.env.CAREER_QUEST_DB_PATH = path.join(temporaryDirectory, "test.sqlite");
   process.env.CAREER_QUEST_DATA_DIR = path.resolve(process.cwd(), "data");
+  hrIdentity = await testIdentity();
+  employeeIdentity = await testIdentity("employee", "E0178");
 });
 
 afterEach(() => {
@@ -35,7 +41,8 @@ afterEach(() => {
 describe("Career Quest backend", () => {
   it("connects the teammate frontend transport to real route handlers and SQLite", async () => {
     const fetcher: typeof fetch = async (url, init) => {
-      const request = new NextRequest("http://localhost" + String(url), { ...init, signal: init?.signal ?? undefined });
+      const identity = String(url).includes("/activities/") ? employeeIdentity : hrIdentity;
+      const request = new NextRequest("http://localhost" + String(url), { ...init, signal: init?.signal ?? undefined, headers: authHeaders(identity, init?.headers) });
       const parts = request.nextUrl.pathname.split("/");
       if (parts[2] === "import") return importRoute(request);
       if (!parts[3]) return employeeListRoute(request);
@@ -64,6 +71,23 @@ describe("Career Quest backend", () => {
     expect(databaseCounts(getDatabase()).activityHistory).toBe(2743);
     closeDatabase();
     expect(databaseCounts(getDatabase()).activityHistory).toBe(2743);
+  });
+
+  it("migrates a version 1 database without replacing employee progress or history", async () => {
+    const db = getDatabase();
+    const completion = await completeActivity("E0178", "EV_005", {}, db);
+    const before = databaseCounts(db);
+    const assessed = new EmployeeRepository(db).getById("E0178")!.skills;
+    // Recreate the previous release's schema using only this disposable test database.
+    db.exec("DROP TABLE auth_sessions; DROP TABLE auth_users; DROP TABLE auth_login_attempts; DROP TABLE auth_audit; DELETE FROM schema_migrations WHERE version=2;");
+    closeDatabase();
+    const upgraded = getDatabase();
+    expect(upgraded.prepare("SELECT version FROM schema_migrations ORDER BY version").all()).toEqual([{ version: 1 }, { version: 2 }]);
+    expect(databaseCounts(upgraded)).toEqual(before);
+    expect(new EmployeeRepository(upgraded).getById("E0178")!.skills).toEqual(assessed);
+    expect(getEmployeeProjection("E0178", upgraded).readiness).toBe(74.1);
+    expect(upgraded.prepare("SELECT record_id FROM activity_history WHERE record_id=?").get(completion.activity.record_id)).toEqual({ record_id: completion.activity.record_id });
+    expect(upgraded.prepare("SELECT COUNT(*) AS count FROM auth_users").get()).toEqual({ count: 0 });
   });
 
   it("builds a projection and only returns voluntary recommendations", async () => {
@@ -141,7 +165,7 @@ describe("Career Quest backend", () => {
       const expected = employees.filter((employee) => Object.entries(filter).every(([key, value]) => employee[key as keyof typeof employee] === value));
       expect(getHrSummary(filter).population).toBe(expected.length);
     }
-    const response = await employeeListRoute(new NextRequest("http://localhost/api/employees?grade=Lead"));
+    const response = await employeeListRoute(new NextRequest("http://localhost/api/employees?grade=Lead", { headers: authHeaders(hrIdentity) }));
     const body = await response.json();
     expect(body.data.items.every((item: { grade: string }) => item.grade === "Lead")).toBe(true);
     expect(body.data.items[0]).not.toHaveProperty("activities");
@@ -149,22 +173,23 @@ describe("Career Quest backend", () => {
   });
 
   it("returns structured HTTP errors for missing employees and invalid input", async () => {
-    const missing = await employeeRoute(new Request("http://localhost/api/employees/missing"), { params: Promise.resolve({ employeeId: "missing" }) });
+    const missing = await employeeRoute(new Request("http://localhost/api/employees/missing", { headers: authHeaders(hrIdentity) }), { params: Promise.resolve({ employeeId: "missing" }) });
     expect(missing.status).toBe(404);
     expect((await missing.json()).error.code).toBe("EMPLOYEE_NOT_FOUND");
-    expect((await employeeListRoute(new NextRequest("http://localhost/api/employees?grade=invalid"))).status).toBe(422);
+    expect((await employeeListRoute(new NextRequest("http://localhost/api/employees?grade=invalid", { headers: authHeaders(hrIdentity) }))).status).toBe(422);
+    const self = await testIdentity("employee", "E0001");
     const context = { params: Promise.resolve({ employeeId: "E0001", eventId: "EV_036" }) };
-    const malformed = await completionRoute(new Request("http://localhost", { method: "POST", body: "{" }), context);
+    const malformed = await completionRoute(new Request("http://localhost", { method: "POST", body: "{", headers: authHeaders(self) }), context);
     expect(malformed.status).toBe(400);
-    const invalidDate = await completionRoute(new Request("http://localhost", { method: "POST", body: JSON.stringify({ completedAt: "2026-02-30" }) }), context);
+    const invalidDate = await completionRoute(new Request("http://localhost", { method: "POST", body: JSON.stringify({ completedAt: "2026-02-30" }), headers: authHeaders(self) }), context);
     expect(invalidDate.status).toBe(422);
   });
 
   it("handles multipart import and rejects malformed multipart or blank required CSV numbers", async () => {
-    expect((await importRoute(new Request("http://localhost/api/import", { method: "POST", body: "bad" }))).status).toBe(400);
+    expect((await importRoute(new Request("http://localhost/api/import", { method: "POST", body: "bad", headers: authHeaders(hrIdentity) }))).status).toBe(400);
     const form = new FormData();
     form.set("employees", new Blob([JSON.stringify(new EmployeeRepository().getById("E0001"))], { type: "application/json" }), "employees.json");
-    const response = await importRoute(new Request("http://localhost/api/import", { method: "POST", body: form }));
+    const response = await importRoute(new Request("http://localhost/api/import", { method: "POST", body: form, headers: authHeaders(hrIdentity) }));
     expect(response.status).toBe(201);
     expect((await response.json()).data.employeesUpdated).toBe(1);
     const csv = "record_id,employee_id,event_id,date,due_date,status,completion_pct,score,feedback_rating,assigned_by\nBAD,E0001,EV_036,2026-09-20,,completed,,,,self";

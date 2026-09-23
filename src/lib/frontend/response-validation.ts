@@ -1,5 +1,5 @@
 import type { Employee, EmployeeView, Recommendation } from "../../types/career";
-import type { ActivityView, CatalogResult, EmployeeDetail } from "../../contracts/api";
+import type { ActivityView, CatalogResult, EmployeeDetail, RecommendationDiagnostics } from "../../contracts/api";
 import type { EmployeeListItem, HrSummaryResponse, ImportResult } from "./api";
 
 type ObjectValue = Record<string, unknown>;
@@ -67,7 +67,20 @@ export function isEmployeeDetail(value: unknown): value is EmployeeDetail {
   if (!isEmployeeView(value)) return false;
   const detail = value as unknown as ObjectValue;
   return Array.isArray(detail.completedActivities) && detail.completedActivities.every(isActivityView) &&
-    Array.isArray(detail.activeMandatoryObligations) && detail.activeMandatoryObligations.every(isActivityView);
+    Array.isArray(detail.activeMandatoryObligations) && detail.activeMandatoryObligations.every(isActivityView) &&
+    Array.isArray(detail.activityHistory) && detail.activityHistory.every(isActivityView) &&
+    isRecommendationDiagnostics(detail.recommendationDiagnostics);
+}
+function isRecommendationDiagnostics(value: unknown): value is RecommendationDiagnostics {
+  const codes = ["mandatory", "audience", "prerequisites", "unavailable", "completed", "in_progress", "no_gap_reduction"];
+  return object(value) && ["available", "needs_career_goal", "target_reached", "no_eligible_events"].includes(String(value.status)) &&
+    text(value.summary) && text(value.snapshotDate) && count(value.catalogEventCount) && count(value.evaluatedEventCount) &&
+    count(value.eligibleEventCount) && count(value.remainingGapCount) && object(value.exclusionCounts) &&
+    codes.every((code) => count((value.exclusionCounts as ObjectValue)[code])) &&
+    Array.isArray(value.blockedEvents) && value.blockedEvents.every((event) => object(event) && text(event.eventId) && text(event.title) &&
+      Array.isArray(event.reasons) && event.reasons.every((reason) => object(reason) && codes.includes(String(reason.code)) && text(reason.message))) &&
+    object(value.readinessExplanation) && text(value.readinessExplanation.formula) && value.readinessExplanation.criticalWeight === 2 &&
+    value.readinessExplanation.standardWeight === 1 && value.readinessExplanation.precision === 1;
 }
 export function isEmployeeView(value: unknown): value is EmployeeView {
   return object(value) && isEmployee(value.employee) && percent(value.readiness) &&

@@ -4,13 +4,15 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${APP_PORT:-3000}:3000"
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:${APP_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
       CAREER_QUEST_DB_PATH: /app/.data/career-quest.sqlite
       CAREER_QUEST_DATA_DIR: /app/data
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-6-astra}
+      AI_EXPLANATIONS_ENABLED: ${AI_EXPLANATIONS_ENABLED:-true}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:${APP_PORT:-3000}}
     volumes:
       - career-quest-db:/app/.data
     healthcheck:

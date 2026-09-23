@@ -2,12 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import type { EmployeeDetail } from "../src/contracts/api";
 import { createAiRecommendationRequest, mergeAiExplanations } from "../src/hooks/ai-recommendation-request";
 import { normalizeDataset } from "../src/lib/data/normalize";
-import { getEmployeeView } from "../src/lib/recommendation";
+import { getEmployeeView, getRecommendationDiagnostics } from "../src/lib/recommendation";
 import { demoDataset } from "./fixtures/career-dataset";
 
 function profile(): EmployeeDetail {
   return { ...getEmployeeView(normalizeDataset(structuredClone(demoDataset)), "EMP-014"),
-    completedActivities: [], activeMandatoryObligations: [] };
+    completedActivities: [], activeMandatoryObligations: [], activityHistory: [],
+    recommendationDiagnostics: getRecommendationDiagnostics(normalizeDataset(structuredClone(demoDataset)), "EMP-014") };
 }
 function explained(baseline: EmployeeDetail): EmployeeDetail {
   const incoming = structuredClone(baseline);

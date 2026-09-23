@@ -8,13 +8,14 @@ import { formatReadiness, formatReadinessDelta, readinessBarValue, readinessDelt
 
 export interface CompletionSnapshot { before: EmployeeView; after: EmployeeView }
 interface Props {
-  view: EmployeeView & Partial<Pick<EmployeeDetail, "completedActivities" | "activeMandatoryObligations">>;
+  view: EmployeeView & Partial<Pick<EmployeeDetail, "completedActivities" | "activeMandatoryObligations" | "activityHistory" | "recommendationDiagnostics">>;
+  allowCompletion?: boolean;
   skillNames?: Readonly<Record<string, string>>;
   completing: boolean; completionDisabled: boolean; completion: CompletionSnapshot | null;
   failure: CompletionError | null; onRefresh: () => void; onComplete: (recommendation: Recommendation) => void;
   onDismissCompletion: () => void;
 }
-export function EmployeeScreen({ view, skillNames = {}, completing, completionDisabled, completion, failure, onRefresh, onComplete, onDismissCompletion }: Props) {
+export function EmployeeScreen({ view, skillNames = {}, allowCompletion = true, completing, completionDisabled, completion, failure, onRefresh, onComplete, onDismissCompletion }: Props) {
   const requirementIds = new Set(view.skillGaps.map((gap) => gap.skillId));
   const otherSkills = Object.entries(view.effectiveSkills)
     .filter(([id]) => !view.target || !requirementIds.has(id))
@@ -37,6 +38,7 @@ export function EmployeeScreen({ view, skillNames = {}, completing, completionDi
         <div className="readiness-heading"><h3>{view.target ? `Readiness for ${view.target.grade}` : "Career goal needed"}</h3><strong>{formatReadiness(view.readiness)}</strong></div>
         <progress className="readiness-progress" aria-label="Readiness" aria-valuetext={formatReadiness(view.readiness)} value={readinessBarValue(view.readiness)} max={100}>{formatReadiness(view.readiness)}</progress>
         <p className="section-note">Development indicator · not a promotion decision</p>
+        {view.recommendationDiagnostics && <details className="readiness-method"><summary>How readiness is calculated</summary><p>{view.recommendationDiagnostics.readinessExplanation.formula}</p></details>}
       </div>
       <div className="career-path" aria-label="Career path">
         <span className="field-label">Career path</span>
@@ -65,7 +67,7 @@ export function EmployeeScreen({ view, skillNames = {}, completing, completionDi
         <div className="section-header"><h2 id="recommendations-heading">Recommended next steps</h2><p className="section-note">Expected changes and reasons for each activity</p></div>
         {view.recommendations.length ? <div className="recommendation-list">{view.recommendations.map((recommendation, index) =>
           <RecommendationCard key={recommendation.eventId} recommendation={recommendation} rank={index + 1} view={view} skillNames={skillNames}
-            busy={completing} disabled={completionDisabled} onComplete={() => onComplete(recommendation)} />)}</div> : <NoNextStepState view={view} />}
+            allowCompletion={allowCompletion} busy={completing} disabled={completionDisabled} onComplete={() => onComplete(recommendation)} />)}</div> : <NoNextStepState view={view} />}
       </section>
     </div>
     <div className="employee-activity-grid">
@@ -81,6 +83,10 @@ export function EmployeeScreen({ view, skillNames = {}, completing, completionDi
           ? <ActivityTable activities={view.completedActivities} />
           : <EmptyState text="No completed activities recorded." />}
       </section>}
+      {view.activityHistory && <section className="activity-section full-activity-history" aria-labelledby="history-heading">
+        <div className="section-header"><h2 id="history-heading">Activity history</h2><p className="section-note">Private participation records. Skipping a voluntary recommendation does not create a penalty.</p></div>
+        {view.activityHistory.length ? <ActivityTable activities={view.activityHistory} fullHistory /> : <EmptyState text="No activity history recorded." />}
+      </section>}
     </div>
   </>;
 }
@@ -89,16 +95,17 @@ const activityStatusLabels: Record<ActivityView["status"], string> = {
   completed: "Completed", in_progress: "In progress", dropped: "Dropped",
   no_show: "No-show", declined: "Declined", overdue: "Overdue",
 };
-function ActivityTable({ activities, mandatory = false }: { activities: ActivityView[]; mandatory?: boolean }) {
-  return <div className="table-wrap" role="region" aria-label={mandatory ? "Mandatory activity records" : "Completed activity records"} tabIndex={0}>
+function ActivityTable({ activities, mandatory = false, fullHistory = false }: { activities: ActivityView[]; mandatory?: boolean; fullHistory?: boolean }) {
+  return <div className="table-wrap" role="region" aria-label={mandatory ? "Mandatory activity records" : fullHistory ? "All activity records" : "Completed activity records"} tabIndex={0}>
     <table className="activity-table">
-      <thead><tr><th scope="col">Activity</th><th scope="col">{mandatory ? "Recorded date" : "Completed date"}</th><th scope="col">Status</th><th scope="col">Completion</th>{mandatory && <th scope="col">Due date</th>}</tr></thead>
+      <thead><tr><th scope="col">Activity</th><th scope="col">{mandatory || fullHistory ? "Recorded date" : "Completed date"}</th><th scope="col">Status</th><th scope="col">Completion</th>{(mandatory || fullHistory) && <th scope="col">Due date</th>}{fullHistory && <th scope="col">Assigned by</th>}</tr></thead>
       <tbody>{[...activities].sort((a, b) => b.date.localeCompare(a.date)).map((activity) => <tr key={activity.record_id}>
         <th scope="row">{activity.eventTitle}<small>{activity.event_id}</small></th>
         <td><time dateTime={activity.date}>{activity.date}</time></td>
         <td><span className={activity.status === "overdue" ? "activity-overdue" : undefined}>{activityStatusLabels[activity.status]}</span></td>
         <td className="number">{formatNumber(activity.completion_pct)}%</td>
-        {mandatory && <td>{activity.due_date ? <time dateTime={activity.due_date}>{activity.due_date}</time> : "Not provided"}</td>}
+        {(mandatory || fullHistory) && <td>{activity.due_date ? <time dateTime={activity.due_date}>{activity.due_date}</time> : "Not provided"}</td>}
+        {fullHistory && <td>{activity.assigned_by === "self" ? "Self" : activity.assigned_by === "hr" ? "HR" : "Manager"}</td>}
       </tr>)}</tbody>
     </table>
   </div>;
@@ -111,8 +118,8 @@ function SkillRow({ gap }: { gap: SkillGap }) {
     <td className={gap.gap ? "gap-open" : "gap-met"}>{gap.gap}</td>
   </tr>;
 }
-function RecommendationCard({ recommendation: rec, rank, view, skillNames, busy, disabled, onComplete }: {
-  recommendation: Recommendation; rank: number; view: EmployeeView; skillNames: Readonly<Record<string, string>>; busy: boolean; disabled: boolean; onComplete: () => void;
+function RecommendationCard({ recommendation: rec, rank, view, skillNames, allowCompletion, busy, disabled, onComplete }: {
+  recommendation: Recommendation; rank: number; view: EmployeeView; skillNames: Readonly<Record<string, string>>; allowCompletion: boolean; busy: boolean; disabled: boolean; onComplete: () => void;
 }) {
   const hasAiExplanation = rec.explanationSource === "llm" && Boolean(rec.aiExplanation?.trim());
   return <article className={`recommendation-card ${rank === 1 ? "top-recommendation" : ""}`}>
@@ -130,9 +137,9 @@ function RecommendationCard({ recommendation: rec, rank, view, skillNames, busy,
       {rec.historySignal && <p className="history-signal">{rec.historySignal}</p>}
     </div>
     <aside className="recommendation-explanation"><h4>{hasAiExplanation ? "AI-assisted explanation" : "Rule-based explanation"}</h4><p>{hasAiExplanation ? rec.aiExplanation : rec.deterministicExplanation}</p></aside>
-    <button className={`button ${rank === 1 ? "button-green" : "button-outline"} complete-button`} disabled={disabled} onClick={onComplete}>
+    {allowCompletion && <button className={`button ${rank === 1 ? "button-green" : "button-outline"} complete-button`} disabled={disabled} onClick={onComplete}>
       {busy && <LoaderCircle className="spin" size={15} />}{busy ? "Updating profile…" : "Complete activity"}
-    </button>
+    </button>}
   </article>;
 }
 export function CompletionFeedback({ snapshot: { before, after }, skillNames = {}, onDismiss }: { snapshot: CompletionSnapshot; skillNames?: Readonly<Record<string, string>>; onDismiss: () => void }) {

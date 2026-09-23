@@ -1,2 +1,2 @@
-import App from "@/components/App";
-export default function Home() { return <App />; }
+import AuthBoundary from "@/components/AuthBoundary";
+export default function Home() { return <AuthBoundary />; }

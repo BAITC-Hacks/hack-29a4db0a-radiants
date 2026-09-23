@@ -1,5 +1,7 @@
 # Backend integration validation — 2026-09-23
 
+> Historical report. Authentication findings below describe the reviewed revision; the subsequent privacy implementation and current checks are documented in BACKEND_PRIVACY.md and PRIVACY_VALIDATION.md.
+
 ## Reviewed remote work
 
 - Main: 1bef61f (domain PR #1, frontend and merged PRs #2/#4).

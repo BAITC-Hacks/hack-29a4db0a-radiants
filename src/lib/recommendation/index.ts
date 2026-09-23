@@ -18,6 +18,23 @@ import {
 export const SNAPSHOT_DATE = "2026-10-01";
 const RECENT_HISTORY_DAYS = 365;
 
+export type RecommendationExclusionCode = "mandatory" | "audience" | "prerequisites" | "unavailable" | "completed" | "in_progress" | "no_gap_reduction";
+export interface RecommendationExclusion { code: RecommendationExclusionCode; message: string }
+export interface RecommendationDiagnostics {
+  status: "available" | "needs_career_goal" | "target_reached" | "no_eligible_events";
+  summary: string;
+  snapshotDate: string;
+  catalogEventCount: number;
+  evaluatedEventCount: number;
+  eligibleEventCount: number;
+  remainingGapCount: number;
+  /** Each evaluated event is counted once, against its first failing rule. */
+  exclusionCounts: Record<RecommendationExclusionCode, number>;
+  /** At most ten voluntary audience-matching activities that could reduce a current gap. */
+  blockedEvents: Array<{ eventId: string; title: string; reasons: RecommendationExclusion[] }>;
+  readinessExplanation: { formula: string; criticalWeight: 2; standardWeight: 1; precision: 1 };
+}
+
 interface Candidate extends Recommendation {
   criticalGapLevelsClosed: number;
   totalGapLevelsClosed: number;
@@ -91,6 +108,61 @@ export function getRecommendations(
   });
 
   return getEmployeeView(dataset, employee.employee_id);
+}
+
+/** Explain the same eligibility checks used for recommendations without relaxing them. */
+export function getRecommendationDiagnostics(dataset: NormalizedDataset, employeeId: string): RecommendationDiagnostics {
+  const view = getEmployeeView(dataset, employeeId);
+  const diagnostics: RecommendationDiagnostics = {
+    status: "needs_career_goal",
+    summary: "A career goal is needed before the next development step can be selected.",
+    snapshotDate: SNAPSHOT_DATE,
+    catalogEventCount: dataset.events.length,
+    evaluatedEventCount: 0,
+    eligibleEventCount: 0,
+    remainingGapCount: view.skillGaps.filter((gap) => gap.gap > 0).length,
+    exclusionCounts: { mandatory: 0, audience: 0, prerequisites: 0, unavailable: 0, completed: 0, in_progress: 0, no_gap_reduction: 0 },
+    blockedEvents: [],
+    readinessExplanation: {
+      formula: "Readiness = 100 × sum(weight × min(current level / required level, 1)) / sum(weight), rounded to one decimal. Critical skills have weight 2; other skills have weight 1. A zero requirement counts as fulfilled; no requirements means 100%. Without a career target, readiness is 0%.",
+      criticalWeight: 2,
+      standardWeight: 1,
+      precision: 1,
+    },
+  };
+  if (!view.target) return diagnostics;
+
+  const profile = dataset.roleProfileByKey.get(roleProfileKey(view.target.role, view.target.grade))!;
+  const history = dataset.historyByEmployeeId.get(employeeId) ?? [];
+  diagnostics.evaluatedEventCount = dataset.events.length;
+  for (const event of dataset.events) {
+    const reasons = eligibilityExclusions(event, view.employee, view.target, view.effectiveSkills, history, getNextSession(event), dataset.skillById);
+    const { totalGapLevelsClosed } = simulateEvent(event, profile, view.effectiveSkills);
+    if (totalGapLevelsClosed === 0) {
+      reasons.push({ code: "no_gap_reduction", message: "This activity would not reduce any remaining target skill gap at the current skill levels and teaching caps." });
+    }
+    if (reasons.length === 0) {
+      diagnostics.eligibleEventCount++;
+      continue;
+    }
+    diagnostics.exclusionCounts[reasons[0].code]++;
+    if (totalGapLevelsClosed > 0 && !event.mandatory && matchesAudience(event, view.employee, view.target)) {
+      diagnostics.blockedEvents.push({ eventId: event.event_id, title: event.title, reasons });
+    }
+  }
+  diagnostics.blockedEvents.sort((left, right) => left.eventId.localeCompare(right.eventId));
+  diagnostics.blockedEvents = diagnostics.blockedEvents.slice(0, 10);
+  if (diagnostics.remainingGapCount === 0) {
+    diagnostics.status = "target_reached";
+    diagnostics.summary = "All skill requirements for the current career target are met. Readiness is a development indicator, not a promotion decision.";
+  } else if (diagnostics.eligibleEventCount > 0) {
+    diagnostics.status = "available";
+    diagnostics.summary = `${diagnostics.eligibleEventCount} eligible voluntary activity or activities can reduce current target skill gaps; up to three are shown.`;
+  } else {
+    diagnostics.status = "no_eligible_events";
+    diagnostics.summary = `${diagnostics.remainingGapCount} target skill gaps remain, but the current catalog has no eligible voluntary activity that reduces them. Completed non-repeatable activities, prerequisites, audience and availability rules still apply.`;
+  }
+  return diagnostics;
 }
 
 export function resolveTarget(
@@ -233,17 +305,36 @@ function isEligible(
   history: ActivityRecord[],
   nextSession: string | undefined,
 ): boolean {
-  if (event.mandatory || !matchesAudience(event, employee, target) || !meetsPrerequisites(event, skills)) {
-    return false;
-  }
-  if (event.format !== "self_paced" && !nextSession) {
-    return false;
-  }
+  return eligibilityExclusions(event, employee, target, skills, history, nextSession).length === 0;
+}
 
+function eligibilityExclusions(
+  event: DevelopmentEvent,
+  employee: Employee,
+  target: { role: string; grade: Grade },
+  skills: Record<string, SkillLevel>,
+  history: ActivityRecord[],
+  nextSession: string | undefined,
+  skillById?: Map<string, Skill>,
+): RecommendationExclusion[] {
+  const reasons: RecommendationExclusion[] = [];
+  if (event.mandatory) reasons.push({ code: "mandatory", message: "Mandatory obligations are shown separately and are never career recommendations." });
+  if (!matchesAudience(event, employee, target)) reasons.push({ code: "audience", message: "The activity does not match the employee's current or target role and grade." });
+  if (!meetsPrerequisites(event, skills)) {
+    const missing = Object.entries(event.prerequisites)
+      .filter(([skillId, required]) => (skills[skillId] ?? 0) < (required ?? 0))
+      .map(([skillId, required]) => `${skillById?.get(skillId)?.name ?? skillId}: current ${skills[skillId] ?? 0}, required ${required}`);
+    reasons.push({ code: "prerequisites", message: `Prerequisites are not met: ${missing.join("; ")}.` });
+  }
+  if (event.format !== "self_paced" && !nextSession) reasons.push({ code: "unavailable", message: `No scheduled session is available on or after ${SNAPSHOT_DATE}.` });
   const recordsForEvent = history.filter((record) => record.event_id === event.event_id);
-  return !recordsForEvent.some(
-    (record) => record.status === "in_progress" || (record.status === "completed" && event.event_id !== "EV_036"),
-  );
+  if (event.event_id !== "EV_036" && recordsForEvent.some((record) => record.status === "completed")) {
+    reasons.push({ code: "completed", message: "This activity is already completed and cannot be repeated. Only EV_036 allows repeated completion." });
+  }
+  if (recordsForEvent.some((record) => record.status === "in_progress")) {
+    reasons.push({ code: "in_progress", message: "This activity is already in progress and is not offered as a new step." });
+  }
+  return reasons;
 }
 
 function matchesAudience(

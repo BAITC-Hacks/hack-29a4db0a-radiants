@@ -1,5 +1,7 @@
 # Independent acceptance - 2026-09-23
 
+> Historical report. Authentication findings below describe the reviewed revision; the subsequent privacy implementation and current checks are documented in BACKEND_PRIVACY.md and PRIVACY_VALIDATION.md.
+
 Reviewer: AI/Data. Final merged runtime: `85a7f269bd553bb59f9ad8740e3f2312329d79a9` (PR #12, including PR #11). This review used an isolated Windows checkout and disposable SQLite database, not the team's demo database. No local OpenAI key was available.
 
 ## Final main commands

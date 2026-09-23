@@ -1,5 +1,7 @@
 import type { ActivityRecord, ActivityStatus, CareerDataset, Employee, EmployeeView } from "@/types/career";
 import type { HrSummary } from "@/lib/analytics/hr-summary";
+import type { RecommendationDiagnostics } from "@/lib/recommendation";
+export type { RecommendationDiagnostics, RecommendationExclusion, RecommendationExclusionCode } from "@/lib/recommendation";
 
 export interface ApiSuccess<T> { data: T }
 export interface ApiErrorDetail { file?: string; row?: number; field?: string; message: string }
@@ -24,8 +26,10 @@ export interface EmployeeListResult { items: EmployeeCard[]; total: number }
 export type CatalogResult = Pick<CareerDataset, "events" | "skills" | "roleProfiles">;
 export interface ActivityView extends ActivityRecord { eventTitle: string }
 export interface EmployeeDetail extends EmployeeView {
+  activityHistory: ActivityView[];
   completedActivities: ActivityView[];
   activeMandatoryObligations: ActivityView[];
+  recommendationDiagnostics: RecommendationDiagnostics;
 }
 export interface CompleteActivityResult {
   activity: ActivityRecord;

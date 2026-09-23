@@ -14,6 +14,20 @@ Open http://localhost:3000. Start Docker Desktop first on Windows. Healthcheck c
 
 Stop: `docker compose down`. Explicitly reset demo data: `docker compose down -v` (deletes the volume).
 
+### Sign in and privacy
+
+The first healthcheck generates local accounts `hr-admin`, `employee` (E0178), and `employee2` (E0058), with different random passwords. The operator retrieves them locally:
+
+```bash
+docker compose exec app cat /app/.data/initial-access.json
+```
+
+For `npm run dev`, read `.data/initial-access.json` after the first page/API request. Credentials are never returned by an HTTP endpoint. Keep this file private; distribute each employee only their own credentials. Existing volumes are migrated without resetting employee data.
+
+Employee sessions can read only their own profile/history and complete their own activities. HR can browse profiles, view analytics, import data and create employee accounts; HR cannot mark activities complete on someone's behalf. Private APIs enforce these rules even for manually crafted requests. Sessions expire after 8 hours; logout revokes them. There is no public employee leaderboard or peer profile sharing.
+
+Compose binds to `127.0.0.1` by default. For deployment behind an internal HTTPS proxy, configure `APP_BIND_ADDRESS` and the exact browser-facing `APP_ORIGIN` (also enables Secure cookies). `AI_EXPLANATIONS_ENABLED=false` disables external AI requests. See [backend privacy and auth contract](docs/BACKEND_PRIVACY.md) and [the frontend implementation plan](docs/FRONTEND_PRIVACY_PLAN.md).
+
 Local development requires Node.js 22+:
 
 ```bash
@@ -34,7 +48,7 @@ npm run build
 
 The teammate's recommendation, AI mock, HR, import and adapter tests are preserved. Backend integration tests use temporary SQLite files. They verify transactions, import rollback, HTTP errors, persistence and the E0178 regression (71.3 → 74.1 readiness with no assessed-skill mutation).
 
-The previous Vite entry is retained for frontend development: `npm run dev:demo` or `npm run build:demo`. Despite the historical script name, it now uses the same API and proxies /api to the Next.js server on port 3000. Next.js/Compose is the complete application startup.
+The previous Vite entry is retained for frontend development: `npm run dev:demo` or `npm run build:demo`. Despite the historical script name, it now uses the same API and proxies /api to the Next.js server on port 3000. Set backend `APP_ORIGIN=http://localhost:5173` for Vite development (or the actual Vite preview origin); otherwise protected POSTs correctly reject its different Origin. Next.js/Compose is the complete application startup.
 
 ## Architecture and ownership
 
@@ -66,15 +80,22 @@ Every success is `{ data: ... }`; errors are `{ error: { code, message, details 
 | Endpoint | data |
 | --- | --- |
 | GET /api/health | status, schemaVersion, counts |
+| POST /api/auth/login | AuthSession; sets HttpOnly cookie |
+| GET /api/auth/session | AuthSession (user, expiresAt, csrfToken) |
+| POST /api/auth/logout | signedOut; revokes session and clears cookie |
+| GET /api/hr/accounts | HR-only account list without passwords |
+| POST /api/hr/accounts | HR creates an employee account |
 | GET /api/catalog | events, skills, roleProfiles; no employee history |
 | GET /api/employees | items: EmployeeCard[], total |
-| GET /api/employees/:id | EmployeeView + completedActivities, activeMandatoryObligations |
+| GET /api/employees/:id | EmployeeView + activityHistory, completedActivities, activeMandatoryObligations, recommendationDiagnostics |
 | GET /api/employees/:id/recommendations | Same shared employee view |
 | POST /api/employees/:id/activities/:eventId/complete | activity, view, progress: { before, after, delta } |
 | POST /api/import | employeesInserted, employeesUpdated, historyInserted, historySkipped |
 | GET /api/hr/summary | Shared HrSummary + population, statuses, assignedBy, completionRate, totalGapSeverity, employeesWithoutTarget |
 
 Employee filters: `search`, `role`, `grade`, `department`. HR filters: `role`, `grade`, `department`. Matching filters combine with AND.
+
+All endpoints except health/login require a session. All POSTs require the matching `Origin`; authenticated POSTs additionally require `X-CSRF-Token` from AuthSession. Success/error envelopes stay unchanged. 401 means sign in, 403 means forbidden role/CSRF/origin; 429 limits repeated failed logins. JSON bodies are limited to 64 KiB and multipart import to 10 MiB (413 on excess).
 
 Completion body: `{ completedAt?: "YYYY-MM-DD", score?: 0..100, feedbackRating?: 1..5 }`. Send `{}` for defaults. Self-paced completion defaults to the snapshot date; scheduled completion uses the next session. Non-repeatable duplicate completion returns 409; EV_036 can repeat.
 
@@ -106,14 +127,14 @@ Defaults: `CAREER_QUEST_DB_PATH=.data/career-quest.sqlite`, `CAREER_QUEST_DATA_D
 
 ## Demo
 
-1. Open E0178 on a clean database: readiness 71.3%.
+1. Sign in as `employee`, linked to E0178. On a clean database: readiness 71.3%.
 2. Complete EV_005: skills refresh, readiness becomes 74.1%, API Design stays at 4.
 3. Reload: the completed history and updated progress remain.
-4. Import [jury-employee.json](docs/fixtures/jury-employee.json), then [jury-history.csv](docs/fixtures/jury-history.csv) using **Import another file**. Jury Demo changes from 71.3% to 74.1%; completed and overdue mandatory activity history appears.
+4. Sign out, sign in as `hr-admin`, then import [jury-employee.json](docs/fixtures/jury-employee.json), then [jury-history.csv](docs/fixtures/jury-history.csv) using **Import another file**. Jury Demo changes from 71.3% to 74.1%; completed and overdue mandatory activity history appears.
 5. Open HR: official population, gaps, all employees without steps, and all activity participation rows are accessible.
 
 See [jury rehearsal](docs/JURY_DEMO.md) for the three importable evaluation profiles, adversarial checks and a three-minute demonstration. [Release checklist](docs/RELEASE_CHECKLIST.md) separates verified behavior from the remaining live-AI and frontend gates.
 
-Starter data is synthetic. Authentication is outside this MVP: employee/HR views are logically separated but not protected by an authorization layer. Employee listing and catalog endpoints do not expose engagement history.
+Starter data is synthetic. Server sessions and role checks protect employee/HR access. Employee listing and catalog endpoints do not expose engagement history. Corporate SSO, account recovery, consent-based peer sharing and an organizational retention policy remain deployment work; this local account system is the hackathon implementation.
 
-See [the 3–5 minute demo and startup guide](docs/DEMO.md), [the frontend API contract](docs/FRONTEND_API.md), and [final validation results](docs/FINAL_VALIDATION.md): 176 offline tests, two live AI cases, clean-clone Docker startup and browser import/completion/persistence.
+See [the 3–5 minute demo and startup guide](docs/DEMO.md), [the frontend API contract](docs/FRONTEND_API.md), [previous validation results](docs/FINAL_VALIDATION.md), and [privacy integration validation](docs/PRIVACY_VALIDATION.md).
