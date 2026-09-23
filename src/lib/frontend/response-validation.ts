@@ -1,6 +1,7 @@
 import type { Employee, EmployeeView, Recommendation } from "../../types/career";
 import type { ActivityView, CatalogResult, EmployeeDetail, RecommendationDiagnostics } from "../../contracts/api";
-import type { EmployeeListItem, HrSummaryResponse, ImportResult } from "./api";
+import type { SessionUser } from "../../contracts/auth";
+import type { EmployeeAccount, EmployeeListItem, HrSummaryResponse, ImportResult } from "./api";
 
 type ObjectValue = Record<string, unknown>;
 const object = (value: unknown): value is ObjectValue => !!value && typeof value === "object" && !Array.isArray(value);
@@ -13,6 +14,16 @@ const grade = (value: unknown) => ["Junior", "Middle", "Senior", "Lead"].include
 const skillMap = (value: unknown) => object(value) && Object.values(value).every((n) => level(n) && Number.isInteger(n));
 const percent = (value: unknown) => number(value) && value >= 0 && value <= 100;
 const count = (value: unknown) => number(value) && value >= 0 && Number.isInteger(value);
+
+export function isSessionUser(value: unknown): value is SessionUser {
+  return object(value) && text(value.id) && !!value.id && text(value.username) && !!value.username &&
+    (value.role === "employee" ? text(value.employeeId) && !!value.employeeId : value.role === "hr" && value.employeeId === null);
+}
+export function isAccounts(value: unknown): value is EmployeeAccount[] {
+  return Array.isArray(value) && value.every((item) => isSessionUser(item) && object(item) && typeof item.active === "boolean") &&
+    new Set(value.map((item) => item.id)).size === value.length &&
+    new Set(value.map((item) => item.username.toLowerCase())).size === value.length;
+}
 
 export function isCatalog(value: unknown): value is CatalogResult {
   return object(value) && Array.isArray(value.skills) && value.skills.every((skill) =>
@@ -42,7 +53,8 @@ function isEmployee(value: unknown): value is Employee {
       text(value.career_goal.target_role) && grade(value.career_goal.target_grade)));
 }
 export function isEmployeeList(value: unknown): value is EmployeeListItem[] {
-  return Array.isArray(value) && value.every((item) => object(item) && text(item.employee_id) && !!item.employee_id && text(item.full_name) && text(item.role)) &&
+  return Array.isArray(value) && value.every((item) => object(item) && text(item.employee_id) && !!item.employee_id && text(item.full_name) && text(item.role) &&
+    (item.grade === undefined || grade(item.grade)) && optionalText(item.department)) &&
     new Set(value.map((employee) => employee.employee_id)).size === value.length;
 }
 function isRecommendation(value: unknown): value is Recommendation {

@@ -28,11 +28,15 @@ Employee sessions can read only their own profile/history and complete their own
 
 Compose binds to `127.0.0.1` by default. For deployment behind an internal HTTPS proxy, configure `APP_BIND_ADDRESS` and the exact browser-facing `APP_ORIGIN` (also enables Secure cookies). `AI_EXPLANATIONS_ENABLED=false` disables external AI requests. See [backend privacy and auth contract](docs/BACKEND_PRIVACY.md) and [the frontend implementation plan](docs/FRONTEND_PRIVACY_PLAN.md).
 
+HR can open **Доступ сотрудников** to view accounts and create access for an existing profile. The form confirms the employee binding, accepts a 12–128-character password and clears it after the server response. Transfer credentials privately; they cannot be viewed later. Successful JSON import also offers **Создать доступ** with the imported profile selected. After an uncertain creation, the UI reads the account list before allowing another attempt.
+
+The UI is in Russian, with Career Quest branding and locally hosted Manrope. Data-provided employee/course names and explanations retain their original language. Returning to the page revalidates the session; logout is synchronized across tabs without transmitting credentials. See [current frontend delivery and validation](docs/FRONTEND_PRIVATE_UI.md).
+
 ### Optional shared employee demo login
 
 `DEMO_EMPLOYEE_LOGIN=false` is the default. For a demonstration with synthetic data, set `DEMO_EMPLOYEE_LOGIN=true` in the ignored `.env`, then recreate the container with `docker compose up --build`. Employees can sign in with their full name exactly as listed in the dataset and password **admin**. For names shared by more than one profile, append the employee ID: `Ksenia Pavlova (E0058)`. Unicode names and spaces are accepted. Imported employee profiles work on login without a separate account-provisioning step.
 
-The login page and authenticated app show **Demo mode — shared employee access, not private authentication.** Anyone with the shared password can access a named employee's demo profile, so this mode does not provide employee privacy. HR continues to use `hr-admin` with its individual generated password; `admin` does not grant HR access. Individual account passwords remain unchanged.
+The login page and authenticated app show **Демо-режим: общий доступ к профилям сотрудников. Личные данные в этом режиме не защищены индивидуальным паролем.** Anyone with the shared password can access a named employee's demo profile, so this mode does not provide employee privacy. HR continues to use `hr-admin` with its individual generated password; `admin` does not grant HR access. Individual account passwords remain unchanged. Demo identity rows are labeled separately in HR access management and do not block creation of a personal account.
 
 To restore individual authentication, set `DEMO_EMPLOYEE_LOGIN=false` and recreate the container. The shared login stops working and sessions created through it are rejected. Existing individual credentials continue to work. Use the Next.js/Compose entry point for this demo mode; its login hint reads the server flag at runtime.
 
@@ -143,8 +147,10 @@ Defaults: `CAREER_QUEST_DB_PATH=.data/career-quest.sqlite`, `CAREER_QUEST_DATA_D
 1. Sign in as `employee`, linked to E0178. On a clean database: readiness 71.3%.
 2. Complete EV_005: skills refresh, readiness becomes 74.1%, API Design stays at 4.
 3. Reload: the completed history and updated progress remain.
-4. Sign out, sign in as `hr-admin`, then import [jury-employee.json](docs/fixtures/jury-employee.json), then [jury-history.csv](docs/fixtures/jury-history.csv) using **Import another file**. Jury Demo changes from 71.3% to 74.1%; completed and overdue mandatory activity history appears.
-5. Open HR: official population, gaps, all employees without steps, and all activity participation rows are accessible.
+4. Sign out, sign in as `hr-admin`, then import [jury-employee.json](docs/fixtures/jury-employee.json), then [jury-history.csv](docs/fixtures/jury-history.csv) using **Загрузить ещё файл**. Jury Demo changes from 71.3% to 74.1%; completed and overdue mandatory activity history appears.
+5. Use **Создать доступ** after JSON import, or **Доступ сотрудников**, select Jury Demo and create its personal employee account. Confirm the binding and privately retain the password before submitting. Account creation and CSV import may be done in either order after JSON import.
+6. Sign out and enter that employee account to complete a voluntary recommendation. Its profile, history and progress refresh; other employees and HR controls are unavailable.
+7. Sign back in as HR and open **Обзор команды**: population, gaps, employees without steps and activity participation reflect the changes.
 
 See [jury rehearsal](docs/JURY_DEMO.md) for the three importable evaluation profiles, adversarial checks and a three-minute demonstration. [Release checklist](docs/RELEASE_CHECKLIST.md) separates verified behavior from the remaining live-AI and frontend gates.
 
