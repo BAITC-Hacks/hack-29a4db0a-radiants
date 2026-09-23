@@ -56,6 +56,17 @@ export function apiErrorMessage(status?: number, code?: string, body?: unknown):
     PAYLOAD_TOO_LARGE: "Файл слишком большой. Уменьшите его размер и повторите загрузку.",
   };
   if (code && messages[code]) return messages[code];
+  if (code === "EVENT_NOT_ELIGIBLE") {
+    const reasons: Record<string, string> = {
+      audience: "Занятие не подходит для текущей или целевой роли и грейда.",
+      prerequisites: "Сначала нужно достичь требуемого уровня предварительных навыков.",
+      unavailable: "На доступные даты нет сессий занятия.",
+      mandatory_assignment_required: "Для обязательного занятия требуется действующее назначение HR или руководителя.",
+      invalid_completion_date: "Дата завершения не соответствует доступной сессии или дате демоснимка.",
+    };
+    const known = [...new Set(apiErrorDetails(body).map((detail) => reasons[detail.message.split(":")[0]!]).filter(Boolean))];
+    return known.length ? known.join(" ") : "Условия завершения занятия не выполнены. Обновите профиль и проверьте требования занятия.";
+  }
   if (code === "LOGIN_RATE_LIMITED" || status === 429) {
     // Keep a server-provided wait duration, without rendering an arbitrary response body.
     const message = object(body) && object(body.error) && typeof body.error.message === "string" ? body.error.message : "";

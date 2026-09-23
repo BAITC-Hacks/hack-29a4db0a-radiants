@@ -65,8 +65,9 @@ interface EmployeeSelection {
 - `POST /api/auth/logout` — `{}`, ответ `{ signedOut: true }`, сессия удаляется из БД.
 - `GET /api/hr/accounts` — `{ items: Array<SessionUser & { active: boolean }> }`, только HR, без хешей/паролей.
 - `POST /api/hr/accounts` — строго `{ username, password, employeeId }`, ответ SessionUser, 201. Роль всегда employee; поле role отклоняется. Повторный логин — 409; неизвестный employeeId — 422.
+- `PATCH /api/employees/:employeeId/career-goal` — только собственная цель сотрудника; строго `{ career_goal: { target_role, target_grade } | null }`. Пара role/grade проверяется по каталогу, возвращается пересчитанный EmployeeDetail. Текущие навыки, должность и права не изменяются. Контракт: [FRONTEND_COMPLETION_GOAL_HANDOFF.md](FRONTEND_COMPLETION_GOAL_HANDOFF.md).
 
-Все POST проверяют точное совпадение Origin с APP_ORIGIN; cross-site Fetch Metadata отклоняется. Все POST, кроме login, также проверяют X-CSRF-Token из AuthSession. Клиент хранит CSRF только в памяти и отправляет cookie браузером. Поле Content-Type для FormData браузер формирует сам.
+Все POST и PATCH проверяют точное совпадение Origin с APP_ORIGIN; cross-site Fetch Metadata отклоняется. Все эти запросы, кроме login, также проверяют X-CSRF-Token из AuthSession. Клиент хранит CSRF только в памяти и отправляет cookie браузером. Поле Content-Type для FormData браузер формирует сам.
 
 Cookie `cq_session`: случайный opaque token (256 бит), HttpOnly, SameSite=Strict, path=/; в БД только SHA-256 hash. Сессия действует 8 часов без автоматического продления. Logout отзывает текущую сессию. Пользователь с active=0 или истёкшая/несуществующая сессия немедленно получает 401. Каждое обращение сверяет текущую роль в БД. Secure включается при HTTPS APP_ORIGIN.
 

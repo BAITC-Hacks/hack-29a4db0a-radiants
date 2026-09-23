@@ -11,6 +11,17 @@ const profile = () => {
 afterEach(() => vi.useRealTimers());
 
 describe("typed frontend API", () => {
+  it("explains completion refusals using known reason codes without echoing arbitrary server text", () => {
+    const message = apiErrorMessage(422, "EVENT_NOT_ELIGIBLE", { error: { message: "unexpected server internals", details: [
+      { field: "eventId", message: "prerequisites: Activity prerequisites are not met." },
+      { field: "completedAt", message: "invalid_completion_date: Invalid date." },
+      { field: "eventId", message: "unknown: unexpected server internals" },
+    ] } });
+    expect(message).toContain("предварительных навыков");
+    expect(message).toContain("Дата завершения");
+    expect(message).not.toContain("unexpected server internals");
+    expect(apiErrorMessage(422, "EVENT_NOT_ELIGIBLE")).toContain("Условия завершения");
+  });
   it("localizes demo login errors and preserves the server wait in minutes", () => {
     expect(apiErrorMessage(409, "AMBIGUOUS_EMPLOYEE_NAME")).toContain("по подразделению и должности");
     expect(apiErrorMessage(409, "DEMO_ACCOUNT_CONFLICT")).toContain("Обратитесь к оператору");

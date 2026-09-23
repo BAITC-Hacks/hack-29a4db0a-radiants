@@ -83,6 +83,8 @@ The teammate's refined frontend design is included, preserving cancellation, mut
 
 Completion appends one `LOCAL_<uuid>` history record in a transaction, then rebuilds the shared view. It does not increment assessed `employee.skills`. Teaching caps limit gains without lowering existing attained skills. Availability uses the fixed snapshot `2026-10-01`.
 
+AI/Data completion-policy handoff: [pure eligibility guard and single-event preview](docs/COMPLETION_POLICY_HANDOFF.md). The server calls this guard inside the same write transaction as history insertion, profile recalculation, and audit. The original direct-HTTP regression is retained as a required gate. The preview replays a virtual history record through the existing engine and does not change the public API or UI.
+
 See [backend handoff](docs/BACKEND_HANDOFF.md), [starter adapter](docs/STARTER_DATASET_ADAPTER.md), [domain progress validation](docs/PROGRESS_VALIDATION.md), and [earlier frontend review](docs/FRONTEND_INTEGRATION_REVIEW.md). The earlier review describes the pre-API revision.
 
 ## API
@@ -102,14 +104,17 @@ Every success is `{ data: ... }`; errors are `{ error: { code, message, details 
 | GET /api/employees/:id | EmployeeView + activityHistory, completedActivities, activeMandatoryObligations, recommendationDiagnostics |
 | GET /api/employees/:id/recommendations | Same shared employee view |
 | POST /api/employees/:id/activities/:eventId/complete | activity, view, progress: { before, after, delta } |
+| PATCH /api/employees/:id/career-goal | Recomputed EmployeeDetail; employee changes only their own career_goal |
 | POST /api/import | employeesInserted, employeesUpdated, historyInserted, historySkipped |
 | GET /api/hr/summary | Shared HrSummary + population, statuses, assignedBy, completionRate, totalGapSeverity, employeesWithoutTarget |
 
 Employee filters: `search`, `role`, `grade`, `department`. HR filters: `role`, `grade`, `department`. Matching filters combine with AND.
 
-All endpoints except health/login require a session. All POSTs require the matching `Origin`; authenticated POSTs additionally require `X-CSRF-Token` from AuthSession. Success/error envelopes stay unchanged. 401 means sign in, 403 means forbidden role/CSRF/origin; 429 limits repeated failed logins. JSON bodies are limited to 64 KiB and multipart import to 10 MiB (413 on excess).
+All endpoints except health/login require a session. All POSTs and PATCHes require the matching `Origin`; authenticated mutations additionally require `X-CSRF-Token` from AuthSession. Success/error envelopes stay unchanged. 401 means sign in, 403 means forbidden role/CSRF/origin; 429 limits repeated failed logins. JSON bodies are limited to 64 KiB and multipart import to 10 MiB (413 on excess).
 
-Completion body: `{ completedAt?: "YYYY-MM-DD", score?: 0..100, feedbackRating?: 1..5 }`. Send `{}` for defaults. Self-paced completion defaults to the snapshot date; scheduled completion uses the next session. Non-repeatable duplicate completion returns 409; EV_036 can repeat.
+Completion body: `{ completedAt?: "YYYY-MM-DD", score?: 0..100, feedbackRating?: 1..5 }`. Send `{}` for defaults. Self-paced completion defaults to the snapshot date; scheduled completion uses the next session. Inside one transaction, the domain engine checks audience, effective-skill prerequisites, availability and the selected date before history insertion and recomputation. A blocked event returns 422 `EVENT_NOT_ELIGIBLE` without changing history or progress. Non-repeatable duplicate completion returns 409; EV_036 can repeat. An active stored assignment by HR/manager is required for mandatory completion. Self-paced and active participation complete on the snapshot day; new scheduled activities use a listed future session. Completion is independent of recommendation rank.
+
+Career-goal body: `{ career_goal: { target_role, target_grade } | null }`, with no extra properties. The employee may update only their own goal; the role/grade pair must exist in the catalog. Assessed skills, current position and permissions cannot be changed here. See [completion and goal contract](docs/FRONTEND_COMPLETION_GOAL_HANDOFF.md) and [HR account creation after import](docs/FRONTEND_ACCOUNTS_HANDOFF.md) for frontend examples and exact errors.
 
 Import uses multipart/form-data with `employees` (JSON) and/or `history` (CSV), as uploaded files or text fields. JSON accepts one employee, an array or the official `{ meta, employees }` wrapper. The endpoint accepts both files together; the teammate dialog currently uploads one file at a time. Existing employees update, new employees insert and duplicate record IDs skip. All input and the combined dataset are validated by the shared adapter. A failed row rolls back the entire request. Catalog replacement is not exposed through this incremental-import endpoint.
 

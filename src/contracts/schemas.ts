@@ -104,6 +104,14 @@ export const completeActivitySchema = z.object({
   feedbackRating: z.number().int().min(1).max(5).nullable().optional(),
 });
 
+// A self-service mutation, deliberately narrower than the employee import schema.
+export const careerGoalUpdateSchema = z.object({
+  career_goal: z.object({
+    target_role: z.string().trim().min(1),
+    target_grade: gradeSchema,
+  }).strict().nullable(),
+}).strict();
+
 export const employeeListQuerySchema = z.object({
   search: z.string().trim().optional(),
   role: z.string().trim().optional(),
