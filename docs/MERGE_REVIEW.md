@@ -1,5 +1,7 @@
 # Integration review — 2026-09-23
 
+Historical review of PR #8. Subsequent AI work uses PR #9's persisted service, with deadlines and live verification documented in AI_VERIFICATION.md and BACKEND_HANDOFF.md. The earlier statements below about AI being disconnected describe the PR #8 merge only.
+
 Reviewed remote main at `1bef61f` and PRs #1–6 and #8. PR #7 was not available in this repository.
 
 | PR | Decision |
