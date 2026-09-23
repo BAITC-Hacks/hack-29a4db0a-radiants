@@ -33,7 +33,7 @@ Small regressions also cover partial progress, caps, zero requirements, critical
 
 ## Additional-profile regression checks
 
-`tests/imported-profiles.test.ts` adds four checks using synthetic IDs outside the starter dataset: cross-role career goals and audience pairs; unordered history with review-date and employee boundaries; employee/HR consistency across successive completions; and participation counts for all six statuses. The original 21-test report is superseded by the full validation output on PR #9.
+`tests/imported-profiles.test.ts` adds four checks using synthetic IDs outside the starter dataset: cross-role career goals and audience pairs; unordered history with review-date and employee boundaries; employee/HR consistency across successive completions; and participation counts for all six statuses. The original 21-test report is superseded by the current 142 passing offline tests; two live checks are skipped in that run.
 
 In the imported-profile scenario, a missing SQL skill starts at 0. Completing its activity raises readiness from 22.2 to 55.6, removes SQL from HR gaps, and unlocks the Python recommendation through its prerequisite. Completing Python reaches 100. Lead-without-goal and blocked-employee states remain distinguishable. These tests begin with typed arrays; `tests/backend.test.ts` separately covers the persisted import API and rollback. Browser acceptance is recorded in `docs/RELEASE_CHECKLIST.md`.
 
