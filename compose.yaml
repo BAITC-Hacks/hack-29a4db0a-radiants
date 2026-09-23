@@ -13,6 +13,7 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-6-astra}
       AI_EXPLANATIONS_ENABLED: ${AI_EXPLANATIONS_ENABLED:-true}
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:${APP_PORT:-3000}}
+      DEMO_EMPLOYEE_LOGIN: ${DEMO_EMPLOYEE_LOGIN:-false}
     volumes:
       - career-quest-db:/app/.data
     healthcheck:
