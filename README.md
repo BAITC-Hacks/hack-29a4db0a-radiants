@@ -50,8 +50,6 @@ The synthetic fixture lives only in `tests/fixtures/career-dataset.ts`. Browser 
 
 ## Repository structure
 
-The interface uses compact employee sections, skill/HR tables and activity cards. See the [frontend design audit](docs/FRONTEND_DESIGN.md) for presentation choices and validation boundaries.
-
 - `src/types/career.ts` — shared domain contract.
 - `src/lib/recommendation/` — deterministic eligibility, skill reconstruction, ranking and explanations.
 - `src/lib/analytics/` — HR summary aggregation.
