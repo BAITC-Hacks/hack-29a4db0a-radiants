@@ -1,0 +1,72 @@
+Recommended next steps
+
+Expected changes and reasons for each activity
+
+Step 1
+Score 40
+Advanced Python
+Expected skill changes
+PythonCritical
+2 → 3 / 3 required
+Why this step
+Supports requirements for Backend Engineer Middle.
+Python: 2->3 toward required 3 (critical skill).
+No recent comparable participation records; evidence is insufficient to infer a preference.
+
+No recent comparable participation records; evidence is insufficient to infer a preference.
+
+AI-assisted explanation
+
+Advanced Python supports the Middle Backend Engineer target by raising Python from 2 to 3, meeting the required level of 3 for this critical skill. There are no recent comparable participation records, so history provides insufficient evidence to infer a preference.
+
+Complete activity
+Step 2
+Score 20
+Kubernetes in Practice
+
+Next session: 2026-10-16
+
+Expected skill changes
+Containers & Orchestration
+1 → 2 / 2 required
+CI/CD
+0 → 1 / 2 required
+Why this step
+Supports requirements for Backend Engineer Middle.
+Containers & Orchestration: 1->2 toward required 2 (target skill).
+CI/CD: 0->1 toward required 2 (target skill).
+No recent comparable participation records; evidence is insufficient to infer a preference.
+
+No recent comparable participation records; evidence is insufficient to infer a preference.
+
+AI-assisted explanation
+
+Kubernetes in Practice supports the Middle Backend Engineer target by raising Containers & Orchestration from 1 to 2, meeting the required level of 2. It also raises CI/CD from 0 to 1, leaving a gap to the required level of 2. There are no recent comparable participation records, so history provides insufficient evidence to infer a preference.
+
+Complete activity
+Step 3
+Score 20
+Structured Problem Solving
+
+Next session: 2026-11-09
+
+Expected skill changes
+Problem Solving
+2 → 3 / 3 required
+Critical Thinking
+3 → 4 · Not required by target
+Teamwork
+2 → 3 / 3 required
+Why this step
+Supports requirements for Backend Engineer Middle.
+Problem Solving: 2->3 toward required 3 (target skill).
+Teamwork: 2->3 toward required 3 (target skill).
+No recent comparable participation records; evidence is insufficient to infer a preference.
+
+No recent comparable participation records; evidence is insufficient to infer a preference.
+
+AI-assisted explanation
+
+Structured Problem Solving supports the Middle Backend Engineer target by raising Problem Solving and Teamwork each from 2 to 3, meeting their required levels of 3. There are no recent comparable participation records, so history provides insufficient evidence to infer a preference.
+
+Complete activity

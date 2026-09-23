@@ -1,0 +1,13 @@
+
+> career-quest@0.1.0 test:ai-live
+> vitest run tests/openai-live.test.ts
+
+
+ RUN  v5.0.1 C:/Users/ghost/OneDrive/Dokumente/ChatGPT/New project
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  16:36:08
+   Duration  13.38s (tests 98%, import 1%, transform 1%)
+

@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-23T11:39:56.952Z",
+  "employeeId": "E0058",
+  "authenticatedAccount": "employee2",
+  "authenticatedRole": "employee",
+  "readiness": 53.9,
+  "displayedExplanationSource": "AI-assisted explanation",
+  "explanationCount": 3,
+  "eventIds": [
+    "EV_012",
+    "EV_010",
+    "EV_040"
+  ],
+  "model": "gpt-6-astra",
+  "applicationUrl": "http://localhost:3000",
+  "container": "newproject-app-1",
+  "buildSourceSha": "575aded07cb86f940cba8e3ab8fe1f8e1e8b9934",
+  "dockerImageId": "sha256:3af368a7201c3d1e09633ef994905c22bed4c8aae31ad990f43bea066ae1eed2",
+  "comparedMainSha": "63d61140b437f66f71cdd0ca6b052a1431a167d3",
+  "runtimeDifferenceFromComparedMain": "none; all four differing files are documentation",
+  "provenance": "Clean-clone source SHA recorded during the deployed image build; current container image ID inspected. Source SHA is not embedded in the screenshot or an image label.",
+  "health": {
+    "status": "ok",
+    "schemaVersion": 2,
+    "counts": {
+      "skills": 60,
+      "roleProfiles": 32,
+      "employees": 200,
+      "events": 40,
+      "activityHistory": 2746
+    }
+  },
+  "liveTests": {
+    "command": "npm run test:ai-live",
+    "checkoutSha": "b61e1e80735f7f7fdac004a87a50f75ee54b80f6",
+    "codeDifferenceFromBuild": "documentation only",
+    "localStartTime": "2026-09-23T16:36:08+05:00",
+    "exitCode": 0,
+    "testFilesPassed": 1,
+    "testsPassed": 2,
+    "totalDurationSeconds": 13.38,
+    "employeesDefinedByTest": [
+      "E0178",
+      "E0058"
+    ],
+    "assertions": [
+      "all recommendation sources are llm",
+      "nonempty actual model explanations",
+      "deterministic recommendation fields unchanged",
+      "completed history unchanged",
+      "each getRecommendations call under 10000 milliseconds"
+    ],
+    "isolation": "temporary SQLite databases; separate from the browser container and its persisted state",
+    "limitation": "Raw reporter output summarizes the suite. It does not print per-case timings, answers or checkout SHA. Total duration is for both tests, not one request."
+  },
+  "secrets": {
+    "textScannedForLoadedSecretValues": true,
+    "credentialPatternMatches": 0,
+    "screenshotsVisuallyReviewed": true
+  },
+  "files": [
+    {
+      "name": "E0058-authenticated-ai-full.jpg",
+      "bytes": 375530,
+      "sha256": "8e68c919c16e84fd242d5a2be70fc90c36bf14bdb3de62f66243cd2c780c105f",
+      "savedAt": "2026-09-23T11:35:31.822Z"
+    },
+    {
+      "name": "E0058-ai-explanation-closeup.jpg",
+      "bytes": 87043,
+      "sha256": "5813e0777b8ecb132929ff431622b670f04dcdb563c7e8e86d28442eee761916",
+      "savedAt": "2026-09-23T11:35:42.187Z"
+    },
+    {
+      "name": "E0058-visible-explanations.txt",
+      "bytes": 2587,
+      "sha256": "bfcb83f8e2e5226a5c1580610ec918c96901296b696611e138ae7f6eab3d2468",
+      "savedAt": "2026-09-23T11:35:31.831Z"
+    },
+    {
+      "name": "live-tests.txt",
+      "bytes": 290,
+      "sha256": "c338e0df0b0e8dbaac965f728cb9dccc8b2df3b2837d618b54dd5fe23d62de4d",
+      "savedAt": "2026-09-23T11:36:21.982Z"
+    }
+  ]
+}
