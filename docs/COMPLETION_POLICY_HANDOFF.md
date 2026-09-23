@@ -2,7 +2,10 @@
 
 ## Status: domain ready, runtime integration required
 
-Base: main `94496bd` (includes PR #16's authenticated live-AI proof).
+Started from main `94496bd` (includes PR #16's authenticated live-AI proof).
+Synced with main `1666aeb` (PR #17 optional demo login); final runtime checks below
+were repeated at merge commit `131a7b0`. Subsequent changes only update this report
+and its test-output artifact.
 Owner: AI/Data. Integration owner: Backend, `@silence99999`.
 
 This change does **not** wire the production completion endpoint. Do not merge or

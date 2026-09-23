@@ -5,8 +5,8 @@
 
  RUN  v5.0.1 C:/Users/foxal.DESKTOP-N1GCIEU/.codex/worktrees/final-product-review/выв
 
- ❯ tests/completion-integration.test.ts (2 tests | 1 failed) 1121ms
-   × rejects E0178 / EV_006 before prerequisites are met, without writing history or progress 603ms
+ ❯ tests/completion-integration.test.ts (2 tests | 1 failed) 1150ms
+   × rejects E0178 / EV_006 before prerequisites are met, without writing history or progress 628ms
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
 
@@ -113,5 +113,5 @@ AssertionError: expected 74.1 to be 71.3 // Object.is equality
 
  Test Files  1 failed | 20 passed | 1 skipped (22)
       Tests  1 failed | 272 passed | 2 skipped (275)
-   Start at  16:54:52
-   Duration  28.43s (tests 94%, import 4%, transform 1%)
+   Start at  16:59:19
+   Duration  30.35s (tests 94%, import 5%, transform 1%)
