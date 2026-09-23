@@ -1,0 +1,117 @@
+
+> career-quest@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.1 C:/Users/foxal.DESKTOP-N1GCIEU/.codex/worktrees/final-product-review/выв
+
+ ❯ tests/completion-integration.test.ts (2 tests | 1 failed) 1150ms
+   × rejects E0178 / EV_006 before prerequisites are met, without writing history or progress 628ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/completion-integration.test.ts > rejects E0178 / EV_006 before prerequisites are met, without writing history or progress
+AssertionError: expected 201 to be 422 // Object.is equality
+
+- Expected
++ Received
+
+- 422
++ 201
+
+ ❯ tests/completion-integration.test.ts:42:32
+     40|   }), { params: Promise.resolve({ employeeId: "E0178", eventId: "EV_00…
+     41|
+     42|   expect.soft(response.status).toBe(422);
+       |                                ^
+     43|   expect.soft(databaseCounts(db)).toEqual(counts);
+     44|   const after = getEmployeeProjection("E0178", db);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/completion-integration.test.ts > rejects E0178 / EV_006 before prerequisites are met, without writing history or progress
+AssertionError: expected { skills: 60, roleProfiles: 32, …(3) } to deeply equal { skills: 60, roleProfiles: 32, …(3) }
+
+- Expected
++ Received
+
+  {
+-   "activityHistory": 2743,
++   "activityHistory": 2744,
+    "employees": 200,
+    "events": 40,
+    "roleProfiles": 32,
+    "skills": 60,
+  }
+
+ ❯ tests/completion-integration.test.ts:43:35
+     41|
+     42|   expect.soft(response.status).toBe(422);
+     43|   expect.soft(databaseCounts(db)).toEqual(counts);
+       |                                   ^
+     44|   const after = getEmployeeProjection("E0178", db);
+     45|   expect.soft(after.effectiveSkills).toEqual(before.effectiveSkills);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/completion-integration.test.ts > rejects E0178 / EV_006 before prerequisites are met, without writing history or progress
+AssertionError: expected { SK_PYTHON: 3, SK_SQL: 4, …(22) } to deeply equal { SK_PYTHON: 3, SK_SQL: 4, …(22) }
+
+- Expected
++ Received
+
+@@ -10,17 +10,17 @@
+    "SK_CRITICAL_THINKING": 3,
+    "SK_EMOTIONAL_INTELLIGENCE": 2,
+    "SK_FEEDBACK": 2,
+    "SK_LEADERSHIP": 1,
+    "SK_MENTORING": 0,
+-   "SK_OBSERVABILITY": 3,
++   "SK_OBSERVABILITY": 4,
+    "SK_PROBLEM_SOLVING": 3,
+    "SK_PUBLIC_SPEAKING": 1,
+    "SK_PYTHON": 3,
+    "SK_ROADMAPPING": 1,
+    "SK_SQL": 4,
+    "SK_STAKEHOLDER_MGMT": 1,
+-   "SK_SYSTEM_DESIGN": 1,
++   "SK_SYSTEM_DESIGN": 2,
+    "SK_TEAMWORK": 4,
+    "SK_TIME_MANAGEMENT": 2,
+    "SK_WRITTEN_COMMUNICATION": 2,
+  }
+
+ ❯ tests/completion-integration.test.ts:45:38
+     43|   expect.soft(databaseCounts(db)).toEqual(counts);
+     44|   const after = getEmployeeProjection("E0178", db);
+     45|   expect.soft(after.effectiveSkills).toEqual(before.effectiveSkills);
+       |                                      ^
+     46|   expect.soft(after.readiness).toBe(before.readiness);
+     47| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/completion-integration.test.ts > rejects E0178 / EV_006 before prerequisites are met, without writing history or progress
+AssertionError: expected 74.1 to be 71.3 // Object.is equality
+
+- Expected
++ Received
+
+- 71.3
++ 74.1
+
+ ❯ tests/completion-integration.test.ts:46:32
+     44|   const after = getEmployeeProjection("E0178", db);
+     45|   expect.soft(after.effectiveSkills).toEqual(before.effectiveSkills);
+     46|   expect.soft(after.readiness).toBe(before.readiness);
+       |                                ^
+     47| });
+     48|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed | 20 passed | 1 skipped (22)
+      Tests  1 failed | 272 passed | 2 skipped (275)
+   Start at  16:59:19
+   Duration  30.35s (tests 94%, import 5%, transform 1%)

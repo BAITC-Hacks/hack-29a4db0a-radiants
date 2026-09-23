@@ -3,7 +3,8 @@ import type Database from "better-sqlite3";
 import type { CareerGoalUpdate, CatalogResult, CompleteActivityResult, EmployeeCard, EmployeeDetail, HrSummaryResult } from "@/contracts/api";
 import { REPEATABLE_EVENT_ID, type ActivityRecord } from "@/contracts/types";
 import { careerGoalUpdateSchema } from "@/contracts/schemas";
-import { getCompletionEligibility, getEmployeeView, getRecommendationDiagnostics } from "@/lib/recommendation";
+import { getEmployeeView, getRecommendationDiagnostics } from "@/lib/recommendation";
+import { checkActivityCompletion } from "@/lib/recommendation/completion";
 import { normalizeDataset, type NormalizedDataset } from "@/lib/data/normalize";
 import { buildHrSummary } from "@/lib/analytics/hr-summary";
 import { applyAiExplanations, type RecommendationExplainer } from "@/lib/ai/explanations";
@@ -121,15 +122,20 @@ export async function completeActivity(
     if (eventId !== REPEATABLE_EVENT_ID && activities.hasCompleted(employeeId, eventId)) {
       throw new AppError(409, "EVENT_ALREADY_COMPLETED", "This event cannot be completed more than once");
     }
-    const eligibility = getCompletionEligibility(dataset, employeeId, eventId, values.completedAt);
-    if (!eligibility.eligible || !eligibility.completionDate) {
+    const eligibility = checkActivityCompletion(dataset, employeeId, eventId, values);
+    if (!eligibility.allowed) {
       throw new AppError(422, "EVENT_NOT_ELIGIBLE", "This activity cannot be completed: " + eligibility.reasons.map((reason) => reason.message).join(" "),
-        eligibility.reasons.map((reason) => ({ field: reason.code === "invalid_completion_date" ? "completedAt" : "eventId", message: `${reason.code}: ${reason.message}` })));
+        eligibility.reasons.flatMap((reason) => [
+          { field: reason.code === "invalid_completion_date" ? "completedAt" : "eventId", message: `${reason.code}: ${reason.message}` },
+          ...(reason.missingSkills ?? []).map((skill) => ({ field: `skills.${skill.skillId}`, message: `Current level ${skill.current}; required level ${skill.required}` })),
+        ]));
     }
+    const continuing = dataset.history.find((record) => record.record_id === eligibility.continuingRecordId);
     const activity: ActivityRecord = {
       record_id: "LOCAL_" + randomUUID(), employee_id: employeeId, event_id: eventId,
-      date: eligibility.completionDate, due_date: null, status: "completed", completion_pct: 100,
-      score: values.score ?? null, feedback_rating: values.feedbackRating ?? null, assigned_by: "self",
+      date: eligibility.completedAt, due_date: continuing?.due_date ?? null, status: "completed", completion_pct: 100,
+      score: values.score ?? null, feedback_rating: values.feedbackRating ?? null,
+      assigned_by: continuing?.assigned_by ?? "self",
     };
     activities.insert(activity);
     // Assessed employee.skills is never changed: history is the sole source of this gain.

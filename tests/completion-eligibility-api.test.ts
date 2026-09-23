@@ -34,10 +34,10 @@ afterEach(() => {
   fs.rmSync(directory, { recursive: true, force: true });
 });
 
-async function profile(): Promise<EmployeeDetail> {
-  const response = await profileRoute(new Request(`http://localhost/api/employees/${EMPLOYEE_ID}`, {
-    headers: authHeaders(employee),
-  }), { params: Promise.resolve({ employeeId: EMPLOYEE_ID }) });
+async function profile(employeeId = EMPLOYEE_ID, identity = employee): Promise<EmployeeDetail> {
+  const response = await profileRoute(new Request(`http://localhost/api/employees/${employeeId}`, {
+    headers: authHeaders(identity),
+  }), { params: Promise.resolve({ employeeId }) });
   expect(response.status).toBe(200);
   return (await response.json()).data;
 }
@@ -196,5 +196,59 @@ describe("activity completion API enforces eligibility before persisting progres
     const before = await storedState();
     await expectError(await complete("EV_UNKNOWN"), 404, "EVENT_NOT_FOUND");
     expect(await storedState()).toEqual(before);
+  });
+
+  it.each(["hr", "manager"] as const)("requires an active mandatory assignment and preserves its %s source when completing", async (assignedBy) => {
+    const employeeId = `MANDATORY_${assignedBy.toUpperCase()}`;
+    const sourceProfile = new EmployeeRepository().getById(EMPLOYEE_ID)!;
+    new EmployeeRepository().upsert({ ...sourceProfile, employee_id: employeeId });
+    const identity = await testIdentity("employee", employeeId);
+    const beforeAssignment = loadDomainDataset();
+    const refused = await complete("EV_001", {}, identity, employeeId);
+    expect(refused.status).toBe(422);
+    const error = (await refused.json()).error;
+    expect(error.code).toBe("EVENT_NOT_ELIGIBLE");
+    expect(error.details).toContainEqual(expect.objectContaining({ message: expect.stringContaining("mandatory_assignment_required") }));
+    expect(loadDomainDataset()).toEqual(beforeAssignment);
+
+    new ActivityRepository().insert({
+      record_id: `MANDATORY_ASSIGNMENT_${assignedBy.toUpperCase()}`,
+      employee_id: employeeId, event_id: "EV_001", date: "2026-09-20", due_date: "2026-09-30",
+      status: assignedBy === "hr" ? "overdue" : "in_progress", completion_pct: 40,
+      score: null, feedback_rating: null, assigned_by: assignedBy,
+    });
+    const assignedProfile = await profile(employeeId, identity);
+    const beforeCompletion = databaseCounts().activityHistory;
+    expect(assignedProfile.activeMandatoryObligations).toHaveLength(1);
+    const response = await complete("EV_001", {}, identity, employeeId);
+    expect(response.status).toBe(201);
+    const result: CompleteActivityResult = (await response.json()).data;
+    expect(result.activity).toMatchObject({ employee_id: employeeId, event_id: "EV_001", date: "2026-10-01", status: "completed", assigned_by: assignedBy });
+    expect(databaseCounts().activityHistory).toBe(beforeCompletion + 1);
+    expect(new ActivityRepository().listByEmployee(employeeId)).toContainEqual(result.activity);
+    expect(result.view.employee.skills).toEqual(sourceProfile.skills);
+    expect(result.view.readiness).toBe(assignedProfile.readiness);
+    expect(result.view.activeMandatoryObligations).toEqual([]);
+    expect(result.view.recommendations.every((item) => item.eventId !== "EV_001")).toBe(true);
+  });
+
+  it("rejects an arbitrary future date for a self-paced activity without writing history", async () => {
+    const employeeId = "SELF_PACED_DATE";
+    new EmployeeRepository().upsert({ ...new EmployeeRepository().getById(EMPLOYEE_ID)!, employee_id: employeeId });
+    const identity = await testIdentity("employee", employeeId);
+    new ActivityRepository().insert({
+      record_id: "SELF_PACED_ASSIGNMENT", employee_id: employeeId, event_id: "EV_001",
+      date: "2026-09-20", due_date: "2026-10-10", status: "in_progress", completion_pct: 40,
+      score: null, feedback_rating: null, assigned_by: "hr",
+    });
+    const before = loadDomainDataset();
+    const originalProfile = await profile(employeeId, identity);
+    const response = await complete("EV_001", { completedAt: "2026-10-02" }, identity, employeeId);
+    expect(response.status).toBe(422);
+    const error = (await response.json()).error;
+    expect(error.code).toBe("EVENT_NOT_ELIGIBLE");
+    expect(error.details).toContainEqual(expect.objectContaining({ field: "completedAt", message: expect.stringContaining("invalid_completion_date") }));
+    expect(loadDomainDataset()).toEqual(before);
+    expect(await profile(employeeId, identity)).toEqual(originalProfile);
   });
 });

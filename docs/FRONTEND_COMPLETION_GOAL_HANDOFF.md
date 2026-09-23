@@ -21,7 +21,7 @@ The server holds one SQLite write transaction while loading the employee/event/h
 
 | HTTP | Code | Meaning |
 | --- | --- | --- |
-| 422 | `EVENT_NOT_ELIGIBLE` | Audience, prerequisites, availability, or the selected completion date do not permit completion. Show `error.message` / `details[].message`; no progress or history was saved. |
+| 422 | `EVENT_NOT_ELIGIBLE` | Audience, prerequisites, availability, mandatory assignment, or the selected completion date do not permit completion. Show `error.message` / `details[].message`; no progress or history was saved. |
 | 409 | `EVENT_ALREADY_COMPLETED` | Non-repeatable activity already completed. Refresh the profile; do not insert another local completion. |
 | 404 | `EVENT_NOT_FOUND` | Event ID does not exist. |
 | 401 | `AUTH_REQUIRED` | Sign in again. |
@@ -29,9 +29,9 @@ The server holds one SQLite write transaction while loading the employee/event/h
 | 403 | `CSRF_INVALID` / `ORIGIN_FORBIDDEN` | Refresh the session or fix the application origin; do not bypass the check. |
 | 400 / 422 | `INVALID_JSON` / `VALIDATION_ERROR` | Invalid body; display the validation error. |
 
-`E0178 + EV_006` is a blocked regression case. Supplying `completedAt` cannot bypass its missing prerequisites. Scheduled activities require a listed session on/after the fixed snapshot `2026-10-01`; self-paced activities default to that date. Explicit historical dates belong in the validated history-import flow, not self-service completion.
+`E0178 + EV_006` is a blocked regression case. Supplying `completedAt` cannot bypass its missing prerequisites. New scheduled activities require a listed session on/after the fixed snapshot `2026-10-01`. Self-paced and already active participation complete on exactly that snapshot date, including a scheduled participation whose original session has passed. Explicit historical dates belong in the validated history-import flow, not self-service completion.
 
-Completion does not require membership in the top three recommendations or reduction of a target gap. Mandatory obligations and already in-progress activities can be completed when their factual requirements are met. They remain separate from newly recommended voluntary steps. Only `EV_036` may repeat.
+Completion does not require membership in the top three recommendations or reduction of a target gap. Mandatory obligations require the latest stored participation to be active (`in_progress`/`overdue`) and assigned by HR or a manager. This is a team completion policy; the browser cannot assert an assignment. Its `assigned_by` and `due_date` are preserved in the new completed record. Already active activities remain subject to audience and effective-skill prerequisites. They remain separate from newly recommended voluntary steps. Only `EV_036` may repeat.
 
 ## Updating your career goal
 

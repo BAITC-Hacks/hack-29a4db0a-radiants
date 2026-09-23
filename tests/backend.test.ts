@@ -203,9 +203,13 @@ describe("Career Quest backend", () => {
     await completeActivity("E0001", "EV_036", {}, db);
     expect(databaseCounts(db).activityHistory).toBe(before + 2);
     const employee = { ...new EmployeeRepository(db).getById("E0001")!, employee_id: "NEW_MANDATORY", skills: {}, career_goal: null };
-    importData({ employeesJson: JSON.stringify(employee) }, db);
+    importData({
+      employeesJson: JSON.stringify(employee),
+      historyCsv: "record_id,employee_id,event_id,date,due_date,status,completion_pct,score,feedback_rating,assigned_by\nNEW_MANDATORY_ASSIGNMENT,NEW_MANDATORY,EV_001,2026-09-20,2026-09-30,overdue,40,,,hr",
+    }, db);
     const completed = await completeActivity(employee.employee_id, "EV_001", {}, db);
     expect(completed.activity.date).toBe("2026-10-01");
+    expect(completed.activity.assigned_by).toBe("hr");
     expect(completed.view.recommendations.every((item) => !new EventRepository(db).getById(item.eventId)!.mandatory)).toBe(true);
     await expect(completeActivity(employee.employee_id, "MISSING", {}, db)).rejects.toMatchObject({ status: 404 });
     expect(() => importData({ historyCsv: "record_id,employee_id,event_id,date,due_date,status,completion_pct,score,feedback_rating,assigned_by\nUNKNOWN,MISSING,EV_036,2026-09-20,,completed,100,,,self" }, db)).toThrow(AppError);

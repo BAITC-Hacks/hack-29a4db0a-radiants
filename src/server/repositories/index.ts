@@ -244,14 +244,14 @@ export class ActivityRepository {
 
   listAll(): ActivityRecord[] {
     return (
-      this.db.prepare("SELECT * FROM activity_history ORDER BY date, employee_id, event_id").all() as ActivityRow[]
+      this.db.prepare("SELECT * FROM activity_history ORDER BY date COLLATE BINARY, employee_id COLLATE BINARY, event_id COLLATE BINARY, record_id COLLATE BINARY").all() as ActivityRow[]
     ).map(decodeActivity);
   }
 
   listByEmployee(employeeId: string): ActivityRecord[] {
     return (
       this.db
-        .prepare("SELECT * FROM activity_history WHERE employee_id = ? ORDER BY date, record_id")
+        .prepare("SELECT * FROM activity_history WHERE employee_id = ? ORDER BY date COLLATE BINARY, event_id COLLATE BINARY, record_id COLLATE BINARY")
         .all(employeeId) as ActivityRow[]
     ).map(decodeActivity);
   }

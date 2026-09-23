@@ -1,4 +1,5 @@
 import { normalizeDataset, roleProfileKey, type NormalizedDataset } from "../data/normalize";
+import { getNextSession, getUnmetPrerequisites, matchesAudience, SNAPSHOT_DATE } from "./eligibility";
 import {
   GRADES,
   type ActivityRecord,
@@ -15,18 +16,11 @@ import {
   type SkillLevel,
 } from "../../types/career";
 
-export const SNAPSHOT_DATE = "2026-10-01";
+export { SNAPSHOT_DATE } from "./eligibility";
 const RECENT_HISTORY_DAYS = 365;
 
 export type RecommendationExclusionCode = "mandatory" | "audience" | "prerequisites" | "unavailable" | "completed" | "in_progress" | "no_gap_reduction";
 export interface RecommendationExclusion { code: RecommendationExclusionCode; message: string }
-export type CompletionExclusionCode = "audience" | "prerequisites" | "unavailable" | "completed" | "invalid_completion_date" | "employee_not_found" | "event_not_found";
-export interface CompletionExclusion { code: CompletionExclusionCode; message: string }
-export interface CompletionEligibility {
-  eligible: boolean;
-  completionDate?: string;
-  reasons: CompletionExclusion[];
-}
 export interface RecommendationDiagnostics {
   status: "available" | "needs_career_goal" | "target_reached" | "no_eligible_events";
   summary: string;
@@ -115,57 +109,6 @@ export function getRecommendations(
   });
 
   return getEmployeeView(dataset, employee.employee_id);
-}
-
-/**
- * Validate the facts needed to record a completion, independently of recommendation rank.
- * Mandatory and already in-progress activities can be completed; a target gap is not required.
- * The caller still owns HTTP errors, persistence and the transaction around this check.
- */
-export function getCompletionEligibility(
-  dataset: NormalizedDataset,
-  employeeId: string,
-  eventId: string,
-  completedAt?: string,
-): CompletionEligibility {
-  const employee = dataset.employeeById.get(employeeId);
-  if (!employee) return { eligible: false, reasons: [{ code: "employee_not_found", message: `Unknown employee: ${employeeId}.` }] };
-  const event = dataset.eventById.get(eventId);
-  if (!event) return { eligible: false, reasons: [{ code: "event_not_found", message: `Unknown activity: ${eventId}.` }] };
-
-  const target = resolveTarget(employee, dataset) ?? { role: employee.role, grade: employee.grade };
-  const skills = reconstructEffectiveSkills(employee, dataset);
-  const history = dataset.historyByEmployeeId.get(employeeId) ?? [];
-  const futureSessions = event.upcoming_sessions.filter((date) => isCalendarDate(date) && date >= SNAPSHOT_DATE).sort();
-  const reasons: CompletionExclusion[] = [];
-  for (const reason of eligibilityExclusions(event, employee, target, skills, history, futureSessions[0], dataset.skillById)) {
-    if (reason.code !== "mandatory" && reason.code !== "in_progress" && reason.code !== "no_gap_reduction") {
-      reasons.push({ code: reason.code, message: reason.message });
-    }
-  }
-
-  if (completedAt !== undefined) {
-    if (!isCalendarDate(completedAt)) {
-      reasons.push({ code: "invalid_completion_date", message: "Completion date must be a real calendar date in YYYY-MM-DD format." });
-    } else if (completedAt < SNAPSHOT_DATE) {
-      reasons.push({ code: "invalid_completion_date", message: `Completion date must be on or after ${SNAPSHOT_DATE}.` });
-    } else if (event.format !== "self_paced" && !futureSessions.includes(completedAt)) {
-      reasons.push({ code: "invalid_completion_date", message: "A scheduled activity can only be completed on one of its available session dates." });
-    }
-  }
-
-  if (reasons.length > 0) return { eligible: false, reasons };
-  return {
-    eligible: true,
-    completionDate: completedAt ?? (event.format === "self_paced" ? SNAPSHOT_DATE : futureSessions[0]),
-    reasons: [],
-  };
-}
-
-function isCalendarDate(value: string): boolean {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 /** Explain the same eligibility checks used for recommendations without relaxing them. */
@@ -378,10 +321,10 @@ function eligibilityExclusions(
   const reasons: RecommendationExclusion[] = [];
   if (event.mandatory) reasons.push({ code: "mandatory", message: "Mandatory obligations are shown separately and are never career recommendations." });
   if (!matchesAudience(event, employee, target)) reasons.push({ code: "audience", message: "The activity does not match the employee's current or target role and grade." });
-  if (!meetsPrerequisites(event, skills)) {
-    const missing = Object.entries(event.prerequisites)
-      .filter(([skillId, required]) => (skills[skillId] ?? 0) < (required ?? 0))
-      .map(([skillId, required]) => `${skillById?.get(skillId)?.name ?? skillId}: current ${skills[skillId] ?? 0}, required ${required}`);
+  const missingPrerequisites = getUnmetPrerequisites(event, skills);
+  if (missingPrerequisites.length > 0) {
+    const missing = missingPrerequisites
+      .map(({ skillId, current, required }) => `${skillById?.get(skillId)?.name ?? skillId}: current ${current}, required ${required}`);
     reasons.push({ code: "prerequisites", message: `Prerequisites are not met: ${missing.join("; ")}.` });
   }
   if (event.format !== "self_paced" && !nextSession) reasons.push({ code: "unavailable", message: `No scheduled session is available on or after ${SNAPSHOT_DATE}.` });
@@ -393,29 +336,6 @@ function eligibilityExclusions(
     reasons.push({ code: "in_progress", message: "This activity is already in progress and is not offered as a new step." });
   }
   return reasons;
-}
-
-function matchesAudience(
-  event: DevelopmentEvent,
-  employee: Employee,
-  target: { role: string; grade: Grade },
-): boolean {
-  const includes = (role: string, grade: Grade) =>
-    event.target_roles.includes(role) && event.target_grades.includes(grade);
-  return includes(employee.role, employee.grade) || includes(target.role, target.grade);
-}
-
-function meetsPrerequisites(event: DevelopmentEvent, skills: Record<string, SkillLevel>): boolean {
-  return Object.entries(event.prerequisites).every(
-    ([skillId, requiredLevel]) => (skills[skillId] ?? 0) >= (requiredLevel ?? 0),
-  );
-}
-
-function getNextSession(event: DevelopmentEvent): string | undefined {
-  if (event.format === "self_paced" && event.upcoming_sessions.length === 0) {
-    return undefined;
-  }
-  return event.upcoming_sessions.filter((session) => session >= SNAPSHOT_DATE).sort()[0];
 }
 
 function simulateEvent(
