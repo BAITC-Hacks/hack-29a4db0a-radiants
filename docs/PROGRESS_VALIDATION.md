@@ -29,6 +29,12 @@ For `E0058`, completing `EV_012` changes Python from 2 to 3 and readiness from 5
 
 Automated regression checks: `npm test` passes 17 tests, including a small synthetic reproduction of the above-cap bug, partial progress, caps from below, zero requirements, and critical-gap prioritization with repeated missed activities. `npm run typecheck` passes.
 
+## Additional-profile regression checks
+
+`tests/imported-profiles.test.ts` adds four checks using synthetic IDs outside the starter dataset: cross-role career goals and audience pairs; unordered history with review-date and employee boundaries; employee/HR consistency across successive completions; and participation counts for all six statuses. The full suite now passes 21 tests and TypeScript validation.
+
+In the imported-profile scenario, a missing SQL skill starts at 0. Completing its activity raises readiness from 22.2 to 55.6, removes SQL from HR gaps, and unlocks the Python recommendation through its prerequisite. Completing Python reaches 100. Lead-without-goal and blocked-employee states remain distinguishable. These tests begin with typed arrays; file parsing and the import API still require Backend integration tests.
+
 ## Integration handoff
 
 - Backend: load `CareerDataset`, append completed history without also increasing assessed skills, and rebuild employee/HR views. Preserve `src/types/career.ts` and the test scripts when adding the application scaffold.
