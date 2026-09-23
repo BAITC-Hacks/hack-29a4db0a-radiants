@@ -22,7 +22,7 @@ export function useApiResource<T>(key: string, loader: (signal: AbortSignal) => 
       (data) => { if (!request.signal.aborted) setSnapshot({ key, data, loading: false }); },
       (error: unknown) => {
         if (!request.signal.aborted) setSnapshot({ key, loading: false,
-          error: error instanceof Error ? error.message : "Could not load data." });
+          error: error instanceof Error ? error.message : "Не удалось загрузить данные." });
       },
     );
     return () => request.abort();

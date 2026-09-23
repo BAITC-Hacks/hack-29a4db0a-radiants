@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CloudUpload, LoaderCircle, X } from "lucide-react";
+import { Check, FileText, LoaderCircle, Upload, X } from "lucide-react";
 import type { CareerApi, ImportResult } from "../lib/frontend/api";
 
 export function ImportDialog({ api, onClose, onImported }: {
@@ -21,7 +21,7 @@ export function ImportDialog({ api, onClose, onImported }: {
   function choose(candidate?: File) {
     if (!candidate || busy || result) return;
     setError("");
-    if (!/\.(json|csv)$/i.test(candidate.name)) { setFile(null); setError("Choose a JSON or CSV file."); return; }
+    if (!/\.(json|csv)$/i.test(candidate.name)) { setFile(null); setError("Выберите файл JSON или CSV."); return; }
     setFile(candidate);
   }
   function importAnother() {
@@ -44,8 +44,8 @@ export function ImportDialog({ api, onClose, onImported }: {
       await onImported(uploaded);
       setDone(true);
     } catch (issue) {
-      const detail = issue instanceof Error ? issue.message : "Could not import this file.";
-      setError(uploaded ? `Import succeeded, but employee profiles could not be refreshed. ${detail}` : detail);
+      const detail = issue instanceof Error ? issue.message : "Не удалось загрузить файл.";
+      setError(uploaded ? `Данные загружены, но профили не удалось обновить. ${detail}` : detail);
     } finally {
       lock.current = false;
       setBusy(false);
@@ -53,26 +53,35 @@ export function ImportDialog({ api, onClose, onImported }: {
   }
   return <dialog ref={dialog} className="dialog import-dialog" aria-labelledby="import-title"
     onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
-    <div className="dialog-head"><h2 id="import-title">Import profile or activity history</h2>
-      <button className="icon-button" autoFocus disabled={busy} aria-label="Close import dialog" onClick={onClose}><X size={18} /></button>
+    <div className="dialog-head"><h2 id="import-title">Загрузить данные</h2>
+      <button className="icon-button" autoFocus disabled={busy} aria-label="Закрыть окно загрузки" onClick={onClose}><X size={18} /></button>
     </div>
-    <p className="dialog-copy">For a new employee, import the profile JSON first, then the activity history CSV. The official activity and skill catalog is already loaded. Your profile refreshes after each upload.</p>
-    {!done && <div className="dropzone" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); choose(event.dataTransfer.files[0]); }}>
-      <CloudUpload size={27} /><strong>{file ? file.name : "Drop a file here, or browse"}</strong><span>JSON / CSV</span>
-      <button className="button button-outline" disabled={busy || !!result} onClick={() => input.current?.click()}>Choose file</button>
-      <input ref={input} type="file" aria-label="Import file" accept=".json,.csv,application/json,text/csv"
+    {!done && <>
+    <p className="dialog-copy">Для нового сотрудника сначала загрузите профиль в JSON, затем историю активностей в CSV.</p>
+    <div className={`dropzone import-file-picker${file ? " has-file" : ""}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); choose(event.dataTransfer.files[0]); }}>
+      {file ? <><FileText size={24} aria-hidden="true" /><div className="import-file-description"><strong>{file.name}</strong><span>{file.name.split(".").pop()?.toUpperCase()} · {formatFileSize(file.size)}</span></div></> :
+        <><Upload size={24} aria-hidden="true" /><div className="import-file-description"><strong>Выберите или перетащите файл</strong><span>Поддерживаются JSON и CSV</span></div></>}
+      <button className="button button-outline" disabled={busy || !!result} onClick={() => input.current?.click()}>Выбрать файл</button>
+      <input ref={input} type="file" aria-label="Файл для загрузки" accept=".json,.csv,application/json,text/csv"
         onChange={(event) => { choose(event.target.files?.[0]); event.target.value = ""; }} />
-    </div>}
-    {busy && <p className="import-progress" role="status"><LoaderCircle className="spin" size={17} />{result ? "Refreshing employee profiles…" : "Uploading and processing file…"}</p>}
+    </div>
+    </>}
+    {busy && <p className="import-progress" role="status"><LoaderCircle className="spin" size={17} />{result ? "Обновляем профили…" : "Загружаем и обрабатываем файл…"}</p>}
     {error && <div className="import-error" role="alert">{error}</div>}
-    {result?.warnings?.length ? <div className="import-warnings"><strong>Import notes</strong><ul>{result.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></div> : null}
-    {done && <div className="inline-success" role="status">{result?.message || "Import completed. Employee profiles refreshed."}</div>}
-    {done && /\.json$/i.test(file?.name ?? "") && <p className="dialog-copy">Next: import the history CSV for this employee, if you have one.</p>}
+    {result?.warnings?.length ? <div className="import-warnings"><strong>Примечания</strong><ul>{result.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></div> : null}
+    {done && <div className="inline-success import-success" role="status"><Check size={20} aria-hidden="true" /><div><strong>Данные загружены</strong><p>{result?.message || "Профили сотрудников обновлены."}</p>{file && <span className="import-file-name">{file.name}</span>}</div></div>}
+    {done && /\.json$/i.test(file?.name ?? "") && <p className="dialog-copy">Теперь можно загрузить историю активностей этого сотрудника в CSV.</p>}
     <div className="dialog-foot">
-      <button className="button button-outline" disabled={busy} onClick={onClose}>{done ? "Close" : "Cancel"}</button>
-      {done && <button className="button button-outline" onClick={importAnother}>Import another file</button>}
-      {done ? <button className="button button-green" onClick={onClose}>View profile</button> :
-        <button className="button button-green" disabled={busy || !file} onClick={() => void upload()}>{busy ? "Please wait…" : result ? "Retry refresh" : "Upload file"}</button>}
+      {!done && <button className="button button-outline" disabled={busy} onClick={onClose}>Отмена</button>}
+      {done && <button className="button button-outline" onClick={importAnother}>Загрузить ещё файл</button>}
+      {done ? <button className="button button-green" onClick={onClose}>Открыть профиль</button> :
+        <button className="button button-green" disabled={busy || !file} onClick={() => void upload()}>{busy ? "Подождите…" : result ? "Обновить профили" : "Загрузить"}</button>}
     </div>
   </dialog>;
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} Б`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} КБ`;
+  return `${(bytes / (1024 * 1024)).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} МБ`;
 }

@@ -109,11 +109,13 @@ Defaults: `CAREER_QUEST_DB_PATH=.data/career-quest.sqlite`, `CAREER_QUEST_DATA_D
 1. Open E0178 on a clean database: readiness 71.3%.
 2. Complete EV_005: skills refresh, readiness becomes 74.1%, API Design stays at 4.
 3. Reload: the completed history and updated progress remain.
-4. Import [jury-employee.json](docs/fixtures/jury-employee.json), then [jury-history.csv](docs/fixtures/jury-history.csv) using **Import another file**. Jury Demo changes from 71.3% to 74.1%; completed and overdue mandatory activity history appears.
+4. Use **Загрузить данные** to import [jury-employee.json](docs/fixtures/jury-employee.json), then **Загрузить ещё файл** for [jury-history.csv](docs/fixtures/jury-history.csv). Jury Demo changes from 71.3% to 74.1%; completed and overdue mandatory activity history appears.
 5. Open HR: official population, gaps, all employees without steps, and all activity participation rows are accessible.
 
 See [jury rehearsal](docs/JURY_DEMO.md) for the three importable evaluation profiles, adversarial checks and a three-minute demonstration. [Release checklist](docs/RELEASE_CHECKLIST.md) separates verified behavior from the remaining live-AI and frontend gates.
 
 Starter data is synthetic. Authentication is outside this MVP: employee/HR views are logically separated but not protected by an authorization layer. Employee listing and catalog endpoints do not expose engagement history.
 
-See [the 3–5 minute demo and startup guide](docs/DEMO.md), [the frontend API contract](docs/FRONTEND_API.md), and [final validation results](docs/FINAL_VALIDATION.md): 176 offline tests, two live AI cases, clean-clone Docker startup and browser import/completion/persistence.
+See [the 3–5 minute demo and startup guide](docs/DEMO.md), [the frontend API contract](docs/FRONTEND_API.md), and [the team's pre-redesign validation](docs/FINAL_VALIDATION.md): 176 offline tests, two live AI cases, clean-clone Docker startup and browser import/completion/persistence.
+
+The interface uses Halyk's visual direction, locally hosted Manrope and Russian controls. Employee/course data stays in its supplied language. See [the current design and validation notes](docs/FRONTEND_DESIGN.md) for assets, accessibility and changes in this iteration.

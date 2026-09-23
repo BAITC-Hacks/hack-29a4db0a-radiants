@@ -1,4 +1,4 @@
-const formatter = new Intl.NumberFormat("en", { maximumFractionDigits: 1 });
+const formatter = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
 
 /** Presentation precision only; never recompute or replace backend readiness. */
 export function formatReadiness(value: number): string {
@@ -11,7 +11,7 @@ export function readinessDelta(before: number, after: number): number {
 }
 
 export function formatReadinessDelta(delta: number): string {
-  return `${delta > 0 ? "+" : ""}${formatter.format(delta)} percentage points`;
+  return `${delta > 0 ? "+" : ""}${formatter.format(delta)} п.п.`;
 }
 
 /** Bounds apply only to visual geometry, never to stored or displayed values. */

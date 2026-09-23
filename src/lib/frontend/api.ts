@@ -39,7 +39,7 @@ function backendMessage(body: unknown): string | undefined {
   if (typeof body.error === "string") return body.error;
   if (object(body.error) && typeof body.error.message === "string") {
     const details = Array.isArray(body.error.details) ? body.error.details.filter(object).map((item) =>
-      [item.file, item.row && `row ${item.row}`, item.field, item.message].filter(Boolean).join(": ")
+      [item.file, item.row && `строка ${item.row}`, item.field, item.message].filter(Boolean).join(": ")
     ).join("; ") : "";
     return details || body.error.message;
   }
@@ -72,22 +72,22 @@ export function createCareerApi(options: {
       if (text.trim()) {
         try { body = JSON.parse(text); }
         catch { throw new ApiError(response.ok
-          ? "The server did not return JSON. Check that the backend API is available."
-          : `Request failed (${response.status}).`, response.status); }
+          ? "Сервер вернул ответ в неверном формате. Попробуйте ещё раз."
+          : `Не удалось выполнить запрос (${response.status}).`, response.status); }
       }
-      if (!response.ok) throw new ApiError(backendMessage(body) ?? `Request failed (${response.status}).`, response.status);
+      if (!response.ok) throw new ApiError(backendMessage(body) ?? `Не удалось выполнить запрос (${response.status}).`, response.status);
       return object(body) && "data" in body ? body.data : body;
     } catch (error) {
-      if (signal?.aborted) throw new DOMException("Request cancelled", "AbortError");
-      if (timedOut) throw new ApiError("The request timed out. Please try again.");
+      if (signal?.aborted) throw new DOMException("Запрос отменён", "AbortError");
+      if (timedOut) throw new ApiError("Сервер не ответил вовремя. Попробуйте ещё раз.");
       if (error instanceof ApiError) throw error;
-      throw new ApiError("Could not reach the server. Please check your connection and try again.");
+      throw new ApiError("Не удалось связаться с сервером. Проверьте подключение к интернету и попробуйте ещё раз.");
     } finally {
       clearTimeout(timeout);
       signal?.removeEventListener("abort", cancel);
     }
   }
-  function invalid(): never { throw new ApiError("The server returned an unexpected response. Please retry or contact your team."); }
+  function invalid(): never { throw new ApiError("Не удалось прочитать данные сервера. Попробуйте ещё раз. Если ошибка повторится, обратитесь в поддержку."); }
   const getEmployeeView: CareerApi["getEmployeeView"] = async (id, signal) => {
     const body = await request(`/employees/${encodeURIComponent(id)}`, {}, signal);
     if (!isEmployeeDetail(body) || body.employee.employee_id !== id) return invalid();
@@ -120,18 +120,18 @@ export function createCareerApi(options: {
         });
       } catch (error) {
         const rejected = error instanceof ApiError && [400, 401, 403, 404, 409, 422].includes(error.status ?? 0);
-        throw new CompletionError(error instanceof Error ? error.message : "Could not complete this activity.", rejected ? "rejected" : "unknown");
+        throw new CompletionError(error instanceof Error ? error.message : "Не удалось отметить мероприятие как завершённое.", rejected ? "rejected" : "unknown");
       }
       if (object(body) && isEmployeeDetail(body.view) && body.view.employee.employee_id === employeeId) return body.view;
       if (isEmployeeDetail(body) && body.employee.employee_id === employeeId) return body;
       if (body === undefined || (object(body) && body.success === true)) {
         try { return await getEmployeeView(employeeId); }
-        catch { throw new CompletionError("Activity completed, but the refreshed profile could not be loaded.", "refresh"); }
+        catch { throw new CompletionError("Мероприятие завершено, но не удалось загрузить обновлённый профиль.", "refresh"); }
       }
-      throw new CompletionError("The server did not confirm the updated profile. Reload it before retrying completion.", "unknown");
+      throw new CompletionError("Не удалось подтвердить обновление профиля. Обновите его перед повторной попыткой.", "unknown");
     },
     async importData(file) {
-      if (!/\.(json|csv)$/i.test(file.name)) throw new ApiError("Choose a JSON or CSV file.");
+      if (!/\.(json|csv)$/i.test(file.name)) throw new ApiError("Выберите файл JSON или CSV.");
       const form = new FormData();
       form.append(/\.csv$/i.test(file.name) ? "history" : "employees", file);
       const body = await request("/import", { method: "POST", body: form });
@@ -140,8 +140,8 @@ export function createCareerApi(options: {
         return {
           success: true,
           ...(Array.isArray(body.employeeIds) && body.employeeIds.every((id) => typeof id === "string") ? { employeeIds: body.employeeIds as string[] } : {}),
-          message: `Imported ${body.employeesInserted} new profiles, ${body.employeesUpdated} updated profiles and ${body.historyInserted} history records.`,
-          warnings: body.historySkipped ? [`Skipped ${body.historySkipped} existing history records.`] : [],
+          message: `Новых профилей: ${body.employeesInserted}. Обновлённых: ${body.employeesUpdated}. Добавлено записей в историю: ${body.historyInserted}.`,
+          warnings: body.historySkipped ? [`Уже существующие записи пропущены: ${body.historySkipped}.`] : [],
         };
       }
       return isImportResult(body) ? body : invalid();

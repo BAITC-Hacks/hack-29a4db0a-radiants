@@ -20,7 +20,7 @@ describe("typed frontend API", () => {
       .mockResolvedValueOnce(Response.json({ data: { skills: [{ skill_id: "SK", name: 5 }], events: [], roleProfiles: [] } }))
       .mockResolvedValueOnce(Response.json({ data: profile() }));
     const api = createCareerApi({ fetcher });
-    await expect(api.getCatalog()).rejects.toThrow("unexpected response");
+    await expect(api.getCatalog()).rejects.toThrow("Не удалось прочитать данные сервера");
     expect(await api.getEmployeeView("EMP-014")).toEqual(profile());
   });
   it("uses the existing recommendations route and preserves the EmployeeDetail envelope", async () => {
@@ -37,14 +37,14 @@ describe("typed frontend API", () => {
     missingExplanation.recommendations[0]!.explanationSource = "llm";
     for (const body of [missingHistory, missingExplanation]) {
       const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: body }));
-      await expect(createCareerApi({ fetcher }).getRecommendations("EMP-014")).rejects.toThrow("unexpected response");
+      await expect(createCareerApi({ fetcher }).getRecommendations("EMP-014")).rejects.toThrow("Не удалось прочитать данные сервера");
     }
   });
   it("rejects recommendation responses for a different employee", async () => {
     const view = profile();
     view.employee.employee_id = "another";
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: view }));
-    await expect(createCareerApi({ fetcher }).getRecommendations("EMP-014")).rejects.toThrow("unexpected response");
+    await expect(createCareerApi({ fetcher }).getRecommendations("EMP-014")).rejects.toThrow("Не удалось прочитать данные сервера");
   });
   it("uses backend-computed values verbatim and encodes arbitrary employee ids", async () => {
     const view = profile();
@@ -104,7 +104,7 @@ describe("typed frontend API", () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation((_url, init) => new Promise((_resolve, reject) => {
       init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
     }));
-    const result = expect(createCareerApi({ fetcher, timeoutMs: 50 }).getEmployees()).rejects.toThrow("timed out");
+    const result = expect(createCareerApi({ fetcher, timeoutMs: 50 }).getEmployees()).rejects.toThrow("Сервер не ответил вовремя");
     await vi.advanceTimersByTimeAsync(51);
     await result;
   });

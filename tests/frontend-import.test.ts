@@ -28,7 +28,7 @@ describe("frontend import transport (normalization belongs to the backend)", () 
   });
   it("rejects unsupported extensions without sending a request", async () => {
     const fetcher = vi.fn<typeof fetch>();
-    await expect(createCareerApi({ fetcher }).importData(new File(["text"], "profile.exe"))).rejects.toThrow("JSON or CSV");
+    await expect(createCareerApi({ fetcher }).importData(new File(["text"], "profile.exe"))).rejects.toThrow("JSON или CSV");
     expect(fetcher).not.toHaveBeenCalled();
   });
 });

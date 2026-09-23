@@ -56,7 +56,7 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
       hr.reload();
     } catch (error) {
       setFailure({ before, error: error instanceof CompletionError ? error :
-        new CompletionError("Could not confirm completion. Reload the profile before trying again.", "unknown") });
+        new CompletionError("Не удалось подтвердить завершение. Обновите профиль перед повторной попыткой.", "unknown") });
     } finally {
       mutationLock.current = false;
       setPending(null);
@@ -77,7 +77,7 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
       hr.reload();
     } catch (error) {
       setFailure({ ...saved, error: new CompletionError(
-        error instanceof Error ? error.message : "Could not refresh the profile.", saved.error.phase) });
+        error instanceof Error ? error.message : "Не удалось обновить профиль.", saved.error.phase) });
     } finally {
       mutationLock.current = false;
       setPending(null);
@@ -99,7 +99,7 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
     setFailure(null);
     hr.reload();
     setScreen("employee");
-    setImportNotice(result.message || "Import completed. Employee profiles refreshed.");
+    setImportNotice(result.message || "Данные загружены. Профили обновлены.");
   }
   const closeImport = useCallback(() => setImportOpen(false), []);
   const currentFailure = failure?.before.employee.employee_id === employeeId ? failure : null;
@@ -117,43 +117,44 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
   }
 
   return <div className="app-shell">
+    <a className="skip-link" href="#main-content">Перейти к содержимому</a>
     <header className="topbar">
-      <a className="brand" href="#home" onClick={(event) => { event.preventDefault(); showScreen("employee"); }}>
-        <span>Career Quest</span><span className="brand-caption">Employee development</span>
-      </a>
-      <nav className="topbar-right" aria-label="Workspace">
-        <button className={`nav-link ${screen === "employee" ? "selected" : ""}`} aria-label="Employee view" aria-current={screen === "employee" ? "page" : undefined} onClick={() => showScreen("employee")}>Employee</button>
-        <button className={`nav-link ${screen === "hr" ? "selected" : ""}`} aria-label="HR overview" aria-current={screen === "hr" ? "page" : undefined} onClick={() => showScreen("hr")}>HR dashboard</button>
-        <button className="button button-outline top-import" aria-label="Import data" disabled={pending !== null} onClick={() => { ai.cancel(); setImportNotice(""); setImportOpen(true); }}><FileUp size={16} /> Import</button>
-      </nav>
+      <div className="topbar-inner">
+        <a className="brand" href="#home" aria-label="Halyk Career Quest — развитие сотрудников" onClick={(event) => { event.preventDefault(); showScreen("employee"); }}>
+          <img src="/brand/halyk.svg" width="114" height="40" alt="Halyk" /><span className="brand-caption">Career Quest<span>Развитие сотрудников</span></span>
+        </a>
+        <nav className="topbar-nav" aria-label="Разделы">
+          <button className={`nav-link ${screen === "employee" ? "selected" : ""}`} aria-current={screen === "employee" ? "page" : undefined} onClick={() => showScreen("employee")}>Развитие</button>
+          <button className={`nav-link ${screen === "hr" ? "selected" : ""}`} aria-current={screen === "hr" ? "page" : undefined} onClick={() => showScreen("hr")}>Обзор команды</button>
+        </nav>
+        <button className="button button-outline top-import" disabled={pending !== null} onClick={() => { ai.cancel(); setImportNotice(""); setImportOpen(true); }}><FileUp size={18} /> Загрузить данные</button>
+      </div>
     </header>
-    {screen === "employee" ? <main className="page">
+    {screen === "employee" ? <main id="main-content" className="page" tabIndex={-1}>
       <div className="page-heading">
-        <div><h1>Development plan</h1><p>Review skills, career targets and recommended activities.</p></div>
+        <div><h1>План развития</h1><p>Ваша цель, навыки и следующий шаг.</p></div>
         <label className="select-wrap" htmlFor="employee-select">
-          <span className="select-label">Employee</span>
-          <select id="employee-select" aria-label="Select employee" value={employeeId} disabled={employees.loading || !employees.data?.length} onChange={(event) => selectEmployee(event.target.value)}>
-            {!employeeId && <option value="">{employees.loading ? "Loading employees…" : "Select employee"}</option>}
+          <span className="select-label">Сотрудник</span>
+          <select id="employee-select" value={employeeId} disabled={employees.loading || !employees.data?.length} onChange={(event) => selectEmployee(event.target.value)}>
+            {!employeeId && <option value="">{employees.loading ? "Загружаем список…" : "Выберите сотрудника"}</option>}
             {employees.data?.map((employee) => <option key={employee.employee_id} value={employee.employee_id}>{employee.full_name || employee.employee_id} · {employee.role}</option>)}
           </select><ChevronDown size={16} />
         </label>
       </div>
       {importNotice && <div className="inline-success" role="status">{importNotice}</div>}
-      {ai.status === "loading" && <p className="section-note" role="status">Preparing AI explanations… Your plan is ready to use.</p>}
-      {ai.status === "fallback" && <p className="section-note" role="status">Showing evidence-based explanations. AI explanations are currently unavailable.</p>}
-      {employees.error ? <ErrorState title="Could not load employees." detail={employees.error} onRetry={employees.reload} /> :
-        employees.loading ? <LoadingState text="Loading employees…" /> :
-        !employees.data?.length ? <EmptyState text="No employee profiles are available. Import a profile to get started." /> :
-        profile.error ? <ErrorState title="Could not load employee profile and recommendations." detail={profile.error} onRetry={profile.reload} /> :
-        profile.loading || !profile.data ? <LoadingState text="Analyzing your development profile…" /> :
-        <EmployeeScreen view={ai.view ?? profile.data} skillNames={skillNames} completion={currentCompletion} onDismissCompletion={() => setCompletion(null)}
+      {employees.error ? <ErrorState title="Не удалось загрузить сотрудников." detail={employees.error} onRetry={employees.reload} /> :
+        employees.loading ? <LoadingState text="Загружаем сотрудников…" /> :
+        !employees.data?.length ? <EmptyState text="Пока нет сотрудников. Нажмите «Загрузить данные», чтобы добавить профиль." /> :
+        profile.error ? <ErrorState title="Не удалось загрузить профиль." detail={profile.error} onRetry={profile.reload} /> :
+        profile.loading || !profile.data ? <LoadingState text="Загружаем профиль…" /> :
+        <EmployeeScreen key={employeeId} view={ai.view ?? profile.data} skillNames={skillNames} recommendationStatus={ai.status} completion={currentCompletion} onDismissCompletion={() => setCompletion(null)}
           completing={pending === employeeId} completionDisabled={pending !== null || !!currentFailure && currentFailure.error.phase !== "rejected"}
           failure={currentFailure?.error ?? null} onRefresh={() => void refreshAfterCompletion()}
           onComplete={(recommendation) => void complete(recommendation)} />}
-    </main> : <main className="page hr-page">
-      <div className="page-heading"><div><h1>HR dashboard</h1><p>Skill gaps, employees needing follow-up and activity participation.</p></div></div>
-      {hr.error ? <ErrorState title="Could not load HR summary." detail={hr.error} onRetry={hr.reload} /> :
-        hr.loading || !hr.data ? <LoadingState text="Loading HR summary…" /> :
+    </main> : <main id="main-content" className="page hr-page" tabIndex={-1}>
+      <div className="page-heading"><div><h1>Обзор команды</h1><p>Где нужна поддержка и как проходит обучение.</p></div></div>
+      {hr.error ? <ErrorState title="Не удалось загрузить обзор команды." detail={hr.error} onRetry={hr.reload} /> :
+        hr.loading || !hr.data ? <LoadingState text="Загружаем обзор команды…" /> :
         <HRDashboard summary={hr.data} onSelect={selectEmployee} />}
     </main>}
     {importOpen && <ImportDialog api={api} onClose={closeImport} onImported={imported} />}
