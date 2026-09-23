@@ -5,6 +5,8 @@ import { SNAPSHOT_DATE, REPEATABLE_EVENT_ID, type ActivityRecord } from "@/contr
 import { getEmployeeView } from "@/lib/recommendation";
 import { normalizeDataset, type NormalizedDataset } from "@/lib/data/normalize";
 import { buildHrSummary } from "@/lib/analytics/hr-summary";
+import { applyAiExplanations, type RecommendationExplainer } from "@/lib/ai/explanations";
+import { createOpenAIExplainer } from "@/lib/ai/openai-explainer";
 import { AppError } from "@/server/errors";
 import { getDatabase } from "@/server/db/database";
 import { ActivityRepository, EmployeeRepository, EventRepository, SkillRepository, loadDomainDataset, type EmployeeFilters } from "@/server/repositories";
@@ -47,9 +49,19 @@ export function getEmployeeProjection(employeeId: string, db: Database.Database 
   return employeeDetail(normalized(db), employeeId);
 }
 
-export async function getRecommendations(employeeId: string, db: Database.Database = getDatabase()): Promise<EmployeeDetail> {
-  // PR #1 owns explanation generation. Until provider setup is requested, keep its truthful fallback.
-  return getEmployeeProjection(employeeId, db);
+export async function getRecommendations(
+  employeeId: string,
+  db: Database.Database = getDatabase(),
+  explainer?: RecommendationExplainer,
+): Promise<EmployeeDetail> {
+  const detail = getEmployeeProjection(employeeId, db);
+  const provider = explainer ?? createOpenAIExplainer({
+    apiKey: process.env.OPENAI_API_KEY,
+    model: process.env.OPENAI_MODEL || undefined,
+  });
+  // Network work stays outside completion transactions and never changes stored skills/history.
+  const enriched = await applyAiExplanations(detail, provider);
+  return { ...detail, recommendations: enriched.recommendations };
 }
 
 export function getHrSummary(filters: EmployeeFilters, db: Database.Database = getDatabase()): HrSummaryResult {

@@ -86,11 +86,13 @@ Error codes: 400 invalid JSON/multipart or empty import; 422 validation/referenc
 
 The shared engine returns up to three eligible voluntary recommendations with reasons, expectedChanges (before/after/required), historySignal and deterministicExplanation. It considers target gaps, critical requirements, audience, prerequisites, availability and participation history. A Lead without a career goal has `targetStatus: "needs_career_goal"`, readiness 0 and no recommendations. Empty recommendation lists are valid.
 
-Current routes call the deterministic shared engine and return `explanationSource: "fallback"`; no network model call or key is required. The existing `src/lib/ai` provider and its mocked tests are preserved. Live provider wiring and verification remain a separate teammate step requiring server-side key setup. The frontend already renders `aiExplanation ?? deterministicExplanation`. Merely setting OPENAI_API_KEY does not enable model calls in this revision.
+The profile and completion routes return deterministic data immediately. `GET /api/employees/:id/recommendations` reconstructs that same profile from SQLite and enriches only its selected recommendations with OpenAI explanations. The response remains `{ data: EmployeeDetail }`, including completed activities. No client-supplied dataset or Vite middleware is involved; AI requests run outside database transactions.
 
-PR #5 hardens the standalone provider with an 8-second deadline, response/refusal validation and deterministic fallback. `npm test` uses mocked transports and skips the live test. The explicit `npm run test:ai-live` command makes a billed real request using synthetic test data and a server-side `OPENAI_API_KEY`; it has not been run for this integration. See [AI verification](docs/AI_VERIFICATION.md).
+The provider has an 8-second deadline. Missing keys, network failures, refusals and invalid evidence leave `explanationSource: "fallback"`; valid text sets it to `"llm"`. Event IDs, ordering, scores and skills never come from the model. References must include target, history and an actually reduced skill gap. These checks do not prove every natural-language sentence true; factual evidence remains available independently of AI text.
 
-PR #6 remains pending: its Vite middleware and browser dataset flow must be adapted to the persisted Next.js API before merging. See [merge review](docs/MERGE_REVIEW.md).
+Set server-only `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in the ignored `.env.local`. For Docker use `docker compose --env-file .env.local up --build`; Next.js loads the file for local development. Do not expose a key through `NEXT_PUBLIC_*` or `VITE_*`. The default model is `gpt-6-astra`, with low reasoning effort for this bounded explanation task, not the coding agent's xhigh setting.
+
+`npm test` uses mocked transports and skips live checks. `npm run test:ai-live` explicitly makes billed requests against the official synthetic dataset in a temporary SQLite database, and fails if it receives fallback. See [AI verification](docs/AI_VERIFICATION.md). Frontend must fetch the AI endpoint separately and discard stale responses after selection, completion or import; the initial profile must not wait for the model.
 
 ## Environment
 
