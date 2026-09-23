@@ -1,5 +1,9 @@
 # Frontend API handoff
 
+## Integration update — feature/backend-docker
+
+The frontend branch at `92dd0fd` is now included in the Next.js/SQLite integration. The provisional routes below describe the original proposal. The active transport in `src/lib/frontend/api.ts` now unwraps `{ data }`, maps compact employee cards, posts completion to `/api/employees/:id/activities/:eventId/complete`, extracts `data.view`, and uploads JSON as `employees` or CSV as `history`. HR metrics map server population and completion rate without recalculating them. See `docs/BACKEND_HANDOFF.md` and README for the current HTTP contract. A frontend-to-real-route integration test covers listing, profile, completion and import against temporary SQLite. `src/types/career.ts` and the frontend's recovery/precision logic remain unchanged.
+
 ## Status
 
 The React/Vite frontend now uses HTTP exclusively. No domain engine, dataset, file parser, or local-storage persistence is bundled into the application. Shared `Employee`, `EmployeeView`, and `HrSummary` are imported as types. Domain code and PR #1 tests are unchanged.

@@ -1,5 +1,5 @@
 import type { Employee, EmployeeView, Recommendation } from "../../types/career";
-import type { HrSummaryResponse, ImportResult } from "./api";
+import type { EmployeeListItem, HrSummaryResponse, ImportResult } from "./api";
 
 type ObjectValue = Record<string, unknown>;
 const object = (value: unknown): value is ObjectValue => !!value && typeof value === "object" && !Array.isArray(value);
@@ -24,8 +24,8 @@ function isEmployee(value: unknown): value is Employee {
     (value.career_goal === null || (object(value.career_goal) &&
       text(value.career_goal.target_role) && grade(value.career_goal.target_grade)));
 }
-export function isEmployeeList(value: unknown): value is Employee[] {
-  return Array.isArray(value) && value.every(isEmployee) &&
+export function isEmployeeList(value: unknown): value is EmployeeListItem[] {
+  return Array.isArray(value) && value.every((item) => object(item) && text(item.employee_id) && !!item.employee_id && text(item.full_name) && text(item.role)) &&
     new Set(value.map((employee) => employee.employee_id)).size === value.length;
 }
 function isRecommendation(value: unknown): value is Recommendation {

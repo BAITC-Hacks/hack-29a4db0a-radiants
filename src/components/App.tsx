@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, FileUp } from "lucide-react";
 import type { EmployeeView, Recommendation } from "../types/career";

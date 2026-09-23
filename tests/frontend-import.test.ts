@@ -13,7 +13,7 @@ describe("frontend import transport (normalization belongs to the backend)", () 
     expect(url).toBe("/api/import");
     expect(init?.method).toBe("POST");
     expect(init?.body).toBeInstanceOf(FormData);
-    expect((init?.body as FormData).get("file")).toBe(file);
+    expect((init?.body as FormData).get("employees")).toBe(file);
     expect(init?.headers).not.toHaveProperty("Content-Type");
   });
   it("uploads CSV and returns imported ids and duplicate-history warnings unchanged", async () => {

@@ -1,97 +1,107 @@
 # Career Quest
 
-Career Quest makes employee development steps visible and explainable. The repository contains a deterministic TypeScript recommendation/HR engine and a React/Vite API-driven frontend.
+Career Quest is the HackAlem AI / Halyk Bank employee development navigator. The existing React interface now runs inside Next.js and reads the official catalog through the API. SQLite persists completions and imports; the shared AI/Data engine from PR #1 computes all employee and HR views.
 
-## Run locally
+## Run
 
-Requirements: Node.js 20.19+ (or 22.12+) and npm.
+With Docker and Compose installed:
 
-```sh
-npm install
+```bash
+docker compose up --build
+```
+
+Open http://localhost:3000. Healthcheck creates and seeds the database automatically: 200 employees, 40 events, 60 skills, 32 role profiles and 2,743 history records. Restarting or recreating the container retains subsequent changes in the named volume.
+
+Stop: `docker compose down`. Explicitly reset demo data: `docker compose down -v` (deletes the volume).
+
+Local development requires Node.js 22+:
+
+```bash
+npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite. Other useful commands:
+The native SQLite dependency may require platform C++ build tools if a prebuilt binary is unavailable. Docker includes the required build tools.
 
-```sh
-npm test                # Vitest suite
-npm run typecheck       # Strict TypeScript check
-npm run lint            # ESLint for frontend components, hooks and adapter
-npm run build           # Production Vite bundle
-npm run preview         # Serve the production bundle locally
+## Validation
+
+```bash
+npm test
+npm run typecheck
+npm run lint
+npm run build
 ```
 
-## Frontend and API boundary
+The teammate's recommendation, AI mock, HR, import and adapter tests are preserved. Backend integration tests use temporary SQLite files. They verify transactions, import rollback, HTTP errors, persistence and the E0178 regression (71.3 → 74.1 readiness with no assessed-skill mutation).
 
-The React/Vite frontend is presentation-only. It requests shared `EmployeeView` and `HrSummary` shapes through `src/lib/frontend/api.ts`; it does not run the recommendation engine, parse imports, aggregate HR metrics or persist employee data in the browser.
+The previous Vite entry is retained for frontend development: `npm run dev:demo` or `npm run build:demo`. Despite the historical script name, it now uses the same API and proxies /api to the Next.js server on port 3000. Next.js/Compose is the complete application startup.
 
-**HTTP routes are not yet implemented in this repository revision.** The complete proposed endpoint contract, response shapes, backend responsibilities and remaining fields are in [docs/FRONTEND_API.md](docs/FRONTEND_API.md). Without a backend the UI displays a recoverable error, not synthetic demo data.
-
-For local backend integration, copy `.env.example` to `.env.local` and set `CAREER_API_TARGET` to the server origin. Run `npm run dev`; Vite forwards `/api` to that origin. Production needs the same-origin API or a public `VITE_API_BASE_URL` configured at build time. Never put `OPENAI_API_KEY` in a `VITE_*` variable.
-
-## Import and completion
-
-**Import data** uploads the original JSON/CSV file as multipart field `file`. Backend owns parsing, normalization, validation and persistence. The dialog displays backend messages, refreshes employees and selects an affected/new profile. If upload succeeds but refresh fails, retry refresh does not resend the file.
-
-Completing an activity sends its IDs to the API and displays the returned employee view (or refetches after a success-only response). The success panel compares backend-computed readiness and effective skills before/after. It does not predict actual completion results from event gains. Uncertain mutation failures require profile reload before retrying.
-
-Readiness and its delta use at most one decimal everywhere, including accessible progress labels. Zero delta reports the unchanged readiness; negative values are displayed as returned. Skill **Current progress** comes from the engine's effective `currentLevel`, not assessed baseline. See the [progress display contract](docs/FRONTEND_API.md#progress-display-contract).
-
-## Demo flow with a connected backend
-
-1. Select an employee and inspect returned readiness, target requirements and expected skill changes.
-2. Read all recommendation reasons; an optional nonempty AI explanation appears below them.
-3. Complete an activity and inspect actual readiness/skill changes from the refreshed profile.
-4. Open an employee with no recommendations to see the explicit no-next-step state.
-5. Upload an additional profile/history file and open the refreshed imported employee.
-6. Open **HR overview** for supplied competency counts, every no-step employee and participation status counts. Missing aggregate metrics remain hidden.
-
-The synthetic fixture lives only in `tests/fixtures/career-dataset.ts`. Browser verification with a fixture API is not verification of backend persistence or official dataset import.
-
-## Repository structure
-
-- `src/types/career.ts` — shared domain contract.
-- `src/lib/recommendation/` — deterministic eligibility, skill reconstruction, ranking and explanations.
-- `src/lib/analytics/` — HR summary aggregation.
-- `src/lib/ai/` — optional validated server-side explanation adapter.
-- `src/components/`, `src/hooks/`, `src/styles/` — presentation and request state.
-- `src/lib/frontend/` — typed HTTP adapter and response shape guards.
-- `tests/` — unchanged PR #1 engine/HR/AI tests plus frontend transport/render tests.
-
-The official context and behavior rules are in [HACKATHON_CONTEXT.md](HACKATHON_CONTEXT.md) and [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md).
-
-## AI/Data module
-
-The recommendation engine is a pure TypeScript module. It accepts normalized arrays and does not read files or depend on the web framework.
-
-```ts
-import { normalizeDataset } from "./src/lib/data/normalize";
-import { getEmployeeView } from "./src/lib/recommendation";
-
-const dataset = normalizeDataset({ employees, events, skills, roleProfiles, history });
-const employeeView = getEmployeeView(dataset, employeeId);
-```
-
-`EmployeeView`, `Recommendation`, `SkillGap`, and source domain types are in `src/types/career.ts`. The integration layer should normalize JSON/CSV into `CareerDataset` and call `getEmployeeView`. The engine owns eligibility, effective skills, target gaps, deterministic ranking, and evidence.
-
-Use `getEmployeeViewWithAi(dataset, employeeId, createOpenAIExplainer({ apiKey }))` to compose deterministic ranking and AI explanations on the server. The explainer calls the OpenAI Responses API with Structured Outputs, may describe only supplied recommendation evidence, and leaves the deterministic explanation in place if the request fails or evidence references do not validate. Set `OPENAI_API_KEY` in the server environment; never expose it to browser code.
-
-Recommendation score is deterministic: 40 points per critical target-gap level closed, 10 per other target-gap level closed, up to -30 for recent no-shows/drops/declines on events with the same type and format, and +/-5 for strong/low feedback on those events. Ties use critical gap impact, next session date, then event ID. AI evidence references are limited to `target`, `history`, `availability`, and the recommendation's `skill:<skillId>` changes.
-
-HR aggregates are available through `buildHrSummary(normalizedDataset)` from `src/lib/analytics/hr-summary.ts`.
-
-## Completion and progress contract
-
-Use the fixed dataset date `2026-10-01` for availability. Start effective skills from the employee assessment, with missing skills equal to 0, then apply completed activities after `last_review_date` in date order. History reconstruction and recommendation previews share the same rule:
+## Architecture and ownership
 
 ```text
-after = max(before, min(before + gain, max_level))
+Official JSON files + parsed CSV
+  -> adaptStarterDataset (PR #4)
+  -> transactional SQLite seed
+  -> repositories
+  -> normalizeDataset
+  -> getEmployeeView / buildHrSummary (PR #1)
+  -> Next.js API
+  -> React product UI
 ```
 
-An activity never lowers an attained skill: `before=4, gain=1, max_level=3` stays at 4. Gains from below still stop at the activity cap. Skill levels remain integers from 0 to 5.
+- AI/Data: `src/types/career.ts`, `src/lib/recommendation`, `src/lib/data`, `src/lib/analytics`, `src/lib/ai`.
+- Backend: `src/server`, `src/app/api`, `src/contracts`, dependencies, application config and Docker.
+- Frontend: `src/components`, `src/styles`, `src/lib/frontend` and application pages.
 
-`readiness` measures partial fulfillment of target requirements. Each required skill contributes `min(currentLevel / requiredLevel, 1)`, weighted 2 for critical skills and 1 otherwise. Divide the weighted sum by total weight, multiply by 100, and round to one decimal. A zero-level requirement is fully satisfied; an empty requirements list yields 100. A Lead without a career goal keeps `targetStatus: "needs_career_goal"` and readiness 0. This is a development indicator, not a promotion decision.
+The frontend API branch at 92dd0fd is included, preserving its cancellation, mutation recovery and decimal progress components. The separate backend domain implementation has been removed. Shared domain types are not redefined; `src/contracts/types.ts` re-exports them. Public API extensions are in `src/contracts/api.ts`.
 
-Backend: append a completed history record and rebuild `EmployeeView` from the updated dataset. Do not also mutate assessed skills, which would count the gain twice. Frontend: display the returned readiness (which may be decimal), its change, and recommendation `expectedChanges`; do not recalculate business rules. The `EmployeeView` shape is unchanged.
+Completion appends one `LOCAL_<uuid>` history record in a transaction, then rebuilds the shared view. It does not increment assessed `employee.skills`. Teaching caps limit gains without lowering existing attained skills. Availability uses the fixed snapshot `2026-10-01`.
 
-Run the AI/Data checks with `npm test` and `npm run typecheck`.
+See [backend handoff](docs/BACKEND_HANDOFF.md), [starter adapter](docs/STARTER_DATASET_ADAPTER.md), [domain progress validation](docs/PROGRESS_VALIDATION.md), and [earlier frontend review](docs/FRONTEND_INTEGRATION_REVIEW.md). The earlier review describes the pre-API revision.
+
+## API
+
+Every success is `{ data: ... }`; errors are `{ error: { code, message, details } }`.
+
+| Endpoint | data |
+| --- | --- |
+| GET /api/health | status, schemaVersion, counts |
+| GET /api/catalog | events, skills, roleProfiles; no employee history |
+| GET /api/employees | items: EmployeeCard[], total |
+| GET /api/employees/:id | EmployeeView + completedActivities, activeMandatoryObligations |
+| GET /api/employees/:id/recommendations | Same shared employee view |
+| POST /api/employees/:id/activities/:eventId/complete | activity, view, progress: { before, after, delta } |
+| POST /api/import | employeesInserted, employeesUpdated, historyInserted, historySkipped |
+| GET /api/hr/summary | Shared HrSummary + population, statuses, assignedBy, completionRate, totalGapSeverity, employeesWithoutTarget |
+
+Employee filters: `search`, `role`, `grade`, `department`. HR filters: `role`, `grade`, `department`. Matching filters combine with AND.
+
+Completion body: `{ completedAt?: "YYYY-MM-DD", score?: 0..100, feedbackRating?: 1..5 }`. Send `{}` for defaults. Self-paced completion defaults to the snapshot date; scheduled completion uses the next session. Non-repeatable duplicate completion returns 409; EV_036 can repeat.
+
+Import uses multipart/form-data with `employees` (JSON) and/or `history` (CSV), as uploaded files or text fields. JSON accepts one employee, an array or the official `{ meta, employees }` wrapper. The endpoint accepts both files together; the teammate dialog currently uploads one file at a time. Existing employees update, new employees insert and duplicate record IDs skip. All input and the combined dataset are validated by the shared adapter. A failed row rolls back the entire request. Catalog replacement is not exposed through this incremental-import endpoint.
+
+Error codes: 400 invalid JSON/multipart or empty import; 422 validation/reference errors; 404 missing employee/event; 409 duplicate completion. Import details include file, row, field and reason.
+
+## Recommendations and AI status
+
+The shared engine returns up to three eligible voluntary recommendations with reasons, expectedChanges (before/after/required), historySignal and deterministicExplanation. It considers target gaps, critical requirements, audience, prerequisites, availability and participation history. A Lead without a career goal has `targetStatus: "needs_career_goal"`, readiness 0 and no recommendations. Empty recommendation lists are valid.
+
+Current routes call the deterministic shared engine and return `explanationSource: "fallback"`; no network model call or key is required. The existing `src/lib/ai` provider and its mocked tests are preserved. Live provider wiring and verification remain a separate teammate step requiring server-side key setup. The frontend already renders `aiExplanation ?? deterministicExplanation`. Merely setting OPENAI_API_KEY does not enable model calls in this revision.
+
+PR #5 hardens the standalone provider with an 8-second deadline, response/refusal validation and deterministic fallback. `npm test` uses mocked transports and skips the live test. The explicit `npm run test:ai-live` command makes a billed real request using synthetic test data and a server-side `OPENAI_API_KEY`; it has not been run for this integration. See [AI verification](docs/AI_VERIFICATION.md).
+
+PR #6 remains pending: its Vite middleware and browser dataset flow must be adapted to the persisted Next.js API before merging. See [merge review](docs/MERGE_REVIEW.md).
+
+## Environment
+
+Defaults: `CAREER_QUEST_DB_PATH=.data/career-quest.sqlite`, `CAREER_QUEST_DATA_DIR=data`. Compose supplies absolute /app paths. The .env.example file contains optional local overrides. Secrets and SQLite files are excluded from Git.
+
+## Demo
+
+1. Open E0178 on a clean database: readiness 71.3%.
+2. Complete EV_005: skills refresh, readiness becomes 74.1%, API Design stays at 4.
+3. Reload: the completed history and updated progress remain.
+4. Import an additional profile, optionally with its history in the same request.
+5. Open HR: official population, gaps, all employees without steps, and all activity participation rows are accessible.
+
+Starter data is synthetic. Authentication is outside this MVP: employee/HR views are logically separated but not protected by an authorization layer. Employee listing and catalog endpoints do not expose engagement history.

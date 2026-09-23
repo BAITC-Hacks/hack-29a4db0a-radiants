@@ -13,12 +13,13 @@ export interface ImportResult {
   message?: string;
 }
 export interface CareerApi {
-  getEmployees(signal?: AbortSignal): Promise<Employee[]>;
+  getEmployees(signal?: AbortSignal): Promise<EmployeeListItem[]>;
   getEmployeeView(employeeId: string, signal?: AbortSignal): Promise<EmployeeView>;
   completeActivity(employeeId: string, eventId: string): Promise<EmployeeView>;
   importData(file: File): Promise<ImportResult>;
   getHrSummary(signal?: AbortSignal): Promise<HrSummaryResponse>;
 }
+export type EmployeeListItem = Pick<Employee, "employee_id" | "full_name" | "role">;
 export class ApiError extends Error {
   constructor(message: string, public readonly status?: number) { super(message); this.name = "ApiError"; }
 }
@@ -33,12 +34,17 @@ function backendMessage(body: unknown): string | undefined {
   if (!object(body)) return;
   if (typeof body.message === "string") return body.message;
   if (typeof body.error === "string") return body.error;
-  if (object(body.error) && typeof body.error.message === "string") return body.error.message;
+  if (object(body.error) && typeof body.error.message === "string") {
+    const details = Array.isArray(body.error.details) ? body.error.details.filter(object).map((item) =>
+      [item.file, item.row && `row ${item.row}`, item.field, item.message].filter(Boolean).join(": ")
+    ).join("; ") : "";
+    return details || body.error.message;
+  }
 }
 
 /**
- * Provisional HTTP routes: no server routes were published when this adapter was added.
- * Keep route/response changes here when the backend lands. See docs/FRONTEND_API.md.
+ * Maps the SQLite API envelopes and employee cards to the shared frontend contract.
+ * Keep route/response adaptations here. See docs/BACKEND_HANDOFF.md.
  */
 export function createCareerApi(options: {
   baseUrl?: string; fetcher?: typeof fetch; timeoutMs?: number;
@@ -67,7 +73,7 @@ export function createCareerApi(options: {
           : `Request failed (${response.status}).`, response.status); }
       }
       if (!response.ok) throw new ApiError(backendMessage(body) ?? `Request failed (${response.status}).`, response.status);
-      return body;
+      return object(body) && "data" in body ? body.data : body;
     } catch (error) {
       if (signal?.aborted) throw new DOMException("Request cancelled", "AbortError");
       if (timedOut) throw new ApiError("The request timed out. Please try again.");
@@ -87,20 +93,24 @@ export function createCareerApi(options: {
   return {
     async getEmployees(signal) {
       const body = await request("/employees", {}, signal);
-      return isEmployeeList(body) ? body : invalid();
+      const items = object(body) && Array.isArray(body.items) ? body.items.map((item: unknown) =>
+        object(item) ? { employee_id: item.employeeId, full_name: item.fullName, role: item.role } : item
+      ) : body;
+      return isEmployeeList(items) ? items : invalid();
     },
     getEmployeeView,
     async completeActivity(employeeId, eventId) {
       let body: unknown;
       try {
-        body = await request("/activities/complete", {
+        body = await request(`/employees/${encodeURIComponent(employeeId)}/activities/${encodeURIComponent(eventId)}/complete`, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ employeeId, eventId }),
+          body: JSON.stringify({}),
         });
       } catch (error) {
         const rejected = error instanceof ApiError && [400, 401, 403, 404, 409, 422].includes(error.status ?? 0);
         throw new CompletionError(error instanceof Error ? error.message : "Could not complete this activity.", rejected ? "rejected" : "unknown");
       }
+      if (object(body) && isEmployeeView(body.view) && body.view.employee.employee_id === employeeId) return body.view;
       if (isEmployeeView(body) && body.employee.employee_id === employeeId) return body;
       if (body === undefined || (object(body) && body.success === true)) {
         try { return await getEmployeeView(employeeId); }
@@ -111,14 +121,26 @@ export function createCareerApi(options: {
     async importData(file) {
       if (!/\.(json|csv)$/i.test(file.name)) throw new ApiError("Choose a JSON or CSV file.");
       const form = new FormData();
-      form.append("file", file);
+      form.append(/\.csv$/i.test(file.name) ? "history" : "employees", file);
       const body = await request("/import", { method: "POST", body: form });
       if (body === undefined) return { success: true };
+      if (object(body) && typeof body.employeesInserted === "number" && typeof body.employeesUpdated === "number" && typeof body.historyInserted === "number" && typeof body.historySkipped === "number") {
+        return {
+          success: true,
+          ...(Array.isArray(body.employeeIds) && body.employeeIds.every((id) => typeof id === "string") ? { employeeIds: body.employeeIds as string[] } : {}),
+          message: `Imported ${body.employeesInserted} new profiles, ${body.employeesUpdated} updated profiles and ${body.historyInserted} history records.`,
+          warnings: body.historySkipped ? [`Skipped ${body.historySkipped} existing history records.`] : [],
+        };
+      }
       return isImportResult(body) ? body : invalid();
     },
     async getHrSummary(signal) {
       const body = await request("/hr/summary", {}, signal);
-      return isHrSummary(body) ? body : invalid();
+      if (!isHrSummary(body)) return invalid();
+      // Rates already calculated on the server; do not reconstruct them in the browser.
+      const enriched = body as HrSummaryResponse & { population?: number; completionRate?: number };
+      return typeof enriched.population === "number" && typeof enriched.completionRate === "number"
+        ? { ...body, metrics: { totalEmployees: enriched.population, completionRate: enriched.completionRate } } : body;
     },
   };
 }

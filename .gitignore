@@ -1,7 +1,12 @@
 node_modules/
 .next/
-dist/
+.data/
 coverage/
+*.tsbuildinfo
 .env
+.env.local
+npm-debug.log*
+
+dist/
 .env.*
 !.env.example

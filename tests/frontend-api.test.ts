@@ -23,12 +23,12 @@ describe("typed frontend API", () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(updated));
     expect(await createCareerApi({ fetcher }).completeActivity("EMP-014", "EV_DEMO_01")).toEqual(updated);
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({ employeeId: "EMP-014", eventId: "EV_DEMO_01" });
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({});
   });
   it("refetches exactly once when completion returns only success", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(Response.json({ success: true })).mockResolvedValueOnce(Response.json(profile()));
     expect(await createCareerApi({ fetcher }).completeActivity("EMP-014", "EV_DEMO_01")).toEqual(profile());
-    expect(fetcher.mock.calls.map(([url]) => url)).toEqual(["/api/activities/complete", "/api/employees/EMP-014"]);
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual(["/api/employees/EMP-014/activities/EV_DEMO_01/complete", "/api/employees/EMP-014"]);
   });
   it("does not retry a mutation if the subsequent profile read fails", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(null, { status: 204 }))
