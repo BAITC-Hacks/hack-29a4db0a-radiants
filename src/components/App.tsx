@@ -13,7 +13,7 @@ import { HRDashboard } from "./HRDashboard";
 import { ImportDialog } from "./ImportDialog";
 import { EmptyState, ErrorState, LoadingState } from "./States";
 
-export default function App({ api, session, onSignOut }: { api: CareerApi; session: AuthSession; onSignOut: () => void }) {
+export default function App({ api, session, onSignOut, demoLoginEnabled = false }: { api: CareerApi; session: AuthSession; onSignOut: () => void; demoLoginEnabled?: boolean }) {
   const isHr = session.user.role === "hr";
   const [employeeId, setEmployeeId] = useState(session.user.employeeId ?? "");
   const [screen, setScreen] = useState<"employee" | "hr">("employee");
@@ -143,7 +143,7 @@ export default function App({ api, session, onSignOut }: { api: CareerApi; sessi
           </select><ChevronDown size={16} />
         </label>}
       </div>
-      <p className="section-note privacy-note">{isHr ? "Authorized HR view. Activity completion is recorded by the employee in their own account." : "Your development profile is visible to you and authorized HR staff. Recommended development activities are voluntary."}</p>
+      <p className="section-note privacy-note">{isHr ? "Authorized HR view. Activity completion is recorded by the employee in their own account." : demoLoginEnabled ? "Demo profile with shared employee access. Recommended development activities are voluntary." : "Your development profile is visible to you and authorized HR staff. Recommended development activities are voluntary."}</p>
       {importNotice && <div className="inline-success" role="status">{importNotice}</div>}
       {ai.status === "loading" && <p className="section-note" role="status">Preparing AI explanations… Your plan is ready to use.</p>}
       {ai.status === "fallback" && <div className="ai-retry"><p className="section-note" role="status">Showing evidence-based explanations. AI explanations are currently unavailable.</p><button className="button button-outline" onClick={ai.retry}>Retry AI explanations</button></div>}
