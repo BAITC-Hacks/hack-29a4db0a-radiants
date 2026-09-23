@@ -1,61 +1,74 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
-import type { CompleteActivityResult, EmployeeCard } from "@/contracts/api";
-import { enhanceRecommendations } from "@/server/services/recommendation-enhancer";
-import { REPEATABLE_EVENT_ID, SNAPSHOT_DATE, type ActivityRecord } from "@/contracts/types";
-import { DeterministicEnhancer } from "@/ai/deterministic-enhancer";
-import { DeterministicCareerQuestService } from "@/domain/deterministic-service";
+import type { CatalogResult, CompleteActivityResult, EmployeeCard, EmployeeDetail, HrSummaryResult } from "@/contracts/api";
+import { SNAPSHOT_DATE, REPEATABLE_EVENT_ID, type ActivityRecord } from "@/contracts/types";
+import { getEmployeeView } from "@/lib/recommendation";
+import { normalizeDataset, type NormalizedDataset } from "@/lib/data/normalize";
+import { buildHrSummary } from "@/lib/analytics/hr-summary";
 import { AppError } from "@/server/errors";
 import { getDatabase } from "@/server/db/database";
-import {
-  ActivityRepository,
-  EmployeeRepository,
-  EventRepository,
-  SkillRepository,
-  loadDomainDataset,
-  type EmployeeFilters,
-} from "@/server/repositories";
+import { ActivityRepository, EmployeeRepository, EventRepository, SkillRepository, loadDomainDataset, type EmployeeFilters } from "@/server/repositories";
 
-const domainService = new DeterministicCareerQuestService();
-const recommendationEnhancer = new DeterministicEnhancer();
+function normalized(db: Database.Database): NormalizedDataset {
+  return normalizeDataset(loadDomainDataset(db));
+}
 
-function employeeInput(employeeId: string, db: Database.Database = getDatabase()) {
-  const employee = new EmployeeRepository(db).getById(employeeId);
-  if (!employee) throw new AppError(404, "EMPLOYEE_NOT_FOUND", `Employee ${employeeId} was not found`);
+function employeeDetail(dataset: NormalizedDataset, employeeId: string): EmployeeDetail {
+  if (!dataset.employeeById.has(employeeId)) throw new AppError(404, "EMPLOYEE_NOT_FOUND", "Employee " + employeeId + " was not found");
+  const view = getEmployeeView(dataset, employeeId);
+  const history = dataset.historyByEmployeeId.get(employeeId) ?? [];
+  const completed = history.filter((record) => record.status === "completed");
+  const activityView = (record: ActivityRecord) => ({ ...record, eventTitle: dataset.eventById.get(record.event_id)?.title ?? record.event_id });
   return {
-    employee,
-    skills: new SkillRepository(db).listSkills(),
-    roleProfiles: new SkillRepository(db).listRoleProfiles(),
-    events: new EventRepository(db).list(),
-    activities: new ActivityRepository(db).listByEmployee(employeeId),
+    ...view,
+    completedActivities: completed.map(activityView),
+    activeMandatoryObligations: history.filter((record) =>
+      record.status !== "completed" && dataset.eventById.get(record.event_id)?.mandatory &&
+      !completed.some((done) => done.event_id === record.event_id && done.date >= record.date)
+    ).map(activityView),
   };
 }
 
 export function listEmployees(filters: EmployeeFilters): EmployeeCard[] {
   return new EmployeeRepository().list(filters).map((employee) => ({
-    employeeId: employee.employee_id,
-    fullName: employee.full_name,
-    department: employee.department,
-    role: employee.role,
-    grade: employee.grade,
-    workFormat: employee.work_format,
-    preferredLanguage: employee.preferred_language,
+    employeeId: employee.employee_id, fullName: employee.full_name,
+    department: employee.department, role: employee.role, grade: employee.grade,
+    workFormat: employee.work_format, preferredLanguage: employee.preferred_language,
     hasCareerGoal: employee.career_goal !== null,
   }));
 }
 
-export function getEmployeeProjection(employeeId: string, db: Database.Database = getDatabase()) {
-  return domainService.buildEmployeeProjection(employeeInput(employeeId, db));
+export function getCatalog(db: Database.Database = getDatabase()): CatalogResult {
+  const skills = new SkillRepository(db);
+  return { events: new EventRepository(db).list(), skills: skills.listSkills(), roleProfiles: skills.listRoleProfiles() };
 }
 
-export async function getRecommendations(employeeId: string, db: Database.Database = getDatabase()) {
-  const input = employeeInput(employeeId, db);
-  const result = domainService.recommend(input);
-  return enhanceRecommendations(recommendationEnhancer, result, input);
+export function getEmployeeProjection(employeeId: string, db: Database.Database = getDatabase()): EmployeeDetail {
+  return employeeDetail(normalized(db), employeeId);
 }
 
-export function getHrSummary(filters: EmployeeFilters, db: Database.Database = getDatabase()) {
-  return domainService.buildHrSummary({ dataset: loadDomainDataset(db), filters });
+export async function getRecommendations(employeeId: string, db: Database.Database = getDatabase()): Promise<EmployeeDetail> {
+  // PR #1 owns explanation generation. Until provider setup is requested, keep its truthful fallback.
+  return getEmployeeProjection(employeeId, db);
+}
+
+export function getHrSummary(filters: EmployeeFilters, db: Database.Database = getDatabase()): HrSummaryResult {
+  const dataset = loadDomainDataset(db);
+  const employees = new EmployeeRepository(db).list(filters);
+  const ids = new Set(employees.map((employee) => employee.employee_id));
+  const history = dataset.history.filter((record) => ids.has(record.employee_id));
+  const scoped = normalizeDataset({ ...dataset, employees, history });
+  const summary = buildHrSummary(scoped);
+  const participationByStatus: HrSummaryResult["participationByStatus"] = { completed: 0, in_progress: 0, dropped: 0, no_show: 0, declined: 0, overdue: 0 };
+  const assignedBy: HrSummaryResult["assignedBy"] = { self: 0, manager: 0, hr: 0 };
+  for (const record of history) { participationByStatus[record.status]++; assignedBy[record.assigned_by]++; }
+  return {
+    ...summary, population: employees.length, filters, totalActivities: history.length,
+    participationByStatus, assignedBy,
+    completionRate: history.length ? Math.round(participationByStatus.completed / history.length * 1000) / 10 : 0,
+    totalGapSeverity: employees.reduce((sum, employee) => sum + getEmployeeView(scoped, employee.employee_id).skillGaps.reduce((n, gap) => n + gap.gap, 0), 0),
+    employeesWithoutTarget: summary.employeesWithoutRecommendations.filter((item) => item.reason === "needs_career_goal"),
+  };
 }
 
 export async function completeActivity(
@@ -64,53 +77,25 @@ export async function completeActivity(
   values: { completedAt?: string; score?: number | null; feedbackRating?: number | null },
   db: Database.Database = getDatabase(),
 ): Promise<CompleteActivityResult> {
-  const employees = new EmployeeRepository(db);
-  const events = new EventRepository(db);
-  const activities = new ActivityRepository(db);
-  if (!employees.exists(employeeId)) {
-    throw new AppError(404, "EMPLOYEE_NOT_FOUND", `Employee ${employeeId} was not found`);
-  }
-  const event = events.getById(eventId);
-  if (!event) throw new AppError(404, "EVENT_NOT_FOUND", `Event ${eventId} was not found`);
-
-  let completedAt = values.completedAt;
-  if (!completedAt) {
-    if (event.format === "self_paced") {
-      completedAt = SNAPSHOT_DATE;
-    } else {
-      completedAt = [...event.upcoming_sessions].filter((date) => date >= SNAPSHOT_DATE).sort()[0];
-      if (!completedAt) {
-        throw new AppError(
-          422,
-          "EVENT_NOT_AVAILABLE",
-          "A completion date is required because this event has no future session",
-        );
-      }
-    }
-  }
-
-  const activity: ActivityRecord = {
-    record_id: `LOCAL_${randomUUID()}`,
-    employee_id: employeeId,
-    event_id: eventId,
-    date: completedAt,
-    due_date: null,
-    status: "completed",
-    completion_pct: 100,
-    score: values.score ?? null,
-    feedback_rating: values.feedbackRating ?? null,
-    assigned_by: "self",
-  };
-
-  db.transaction(() => {
+  // The lock covers existence/duplicate checks, insertion and the recomputed view.
+  return db.transaction(() => {
+    const before = getEmployeeProjection(employeeId, db);
+    const event = new EventRepository(db).getById(eventId);
+    if (!event) throw new AppError(404, "EVENT_NOT_FOUND", "Event " + eventId + " was not found");
+    const activities = new ActivityRepository(db);
     if (eventId !== REPEATABLE_EVENT_ID && activities.hasCompleted(employeeId, eventId)) {
       throw new AppError(409, "EVENT_ALREADY_COMPLETED", "This event cannot be completed more than once");
     }
+    const date = values.completedAt ?? (event.format === "self_paced" ? SNAPSHOT_DATE : [...event.upcoming_sessions].filter((session) => session >= SNAPSHOT_DATE).sort()[0]);
+    if (!date) throw new AppError(422, "EVENT_NOT_AVAILABLE", "A completion date is required because this event has no future session");
+    const activity: ActivityRecord = {
+      record_id: "LOCAL_" + randomUUID(), employee_id: employeeId, event_id: eventId,
+      date, due_date: null, status: "completed", completion_pct: 100,
+      score: values.score ?? null, feedback_rating: values.feedbackRating ?? null, assigned_by: "self",
+    };
     activities.insert(activity);
+    // Assessed employee.skills is never changed: history is the sole source of this gain.
+    const view = getEmployeeProjection(employeeId, db);
+    return { activity, view, progress: { before: before.readiness, after: view.readiness, delta: Math.round((view.readiness - before.readiness) * 10) / 10 } };
   }).immediate();
-  return {
-    activity,
-    projection: getEmployeeProjection(employeeId, db),
-    recommendations: await getRecommendations(employeeId, db),
-  };
 }

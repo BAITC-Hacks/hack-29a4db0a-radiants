@@ -9,7 +9,7 @@ import {
 import type {
   ActivityRecord,
   DevelopmentEvent,
-  DomainDataset,
+  CareerDataset,
   Employee,
   Grade,
   RoleProfile,
@@ -288,12 +288,12 @@ export class ActivityRepository {
   }
 }
 
-export function loadDomainDataset(db: Database.Database = getDatabase()): DomainDataset {
+export function loadDomainDataset(db: Database.Database = getDatabase()): CareerDataset {
   return {
     skills: new SkillRepository(db).listSkills(),
     roleProfiles: new SkillRepository(db).listRoleProfiles(),
     employees: new EmployeeRepository(db).list(),
     events: new EventRepository(db).list(),
-    activities: new ActivityRepository(db).listAll(),
+    history: new ActivityRepository(db).listAll(),
   };
 }

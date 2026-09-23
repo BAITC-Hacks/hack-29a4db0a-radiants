@@ -1,7 +1,8 @@
 import type Database from "better-sqlite3";
 import type { ImportResult } from "@/contracts/api";
 import type { ActivityRecord, Employee } from "@/contracts/types";
-import { parseActivityCsv, parseEmployeeImport } from "@/server/data/parsers";
+import { parseActivityCsv, parseEmployeeImport, validateCareerDataset, adapterError } from "@/server/data/parsers";
+import { adaptStarterDataset } from "@/lib/data/starter-dataset";
 import { getDatabase } from "@/server/db/database";
 import { AppError } from "@/server/errors";
 import {
@@ -9,6 +10,7 @@ import {
   EmployeeRepository,
   EventRepository,
   SkillRepository,
+  loadDomainDataset,
 } from "@/server/repositories";
 
 export interface ImportPayload {
@@ -99,6 +101,13 @@ export function importData(payload: ImportPayload, db: Database.Database = getDa
   };
 
   db.transaction(() => {
+    const existing = loadDomainDataset(db);
+    try {
+      adaptStarterDataset({
+        employeesFile: { employees }, eventsFile: { events: existing.events },
+        skillsFile: { skills: existing.skills, role_profiles: existing.roleProfiles }, historyRows: [],
+      });
+    } catch (error) { throw adapterError(error, payload.employeeFileName ?? "employees.json"); }
     validateEmployees(employees, db, payload.employeeFileName ?? "employees.json");
     validateActivities(activities, new Set(employees.map((employee) => employee.employee_id)), db, payload.historyFileName ?? "activity_history.csv");
     const employeeRepository = new EmployeeRepository(db);
@@ -116,6 +125,7 @@ export function importData(payload: ImportPayload, db: Database.Database = getDa
         result.historyInserted += 1;
       }
     }
+    validateCareerDataset(loadDomainDataset(db));
   }).immediate();
 
   return result;

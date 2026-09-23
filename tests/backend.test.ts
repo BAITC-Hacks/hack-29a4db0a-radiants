@@ -4,7 +4,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { databaseCounts, closeDatabase, getDatabase } from "@/server/db/database";
-import { EmployeeRepository } from "@/server/repositories";
+import { EmployeeRepository, EventRepository } from "@/server/repositories";
 import { completeActivity, getEmployeeProjection, getRecommendations, getHrSummary } from "@/server/services/career-quest";
 import { importData } from "@/server/services/import";
 import { AppError } from "@/server/errors";
@@ -53,8 +53,8 @@ describe("Career Quest backend", () => {
     const result = await getRecommendations("E0001");
     expect(result.recommendations.length).toBeLessThanOrEqual(3);
     for (const recommendation of result.recommendations) {
-      expect(recommendation.event.mandatory).toBe(false);
-      expect(recommendation.evidence.factors.length).toBeGreaterThanOrEqual(3);
+      expect(new EventRepository().getById(recommendation.eventId)!.mandatory).toBe(false);
+      expect(recommendation.reasons.length).toBeGreaterThanOrEqual(3);
     }
   });
 
@@ -65,10 +65,10 @@ describe("Career Quest backend", () => {
     for (const employee of employees) {
       const recommendations = await getRecommendations(employee.employee_id, db);
       const recommendation = recommendations.recommendations.find(
-        (item) => item.event.event_id !== "EV_036",
+        (item) => item.eventId !== "EV_036",
       );
       if (recommendation) {
-        selected = { employeeId: employee.employee_id, eventId: recommendation.event.event_id };
+        selected = { employeeId: employee.employee_id, eventId: recommendation.eventId };
         break;
       }
     }
@@ -76,9 +76,9 @@ describe("Career Quest backend", () => {
     const before = databaseCounts(db).activityHistory;
     const previousProjection = getEmployeeProjection(selected!.employeeId, db);
     const completed = await completeActivity(selected!.employeeId, selected!.eventId, {}, db);
-    expect(completed.projection.effectiveSkills).not.toEqual(previousProjection.effectiveSkills);
+    expect(completed.view.effectiveSkills).not.toEqual(previousProjection.effectiveSkills);
     expect(completed.activity.record_id).toMatch(/^LOCAL_[0-9a-f-]{36}$/);
-    expect(completed.recommendations.recommendations.some((item) => item.event.event_id === selected!.eventId)).toBe(false);
+    expect(completed.view.recommendations.some((item) => item.eventId === selected!.eventId)).toBe(false);
     expect(databaseCounts(db).activityHistory).toBe(before + 1);
     await expect(completeActivity(selected!.employeeId, selected!.eventId, {}, db)).rejects.toMatchObject({
       status: 409,
@@ -94,6 +94,23 @@ describe("Career Quest backend", () => {
     }, db);
     expect(result).toEqual({ employeesInserted: 0, employeesUpdated: 200, historyInserted: 0, historySkipped: 2743 });
     expect(databaseCounts(db).activityHistory).toBe(2743);
+  });
+
+  it("matches PR 1 progress validation and never double-applies assessed skill gains", async () => {
+    const db = getDatabase();
+    const assessedBefore = new EmployeeRepository(db).getById("E0178")!.skills;
+    const before = getEmployeeProjection("E0178", db);
+    expect(before.readiness).toBe(71.3);
+    expect(before.recommendations[0].eventId).toBe("EV_005");
+    const result = await completeActivity("E0178", "EV_005", {}, db);
+    expect(result.progress).toEqual({ before: 71.3, after: 74.1, delta: 2.8 });
+    expect(new EmployeeRepository(db).getById("E0178")!.skills).toEqual(assessedBefore);
+    for (const change of before.recommendations[0].expectedChanges) {
+      expect(result.view.effectiveSkills[change.skillId]).toBe(change.after);
+    }
+    expect(result.view.effectiveSkills.SK_API_DESIGN).toBe(4);
+    closeDatabase();
+    expect(getEmployeeProjection("E0178").readiness).toBe(74.1);
   });
 
   it("supports independent HR filters and keeps engagement out of employee cards", async () => {
@@ -142,7 +159,7 @@ describe("Career Quest backend", () => {
     importData({ employeesJson: JSON.stringify(employee) }, db);
     const completed = await completeActivity(employee.employee_id, "EV_001", {}, db);
     expect(completed.activity.date).toBe("2026-10-01");
-    expect(completed.recommendations.recommendations.every((item) => !item.event.mandatory)).toBe(true);
+    expect(completed.view.recommendations.every((item) => !new EventRepository(db).getById(item.eventId)!.mandatory)).toBe(true);
     await expect(completeActivity(employee.employee_id, "MISSING", {}, db)).rejects.toMatchObject({ status: 404 });
     expect(() => importData({ historyCsv: "record_id,employee_id,event_id,date,due_date,status,completion_pct,score,feedback_rating,assigned_by\nUNKNOWN,MISSING,EV_036,2026-09-20,,completed,100,,,self" }, db)).toThrow(AppError);
   });

@@ -1,42 +1,15 @@
-export interface ApiSuccess<T> {
-  data: T;
-}
+import type { ActivityRecord, ActivityStatus, CareerDataset, Employee, EmployeeView } from "@/types/career";
+import type { HrSummary } from "@/lib/analytics/hr-summary";
 
-export interface ApiErrorDetail {
-  file?: string;
-  row?: number;
-  field?: string;
-  message: string;
-}
-
-export interface ApiError {
-  error: {
-    code: string;
-    message: string;
-    details: ApiErrorDetail[];
-  };
-}
-
-export interface ImportResult {
-  employeesInserted: number;
-  employeesUpdated: number;
-  historyInserted: number;
-  historySkipped: number;
-}
-
+export interface ApiSuccess<T> { data: T }
+export interface ApiErrorDetail { file?: string; row?: number; field?: string; message: string }
+export interface ApiError { error: { code: string; message: string; details: ApiErrorDetail[] } }
+export interface ImportResult { employeesInserted: number; employeesUpdated: number; historyInserted: number; historySkipped: number }
 export interface HealthResult {
   status: "ok";
   schemaVersion: number;
-  counts: {
-    skills: number;
-    roleProfiles: number;
-    employees: number;
-    events: number;
-    activityHistory: number;
-  };
+  counts: { skills: number; roleProfiles: number; employees: number; events: number; activityHistory: number };
 }
-import type { ActivityRecord, Employee, EmployeeProjection, RecommendationResult } from "./types";
-
 export interface EmployeeCard {
   employeeId: string;
   fullName: string;
@@ -47,14 +20,26 @@ export interface EmployeeCard {
   preferredLanguage: Employee["preferred_language"];
   hasCareerGoal: boolean;
 }
-
-export interface EmployeeListResult {
-  items: EmployeeCard[];
-  total: number;
+export interface EmployeeListResult { items: EmployeeCard[]; total: number }
+export type CatalogResult = Pick<CareerDataset, "events" | "skills" | "roleProfiles">;
+export interface ActivityView extends ActivityRecord { eventTitle: string }
+export interface EmployeeDetail extends EmployeeView {
+  completedActivities: ActivityView[];
+  activeMandatoryObligations: ActivityView[];
 }
-
 export interface CompleteActivityResult {
   activity: ActivityRecord;
-  projection: EmployeeProjection;
-  recommendations: RecommendationResult;
+  view: EmployeeDetail;
+  progress: { before: number; after: number; delta: number };
+}
+export interface HrFilters { role?: string; grade?: Employee["grade"]; department?: string }
+export interface HrSummaryResult extends HrSummary {
+  population: number;
+  filters: HrFilters;
+  totalActivities: number;
+  participationByStatus: Record<ActivityStatus, number>;
+  assignedBy: Record<ActivityRecord["assigned_by"], number>;
+  completionRate: number;
+  totalGapSeverity: number;
+  employeesWithoutTarget: HrSummary["employeesWithoutRecommendations"];
 }

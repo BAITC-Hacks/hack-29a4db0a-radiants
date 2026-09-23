@@ -1,127 +1,95 @@
 import { parse } from "csv-parse/sync";
 import { ZodError } from "zod";
-import {
-  activitySchema,
-  employeeSchema,
-  employeesFileSchema,
-  eventsFileSchema,
-  skillsFileSchema,
-} from "@/contracts/schemas";
-import type { ActivityRecord, Employee } from "@/contracts/types";
+import { employeeSchema } from "@/contracts/schemas";
+import type { ActivityRecord, CareerDataset, Employee } from "@/types/career";
+import { adaptStarterDataset, parseActivityHistoryRows } from "@/lib/data/starter-dataset";
 import { AppError, zodDetails } from "@/server/errors";
 
-function parseInteger(value: string, field: string, row: number, file: string): number {
-  const parsed = Number(value);
-  if (typeof value !== "string" || !/^-?\d+$/.test(value) || !Number.isInteger(parsed)) {
-    throw new AppError(422, "VALIDATION_ERROR", `Invalid integer in ${field}`, [
-      { file, row, field, message: `Expected integer, received ${value}` },
-    ]);
-  }
-  return parsed;
-}
-
-function parseNullableInteger(value: string, field: string, row: number, file: string): number | null {
-  return value === "" ? null : parseInteger(value, field, row, file);
+export function adapterError(error: unknown, file?: string, row?: number): AppError {
+  const message = error instanceof Error ? error.message : "Invalid dataset";
+  const location = message.split(":")[0];
+  const index = location.match(/\[(\d+)\]/);
+  const inferredFile = location.startsWith("historyRows") ? "activity_history.csv" : location.split(".json")[0] + ".json";
+  const field = location.replace(/^.*?\[\d+\]\.?/, "") || "record";
+  return new AppError(422, "VALIDATION_ERROR", "Dataset validation failed", [{
+    file: file ?? inferredFile,
+    row: row ?? (index ? Number(index[1]) + (location.startsWith("historyRows") ? 2 : 1) : undefined),
+    field,
+    message,
+  }]);
 }
 
 export function parseActivityCsv(source: string, file = "activity_history.csv"): ActivityRecord[] {
-  let rows: Record<string, string>[];
   try {
-    rows = parse(source, {
+    const rows = parse(source, {
       columns: (headers: string[]) => {
-        const required = ["record_id", "employee_id", "event_id", "date", "due_date", "status", "completion_pct", "score", "feedback_rating", "assigned_by"];
-        const missing = required.filter((column) => !headers.includes(column));
+        const required = ["record_id", "employee_id", "event_id", "date", "status", "completion_pct", "assigned_by"];
+        const missing = required.filter((field) => !headers.includes(field));
         if (missing.length || new Set(headers).size !== headers.length) {
-          throw new AppError(422, "VALIDATION_ERROR", "Invalid history CSV header", [
-            { file, row: 1, field: missing[0] ?? "header", message: missing.length ? `Missing columns: ${missing.join(", ")}` : "Duplicate column names" },
-          ]);
+          throw new AppError(422, "VALIDATION_ERROR", "Invalid CSV header", [{
+            file, row: 1, field: missing[0] ?? "header",
+            message: missing.length ? "Missing required columns: " + missing.join(", ") : "Duplicate column names",
+          }]);
         }
         return headers;
-      },
-      skip_empty_lines: true,
-      trim: true,
-      bom: true,
+      }, skip_empty_lines: true, trim: true, bom: true, info: true,
+    }) as Array<{ record: Record<string, string>; info: { lines: number } }>;
+    // Validate each row through the shared adapter. Repository import handles repeated IDs.
+    return rows.map(({ record, info }) => {
+      try { return parseActivityHistoryRows([record])[0]; }
+      catch (error) { throw adapterError(error, file, info.lines); }
     });
   } catch (error) {
     if (error instanceof AppError) throw error;
-    throw new AppError(422, "VALIDATION_ERROR", "CSV could not be parsed", [
-      { file, message: error instanceof Error ? error.message : "Invalid CSV" },
-    ]);
+    throw adapterError(error, file);
   }
-
-  return rows.map((row, index) => {
-    const line = index + 2;
-    try {
-      return activitySchema.parse({
-        record_id: row.record_id,
-        employee_id: row.employee_id,
-        event_id: row.event_id,
-        date: row.date,
-        due_date: row.due_date || null,
-        status: row.status,
-        completion_pct: parseInteger(row.completion_pct, "completion_pct", line, file),
-        score: parseNullableInteger(row.score, "score", line, file),
-        feedback_rating: parseNullableInteger(row.feedback_rating, "feedback_rating", line, file),
-        assigned_by: row.assigned_by,
-      });
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      if (error instanceof ZodError) {
-        throw new AppError(
-          422,
-          "VALIDATION_ERROR",
-          `Invalid activity record at line ${line}`,
-          zodDetails(error, file).map((detail) => ({ ...detail, row: line })),
-        );
-      }
-      throw error;
-    }
-  });
 }
 
 export function parseEmployeeImport(source: string, file = "employees.json"): Employee[] {
   let json: unknown;
-  try {
-    json = JSON.parse(source);
-  } catch (error) {
-    throw new AppError(422, "VALIDATION_ERROR", "Employee JSON could not be parsed", [
-      { file, message: error instanceof Error ? error.message : "Invalid JSON" },
-    ]);
-  }
-
+  try { json = JSON.parse(source); }
+  catch (error) { throw adapterError(error, file); }
   const entries: unknown[] = Array.isArray(json)
     ? json
     : json && typeof json === "object" && "employees" in json && Array.isArray(json.employees)
-      ? json.employees
-      : [json];
+      ? json.employees : [json];
   return entries.map((entry, index) => {
     const parsed = employeeSchema.safeParse(entry);
     if (!parsed.success) {
-      throw new AppError(422, "VALIDATION_ERROR", "Employee JSON failed validation", zodDetails(parsed.error, file).map((detail) => ({ ...detail, row: index + 1 })));
+      throw new AppError(422, "VALIDATION_ERROR", "Employee JSON failed validation",
+        zodDetails(parsed.error, file).map((detail) => ({ ...detail, row: index + 1 })));
     }
     return parsed.data;
   });
 }
 
-export function parseStarterFiles(input: {
-  skills: string;
-  employees: string;
-  events: string;
-  history: string;
-}) {
+export function validateCareerDataset(dataset: CareerDataset): CareerDataset {
   try {
-    const skills = skillsFileSchema.parse(JSON.parse(input.skills));
-    const employees = employeesFileSchema.parse(JSON.parse(input.employees));
-    const events = eventsFileSchema.parse(JSON.parse(input.events));
-    const activities = parseActivityCsv(input.history);
-    return { skills, employees, events, activities };
+    return adaptStarterDataset({
+      employeesFile: { employees: dataset.employees },
+      eventsFile: { events: dataset.events },
+      skillsFile: { skills: dataset.skills, role_profiles: dataset.roleProfiles },
+      historyRows: dataset.history,
+    });
+  } catch (error) { throw adapterError(error); }
+}
+
+export function parseStarterFiles(input: { skills: string; employees: string; events: string; history: string }) {
+  try {
+    const dataset = adaptStarterDataset({
+      skillsFile: JSON.parse(input.skills),
+      employeesFile: JSON.parse(input.employees),
+      eventsFile: JSON.parse(input.events),
+      historyRows: parse(input.history, { columns: true, skip_empty_lines: true, trim: true, bom: true }),
+    });
+    return {
+      skills: { skills: dataset.skills, role_profiles: dataset.roleProfiles },
+      employees: { employees: dataset.employees },
+      events: { events: dataset.events },
+      activities: dataset.history,
+    };
   } catch (error) {
-    if (error instanceof AppError) throw error;
-    if (error instanceof ZodError) {
-      throw new AppError(500, "STARTER_DATA_INVALID", "Starter dataset failed validation", zodDetails(error));
-    }
-    throw new AppError(500, "STARTER_DATA_INVALID", "Starter dataset could not be loaded", [
-      { message: error instanceof Error ? error.message : "Unknown starter data error" },
-    ]);
+    const details = error instanceof ZodError ? zodDetails(error) : adapterError(error).details;
+    throw new AppError(500, "STARTER_DATA_INVALID", "Starter dataset failed validation", details);
   }
 }

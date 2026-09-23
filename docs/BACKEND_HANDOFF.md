@@ -1,68 +1,49 @@
-# Передача backend участникам 1 и 3
+# Backend integration handoff
 
-Ветка: `feature/backend-docker`. Запуск всего приложения: `docker compose up --build`.
-Для разработки: Node.js 22+, `npm ci`, `npm run dev`.
+Integration branch: `feature/backend-docker`.
 
-## Владельцы
+Included main at `1bf2026`, PR #2 (`3f55129` tests), PR #3 (`a1a5ed` review notes), and PR #4 (`56a2dec` adapter). PR #1 is already in main. Main is not changed by this branch.
 
-| Участник | Файлы |
-| --- | --- |
-| 1 — Domain/AI | `src/domain/**`, `src/ai/**` |
-| 2 — Backend | `src/server/**`, `src/app/api/**`, `src/contracts/**`, dependencies, Docker, конфигурация, README |
-| 3 — Frontend | `src/app/**` кроме `api`, `src/components/**`, `src/styles/**` |
+## Shared contract
 
-Backend уже содержит рабочий `DeterministicCareerQuestService` и `DeterministicEnhancer` для автономного запуска. Участник 1 продолжает их разработку; перед merge следует согласовать изменения этих файлов. Для другого domain entry point участник 2 меняет импорты в `src/server/services/career-quest.ts`. Публичные DTO и зависимости меняет участник 2. Ветки других участников этим этапом не объединяются автоматически.
+The authoritative domain types remain in `src/types/career.ts`. Backend now uses `adaptStarterDataset -> normalizeDataset -> getEmployeeView / buildHrSummary`. The duplicate backend recommendation engine and its incompatible DTOs have been removed.
 
-## Контракт участника 1
+`GET /api/employees/:id` and `GET /api/employees/:id/recommendations` return `{ data: EmployeeDetail }`. EmployeeDetail extends EmployeeView, adding completedActivities and activeMandatoryObligations. Recommendation fields are eventId, title, reasons, expectedChanges, historySignal, nextSession, deterministicExplanation, aiExplanation?, explanationSource. Readiness is a number, possibly with one decimal place. No-target state is `needs_career_goal`.
 
-`CareerQuestDomainService` в `src/contracts/types.ts`:
+Completion returns:
 
 ```ts
-buildEmployeeProjection(input: EmployeeDomainInput): EmployeeProjection;
-recommend(input: RecommendationDomainInput): RecommendationResult;
-buildHrSummary(input: HrDomainInput): HrSummary;
+{
+  data: {
+    activity: ActivityRecord,
+    view: EmployeeDetail,
+    progress: { before: number, after: number, delta: number }
+  }
+}
 ```
 
-Входы уже проверены Zod; функции чистые, синхронные, без SQL и HTTP. Официальные сущности сохраняют snake_case (`employee_id`, `event_id`), вычисленные DTO используют camelCase. Дата доступности — `2026-10-01`. Формула изменения навыка соответствует договорённости датасета: `min(current + gain, max_level)`.
+Only the completed history row is persisted. Assessed skills remain unchanged. The response is recomputed while the SQLite transaction remains open.
 
-`RecommendationEnhancer.enhance(result, input)` асинхронен. Сейчас он возвращает исходный результат. Серверная граница разрешает только перестановку точных рекомендаций и смену `source`; при любом изменении фактов или объяснения срабатывает fallback. Кандидаты передаются копией; таймаут — 1500 мс. Будущий сетевой provider должен самостоятельно отменять запрос при timeout и возвращать deterministic результат при отсутствии ключа. Добавление нового provider не требует изменений frontend.
+`GET /api/hr/summary` preserves the shared HrSummary fields (weakCompetencies, employeesWithoutRecommendations, participationByEvent) and adds aggregate fields from the API contract. Filters apply to both employees and their history.
 
-## Контракт участника 3
+`GET /api/catalog` supplies events, skills and roleProfiles for display. It contains no employee engagement data. Employee cards come from `GET /api/employees`.
 
-Все запросы относительные: `fetch('/api/...')`. Каждый успешный ответ обёрнут в `data`; проверять `response.ok` перед чтением `data`.
+## Frontend integration performed
 
-| Запрос | Содержимое `data` |
-| --- | --- |
-| `GET /api/health` | `{ status, schemaVersion, counts }` |
-| `GET /api/employees` | `{ items: EmployeeCard[], total }` |
-| `GET /api/employees/:id` | `EmployeeProjection` |
-| `GET /api/employees/:id/recommendations` | `RecommendationResult` |
-| `POST /api/employees/:id/activities/:eventId/complete` | `{ activity, projection, recommendations }` |
-| `POST /api/import` | `{ employeesInserted, employeesUpdated, historyInserted, historySkipped }` |
-| `GET /api/hr/summary` | `HrSummary` |
+Existing App.tsx and styles are hosted by Next.js. Browser calculations/localStorage have been replaced in the active product flow by relative API calls. Completion displays readiness delta and before/after skills. Imports send one JSON and/or one CSV in a single transaction. HR lists are no longer silently truncated. The historical Vite entry remains available with an API proxy; standalone localStorage helpers remain only for their existing regression tests.
 
-Список поддерживает `search`, `role`, `grade`, `department`; HR — `role`, `grade`, `department`. Фильтры объединяются через AND; пустой результат допустим. `readiness` — число от 0 до 100 или `null`, а не объект. Объяснение, flags и skill impact находятся внутри `recommendations[i].evidence`. Пустой массив рекомендаций необходимо показывать честно. `targetStatus: 'no_target'` означает отсутствие карьерной цели.
+The UI reads recommendations from EmployeeView, displays `aiExplanation ?? deterministicExplanation`, and handles request errors and employee-selection cancellation. No duplicated skill arithmetic is performed by the browser.
 
-```ts
-import type { ApiSuccess, CompleteActivityResult } from '@/contracts/api';
+## Import semantics
 
-const response = await fetch(`/api/employees/${employeeId}/activities/${eventId}/complete`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({}),
-});
-if (!response.ok) throw new Error((await response.json()).error.message);
-const { data } = await response.json() as ApiSuccess<CompleteActivityResult>;
-// Обновить экран из data.projection и data.recommendations.
-```
+The official four-file seed is validated by PR #4's adapter. Partial imports upsert employees and skip existing record IDs; references may point to an employee introduced in the same request. The combined persisted dataset is validated before commit. All invalid records roll back together. CSV numeric and optional-empty conversion is delegated to parseActivityHistoryRows. JSON rows use the existing canonical fields.
 
-Для импорта создать `FormData`, добавить файл или текст в `employees` и/или `history`, отправить POST. Заголовок Content-Type для FormData браузер выставляет сам. JSON принимает wrapper `{ meta, employees }`, массив или один профиль. CSV должен содержать все официальные колонки. `details[].row` для JSON — номер элемента от 1, для CSV — номер строки от 2; `file` сохраняет имя загруженного файла.
+The endpoint does not replace the event/skill catalog; it is an incremental employee/history importer. The catalog comes from the four official files, with exact starter counts. No browser demo records are mixed into SQLite.
 
-Ошибки: `{ error: { code, message, details: [{ file?, row?, field?, message }] } }`.
-HTTP 400 — повреждённый JSON/multipart или пустой импорт; 422 — ошибки значений/ссылок; 404 — неизвестный сотрудник/мероприятие; 409 — повторное завершение; 500 — серверная ошибка. Файл со смешанными валидными и невалидными записями отклоняется целиком.
+## НАПАРНИК/И — remaining coordination
 
-## Демо и сохранение данных
+- AI/Data: shared engine and public types are preserved. Real OpenAI provider integration/key setup remains a separate step. Current routes intentionally use deterministic fallback; setting a key alone does not invoke it.
+- Frontend: App.tsx data loading, completion, import and HR wiring changed in this branch. Base subsequent edits on this integration to avoid restoring localStorage as the source of truth.
+- Merge this branch through its PR after integration checks; other PR branches were included locally with their original commits, without changing main directly.
 
-В чистой БД: 60 навыков, 32 role profiles, 200 сотрудников, 40 мероприятий, 2743 записи истории. Healthcheck автоматически инициализирует БД. Записи завершений и импорт переживают restart/recreate контейнера благодаря named volume. Удаление демо-данных — отдельная команда `docker compose down -v`.
-
-Проверки: `npm test`, `npm run build`. Тесты работают с временными отдельными БД и не изменяют демо-volume.
+Run `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`. Start the complete app with `docker compose up --build`. See README for reset and environment options. Example API responses are under `docs/fixtures`.

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const dateSchema = z.iso.date();
-const levelSchema = z.number().int().min(0).max(5);
+const levelSchema = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]);
 
 export const gradeSchema = z.enum(["Junior", "Middle", "Senior", "Lead"]);
 
@@ -45,7 +45,7 @@ export const eventSchema = z.object({
   event_id: z.string().min(1),
   title: z.string().min(1),
   description: z.string(),
-  type: z.string().min(1),
+  type: z.enum(["compliance", "onboarding", "course", "workshop", "mentoring", "certification", "meetup"]),
   format: z.enum(["online", "offline", "self_paced"]),
   duration_hours: z.number().nonnegative(),
   mandatory: z.boolean(),
@@ -54,7 +54,7 @@ export const eventSchema = z.object({
   develops_skills: z.array(
     z.object({
       skill_id: z.string().min(1),
-      gain: z.number().int().positive(),
+      gain: z.number().int().min(0).max(5),
       max_level: levelSchema,
     }),
   ),
