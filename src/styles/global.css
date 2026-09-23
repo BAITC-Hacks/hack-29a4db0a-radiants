@@ -8,7 +8,7 @@
 :root {
   font-family: Manrope, "Segoe UI", Arial, sans-serif;
   color: #202b29;
-  background: #f5f7f6;
+  background: #fff;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -22,7 +22,7 @@
   --amber: #826016;
   --red: #ae3939;
 }
-* { box-sizing: border-box; }
+* { box-sizing: border-box; letter-spacing: 0; }
 body { margin: 0; min-width: 320px; font-size: 15px; font-weight: 500; line-height: 1.6; }
 button, select, input { font: inherit; }
 button { cursor: pointer; }
@@ -31,9 +31,9 @@ a { color: var(--green); }
 :focus-visible { outline: 3px solid #00805f; outline-offset: 4px; }
 main:focus { outline: none; }
 h1, h2, h3, h4, p { margin: 0; }
-h1 { font-size: 34px; font-weight: 750; line-height: 1.2; letter-spacing: -1.1px; }
-h2 { font-size: 21px; font-weight: 750; line-height: 1.4; letter-spacing: -.45px; }
-h3 { font-size: 19px; font-weight: 700; line-height: 1.4; letter-spacing: -.3px; }
+h1 { font-size: 26px; font-weight: 750; line-height: 1.2; }
+h2 { font-size: 20px; font-weight: 750; line-height: 1.4; }
+h3 { font-size: 18px; font-weight: 700; line-height: 1.4; }
 h4 { font-size: 14px; font-weight: 700; }
 strong, b { font-weight: 700; }
 small { font-size: 13px; }

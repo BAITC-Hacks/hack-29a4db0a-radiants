@@ -15,7 +15,7 @@ const screen = (view: ReturnType<typeof profile> & Partial<Pick<EmployeeDetail, 
   onRefresh() {}, onComplete() {}, onDismissCompletion() {},
 }));
 describe("presentation of trusted EmployeeView values", () => {
-  it("shows supplied diagnostics and readiness formula without computing explanations in the UI", () => {
+  it("presents server diagnostic codes in plain language without recomputing readiness", () => {
     const view = profile();
     view.recommendations = [];
     const diagnostics = getRecommendationDiagnostics(normalizeDataset(structuredClone(demoDataset)), "EMP-014");
@@ -25,9 +25,10 @@ describe("presentation of trusted EmployeeView values", () => {
     diagnostics.readinessExplanation.formula = "Server-owned readiness formula";
     const html = screen({ ...view, recommendationDiagnostics: diagnostics });
     expect(html).toContain("Пока нет подходящих мероприятий");
-    expect(html).toContain("The catalog cannot currently close these gaps.");
+    expect(html).toContain("сейчас нет доступного занятия");
     expect(html).toContain("Required System Design 2; current 1.");
-    expect(html).toContain("Server-owned readiness formula");
+    expect(html).toContain("Ключевые навыки влияют на результат вдвое сильнее");
+    expect(html).not.toContain("Server-owned readiness formula");
   });
   it("shows complete private participation history including assigned source and due dates", () => {
     const html = screen({ ...profile(), activityHistory: [{
@@ -89,7 +90,7 @@ describe("presentation of trusted EmployeeView values", () => {
     view.effectiveSkills.EXTRA_SKILL = 3;
     const html = screen(view);
     expect(html).toContain('scope="row">EXTRA_SKILL</th><td>3</td>');
-    expect(html).toContain("Следующий шаг");
+    expect(html).toContain("Что пройти дальше");
   });
   it("shows an explicit empty state for a no-target profile with no reported skills", () => {
     const view = profile();
@@ -110,17 +111,17 @@ describe("presentation of trusted EmployeeView values", () => {
     view.recommendations[0]!.score = 12.5;
     const html = screen(view);
     expect(html).toContain("64,2%");
-    expect(html).toContain("Соответствие навыков");
+    expect(html).toContain("Прогресс к цели");
     expect(html).toContain('<th scope="col">Разница</th>');
     expect(html).toContain(`class="${view.skillGaps[0]!.gap > 0 ? "gap-open" : "gap-met"}">${view.skillGaps[0]!.gap}</td>`);
     expect(html).not.toContain("Прогноз");
     expect(html).not.toContain(">3.5</td>");
-    expect(html).toContain("Ожидаемый эффект");
-    expect(html).toContain("Оценка до завершения занятия. Текущие навыки пока не изменены.");
-    expect(html).toContain("Reason four");
+    expect(html).toContain("После занятия");
+    expect(html).toContain("Профиль изменится только после подтверждения прохождения.");
+    expect(html).not.toContain("Reason four");
     expect(html).toContain("Supplied AI insight");
     expect(html).toContain("С помощью ИИ");
-    expect(html).toContain('Оценка рекомендации: <strong>12,5</strong>');
+    expect(html).not.toContain('Оценка рекомендации');
     expect(html).toContain('<table class="skills-table">');
     expect(html).not.toContain('class="ring"');
     expect(html).not.toContain("Evidence based");
@@ -155,7 +156,7 @@ describe("presentation of trusted EmployeeView values", () => {
     const view = profile();
     view.recommendations[0]!.aiExplanation = " ";
     view.recommendations[0]!.explanationSource = "llm";
-    view.recommendations[0]!.reasons = ["<script>injected()</script>"];
+    view.recommendations[0]!.deterministicExplanation = "<script>injected()</script>";
     const html = screen(view);
     expect(html).not.toContain("С помощью ИИ");
     expect(html).toContain("По данным профиля");
@@ -204,15 +205,15 @@ describe("presentation of trusted EmployeeView values", () => {
     const completedTable = html.slice(html.indexOf('aria-label="Завершённые занятия"'));
     expect(completedTable).toMatch(/>Latest recorded course<\/th>[\s\S]*>Recorded course<\/th>/);
     expect(view).toEqual(original);
-    expect(html.split("Отметить завершённым").length - 1).toBe(view.recommendations.length);
+    expect(html.split("Я прошёл это занятие").length - 1).toBe(view.recommendations.length);
   });
   it("hides completion controls in HR profile views", () => {
     const html = renderToStaticMarkup(createElement(EmployeeScreen, {
       view: profile(), allowCompletion: false, completing: false, completionDisabled: false, completion: null, failure: null,
       onRefresh() {}, onComplete() {}, onDismissCompletion() {},
     }));
-    expect(html).toContain("Следующий шаг");
-    expect(html).not.toContain("Отметить завершённым");
+    expect(html).toContain("Что пройти дальше");
+    expect(html).not.toContain("Я прошёл это занятие");
   });
   it("shows history empty states only for supplied empty arrays", () => {
     const html = screen({ ...profile(), completedActivities: [], activeMandatoryObligations: [] });
