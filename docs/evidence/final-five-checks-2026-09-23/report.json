@@ -1,0 +1,119 @@
+{
+  "sourceSha": "cedd34dc4d5a85abf554abbf4a99388fc1702686",
+  "base": "http://localhost:5200",
+  "mode": "production-browser-and-http-fallback-not-live-ai",
+  "checks": [
+    {
+      "name": "initial-health",
+      "status": "ok",
+      "schemaVersion": 2,
+      "counts": {
+        "skills": 60,
+        "roleProfiles": 32,
+        "employees": 200,
+        "events": 40,
+        "activityHistory": 2743
+      }
+    },
+    {
+      "name": "ui-import-profile",
+      "employeesInserted": 1,
+      "employeesUpdated": 0,
+      "historyInserted": 0,
+      "historySkipped": 0,
+      "employeeIds": [
+        "JURY_DEMO_001"
+      ]
+    },
+    {
+      "name": "ui-import-history",
+      "employeesInserted": 0,
+      "employeesUpdated": 0,
+      "historyInserted": 2,
+      "historySkipped": 0,
+      "employeeIds": [
+        "JURY_DEMO_001"
+      ]
+    },
+    {
+      "name": "reimport-no-growth",
+      "employeesInserted": 0,
+      "employeesUpdated": 0,
+      "historyInserted": 0,
+      "historySkipped": 2,
+      "employeeIds": [
+        "JURY_DEMO_001"
+      ]
+    },
+    {
+      "name": "forbidden",
+      "url": "/api/employees/E0178",
+      "method": "GET",
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "name": "forbidden",
+      "url": "/api/employees/E0178/recommendations",
+      "method": "GET",
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "name": "forbidden",
+      "url": "/api/hr/summary",
+      "method": "GET",
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "name": "forbidden",
+      "url": "/api/hr/accounts",
+      "method": "GET",
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "name": "forbidden",
+      "url": "/api/hr/accounts",
+      "method": "POST",
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "name": "forbidden",
+      "url": "/api/import",
+      "method": "POST",
+      "status": 403,
+      "code": "FORBIDDEN"
+    },
+    {
+      "name": "external-ai-disabled",
+      "elapsedMs": 19,
+      "eventIds": [
+        "EV_006",
+        "EV_007",
+        "EV_038"
+      ]
+    },
+    {
+      "name": "completion-and-reload",
+      "eventId": "EV_006",
+      "before": 74.1,
+      "after": 76.9,
+      "delta": 2.8,
+      "history": 3
+    },
+    {
+      "name": "restart-persistence",
+      "passed": true
+    },
+    {
+      "name": "hr-and-no-forbidden-account-write",
+      "population": 1,
+      "totalActivities": 3,
+      "accountCount": 4
+    }
+  ],
+  "status": "passed"
+}
