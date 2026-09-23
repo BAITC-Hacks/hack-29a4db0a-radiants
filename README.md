@@ -116,4 +116,4 @@ See [jury rehearsal](docs/JURY_DEMO.md) for the three importable evaluation prof
 
 Starter data is synthetic. Authentication is outside this MVP: employee/HR views are logically separated but not protected by an authorization layer. Employee listing and catalog endpoints do not expose engagement history.
 
-See [the 3–5 minute demo and startup guide](docs/DEMO.md) and [the frontend API contract](docs/FRONTEND_API.md).
+See [the 3–5 minute demo and startup guide](docs/DEMO.md), [the frontend API contract](docs/FRONTEND_API.md), and [final validation results](docs/FINAL_VALIDATION.md): 176 offline tests, two live AI cases, clean-clone Docker startup and browser import/completion/persistence.

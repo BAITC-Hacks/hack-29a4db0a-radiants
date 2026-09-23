@@ -52,6 +52,6 @@ The endpoint does not replace the event/skill catalog; it is an incremental empl
 
 Put server-only `OPENAI_API_KEY` and optional `OPENAI_MODEL` in ignored `.env`. Compose reads it automatically; Next.js loads it in development. With no key, the same route returns deterministic fallback. `.env.local` also works locally; Compose requires `--env-file .env.local` for that filename. Never commit the key or use a public frontend env prefix.
 
-Verified: 158 offline tests, TypeScript and frontend lint. Tests include stale AI response rejection, source labeling, completed/mandatory history rendering and JSON → CSV jury import through real API routes with rollback and persistence. Earlier backend verification included Docker production build, one opt-in live SQLite-service case for E0178 and a real Docker HTTP request returning three `llm` recommendations in 7,026 ms. See AI_VERIFICATION.md for scope and limitations.
+Verified: 176 offline tests, TypeScript, frontend/hooks lint, fresh-clone Docker build, two live service cases and actual browser AI/fallback. Tests include stale AI response rejection, source labeling, completed/mandatory history, no-target skills and JSON → CSV jury import through real API routes with rollback and persistence. See FINAL_VALIDATION.md for observed results and AI_VERIFICATION.md for scope and limitations.
 
 Run `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`. Start the complete app with `docker compose up --build`. See README for reset and environment options. Example API responses are under `docs/fixtures`.
