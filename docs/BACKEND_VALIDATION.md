@@ -2,16 +2,17 @@
 
 ## Reviewed remote work
 
-- Main: 1bf2026 (domain PR #1 and the first frontend).
+- Main: 1bef61f (domain PR #1, frontend and merged PRs #2/#4).
 - PR #2: imported-profile/HR regression tests; included.
 - PR #3: frontend integration review; included and gaps addressed by the API integration.
 - PR #4: official dataset adapter; included and used for seed/import validation.
 - Frontend API branch: 92dd0fd; included with its components, recovery behavior, decimal readiness and tests.
-- PR #5/#6: reviewed, kept separate. PR #6 currently accepts a browser-supplied dataset through Vite middleware. The active integration here reads SQLite through Next.js routes. AI call wiring must use the persisted dataset and the shared explanation module; the older App.tsx/localStorage path should not replace the integrated frontend.
+- PR #5: included after resolving the package/README conflicts and updating the moved test fixture import. Its provider is not connected to production routes.
+- PR #6: reviewed, kept separate. It currently accepts a browser-supplied dataset through Vite middleware. The active integration here reads SQLite through Next.js routes. AI call wiring must use the persisted dataset and the shared explanation module; the older App.tsx/localStorage path should not replace the integrated frontend. See MERGE_REVIEW.md.
 
 ## Automated checks
 
-- 91 tests passed across 10 files.
+- 115 tests passed across 10 files; the explicit live OpenAI test is skipped (11 files total).
 - TypeScript check passed.
 - Frontend ESLint passed.
 - Next.js production build inside Docker passed.

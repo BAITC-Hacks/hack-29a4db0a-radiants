@@ -88,6 +88,10 @@ The shared engine returns up to three eligible voluntary recommendations with re
 
 Current routes call the deterministic shared engine and return `explanationSource: "fallback"`; no network model call or key is required. The existing `src/lib/ai` provider and its mocked tests are preserved. Live provider wiring and verification remain a separate teammate step requiring server-side key setup. The frontend already renders `aiExplanation ?? deterministicExplanation`. Merely setting OPENAI_API_KEY does not enable model calls in this revision.
 
+PR #5 hardens the standalone provider with an 8-second deadline, response/refusal validation and deterministic fallback. `npm test` uses mocked transports and skips the live test. The explicit `npm run test:ai-live` command makes a billed real request using synthetic test data and a server-side `OPENAI_API_KEY`; it has not been run for this integration. See [AI verification](docs/AI_VERIFICATION.md).
+
+PR #6 remains pending: its Vite middleware and browser dataset flow must be adapted to the persisted Next.js API before merging. See [merge review](docs/MERGE_REVIEW.md).
+
 ## Environment
 
 Defaults: `CAREER_QUEST_DB_PATH=.data/career-quest.sqlite`, `CAREER_QUEST_DATA_DIR=data`. Compose supplies absolute /app paths. The .env.example file contains optional local overrides. Secrets and SQLite files are excluded from Git.
