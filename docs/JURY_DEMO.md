@@ -21,6 +21,8 @@ Check `GET /api/health`: 200 employees, 40 events, 60 skills, 32 role profiles, 
 Keep a short recording of the actual successful run as a presentation backup, clearly identified as a recording.
 Do not promise measured engagement improvement, promotion, or production access control. These are not established by the prototype.
 
+The independently recorded two-minute fallback run, Russian speaker notes and remaining team handoff are documented in [FINAL_REHEARSAL.md](FINAL_REHEARSAL.md). It does not replace the Backend laptop's live-AI rehearsal.
+
 ## Importable check profiles
 
 Upload `docs/jury/employees.json`, then `docs/jury/activity_history.csv` in the existing dialog.
