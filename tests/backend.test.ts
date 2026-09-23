@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { databaseCounts, closeDatabase, getDatabase } from "@/server/db/database";
 import { EmployeeRepository, EventRepository } from "@/server/repositories";
@@ -17,6 +17,7 @@ import { createCareerApi } from "@/lib/frontend/api";
 let temporaryDirectory: string;
 
 beforeEach(() => {
+  vi.stubEnv("OPENAI_API_KEY", "");
   closeDatabase();
   temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "career-quest-test-"));
   process.env.CAREER_QUEST_DB_PATH = path.join(temporaryDirectory, "test.sqlite");
@@ -24,6 +25,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   closeDatabase();
   delete process.env.CAREER_QUEST_DB_PATH;
   delete process.env.CAREER_QUEST_DATA_DIR;

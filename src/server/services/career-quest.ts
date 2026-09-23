@@ -49,19 +49,34 @@ export function getEmployeeProjection(employeeId: string, db: Database.Database 
   return employeeDetail(normalized(db), employeeId);
 }
 
+export const AI_REQUEST_BUDGET_MS = 9_500;
+
 export async function getRecommendations(
   employeeId: string,
-  db: Database.Database = getDatabase(),
+  db?: Database.Database,
   explainer?: RecommendationExplainer,
+  deadline = performance.now() + AI_REQUEST_BUDGET_MS,
 ): Promise<EmployeeDetail> {
-  const detail = getEmployeeProjection(employeeId, db);
+  const detail = getEmployeeProjection(employeeId, db ?? getDatabase());
+  const remainingMs = deadline - performance.now();
+  if (remainingMs <= 0 || !detail.recommendations.length) return detail;
   const provider = explainer ?? createOpenAIExplainer({
     apiKey: process.env.OPENAI_API_KEY,
     model: process.env.OPENAI_MODEL || undefined,
+    timeoutMs: Math.min(8_000, remainingMs),
   });
   // Network work stays outside completion transactions and never changes stored skills/history.
-  const enriched = await applyAiExplanations(detail, provider);
-  return { ...detail, recommendations: enriched.recommendations };
+  // Reserve 500 ms for serialization/transport; late provider results cannot replace fallback.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const enriched = await Promise.race([
+      applyAiExplanations(detail, provider),
+      new Promise<EmployeeDetail>((resolve) => { timer = setTimeout(() => resolve(detail), remainingMs); }),
+    ]);
+    return { ...detail, recommendations: enriched.recommendations };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function getHrSummary(filters: EmployeeFilters, db: Database.Database = getDatabase()): HrSummaryResult {
