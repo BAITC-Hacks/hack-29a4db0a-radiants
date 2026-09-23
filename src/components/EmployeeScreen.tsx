@@ -1,17 +1,24 @@
 import { LoaderCircle, X } from "lucide-react";
 import type { EmployeeView, Recommendation, SkillGap } from "../types/career";
-import type { CompletionError } from "../lib/frontend/api";
+import type { CompletionError, DisplayCatalog, ProfileResponse } from "../lib/frontend/api";
+import { ActivityHistory } from "./ActivityHistory";
 import { NoNextStepState } from "./NoNextStepState";
 import { EmptyState, formatNumber } from "./States";
 import { formatReadiness, formatReadinessDelta, readinessBarValue, readinessDelta } from "../lib/frontend/readiness";
 
 export interface CompletionSnapshot { before: EmployeeView; after: EmployeeView }
 interface Props {
-  view: EmployeeView; completing: boolean; completionDisabled: boolean; completion: CompletionSnapshot | null;
+  view: ProfileResponse; completing: boolean; completionDisabled: boolean; completion: CompletionSnapshot | null;
+  catalog?: DisplayCatalog; catalogError?: string; onRetryCatalog?: () => void;
+  recommendations?: Recommendation[]; recommendationsLoading?: boolean; recommendationsError?: string; onRetryRecommendations?: () => void;
   failure: CompletionError | null; onRefresh: () => void; onComplete: (recommendation: Recommendation) => void;
   onDismissCompletion: () => void;
 }
-export function EmployeeScreen({ view, completing, completionDisabled, completion, failure, onRefresh, onComplete, onDismissCompletion }: Props) {
+export function EmployeeScreen({ view, catalog, catalogError, onRetryCatalog, recommendations = view.recommendations,
+  recommendationsLoading, recommendationsError, onRetryRecommendations,
+  completing, completionDisabled, completion, failure, onRefresh, onComplete, onDismissCompletion }: Props) {
+  const targeted = new Set(view.skillGaps.map((gap) => gap.skillId));
+  const additional = Object.entries(view.effectiveSkills).filter(([id]) => !targeted.has(id));
   return <>
     {completion && <CompletionFeedback snapshot={completion} onDismiss={onDismissCompletion} />}
     {failure && <section className="panel error-state" role="alert">
@@ -45,14 +52,24 @@ export function EmployeeScreen({ view, completing, completionDisabled, completio
           <thead><tr><th scope="col">Skill</th><th scope="col">Current progress</th><th scope="col">Projected</th><th scope="col">Required</th><th scope="col">Gap</th></tr></thead>
           <tbody>{view.skillGaps.map((gap) => <SkillRow key={gap.skillId} gap={gap} />)}</tbody>
         </table></div> : <EmptyState text="No skill requirements were provided for this target." />}
+        {additional.length > 0 && <section className="additional-skills" aria-labelledby="additional-skills-heading">
+          <div className="section-header"><h3 id="additional-skills-heading">Additional skills</h3><p className="section-note">Current levels · no target requirement provided</p></div>
+          <div className="table-wrap"><table className="skills-table"><thead><tr><th scope="col">Skill</th><th scope="col">Current level</th></tr></thead>
+            <tbody>{additional.map(([id, level]) => <tr key={id}><th scope="row">{catalog?.skills.find((skill) => skill.skill_id === id)?.name ?? id}</th><td>{level}</td></tr>)}</tbody>
+          </table></div>
+        </section>}
+        {catalogError && <p className="section-note" role="status">Skill names and activity durations are unavailable. <button className="text-action" onClick={onRetryCatalog}>Retry catalog</button></p>}
       </section>
-      <section className="recommendations-panel" aria-busy={completing} aria-labelledby="recommendations-heading">
+      <section className="recommendations-panel" aria-busy={completing || recommendationsLoading} aria-labelledby="recommendations-heading">
         <div className="section-header"><h2 id="recommendations-heading">Recommended next steps</h2><p className="section-note">Expected changes and reasons for each activity</p></div>
-        {view.recommendations.length ? <div className="recommendation-list">{view.recommendations.map((recommendation, index) =>
+        {recommendationsLoading && <p className="recommendation-status" role="status"><LoaderCircle className="spin" size={15} /> Updating recommendations…</p>}
+        {recommendationsError && <p className="section-note" role="status">Enhanced recommendations are unavailable. Showing system recommendations. <button className="text-action" onClick={onRetryRecommendations}>Retry recommendations</button></p>}
+        {recommendations.length ? <div className="recommendation-list">{recommendations.map((recommendation, index) =>
           <RecommendationCard key={recommendation.eventId} recommendation={recommendation} rank={index + 1} view={view}
-            busy={completing} disabled={completionDisabled} onComplete={() => onComplete(recommendation)} />)}</div> : <NoNextStepState view={view} />}
+            busy={completing} disabled={completionDisabled} onComplete={() => onComplete(recommendation)} />)}</div> : !recommendationsLoading && <NoNextStepState view={view} />}
       </section>
     </div>
+    <ActivityHistory view={view} catalog={catalog} />
   </>;
 }
 
@@ -66,6 +83,8 @@ function SkillRow({ gap }: { gap: SkillGap }) {
 function RecommendationCard({ recommendation: rec, rank, view, busy, disabled, onComplete }: {
   recommendation: Recommendation; rank: number; view: EmployeeView; busy: boolean; disabled: boolean; onComplete: () => void;
 }) {
+  const aiText = rec.aiExplanation?.trim();
+  const explanation = aiText || rec.deterministicExplanation;
   return <article className={`recommendation-card ${rank === 1 ? "top-recommendation" : ""}`}>
     <div className="rec-topline"><span>Step {rank}</span><span>Score {formatNumber(rec.score)}</span></div>
     <h3>{rec.title}</h3>
@@ -76,11 +95,11 @@ function RecommendationCard({ recommendation: rec, rank, view, busy, disabled, o
         <strong>{change.before} <span aria-label="to">→</span> {change.after}<small> / {change.required} required</small></strong>
       </div>)}
     </div>}
-    <div className="why-block"><h4>Why this step</h4>
-      {rec.reasons.length ? <ul>{rec.reasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul> : rec.deterministicExplanation && <p>{rec.deterministicExplanation}</p>}
+    <div className="why-block"><h4>Why this step</h4><span className="explanation-source">{aiText ? "AI-assisted" : "System explanation"}</span>
+      {explanation && <p>{explanation}</p>}
+      {rec.reasons.length > 0 && <ul>{rec.reasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
       {rec.historySignal && <p className="history-signal">{rec.historySignal}</p>}
     </div>
-    {rec.aiExplanation?.trim() && <aside className="ai-explanation"><h4>AI-assisted explanation</h4><p>{rec.aiExplanation}</p></aside>}
     <button className={`button ${rank === 1 ? "button-green" : "button-outline"} complete-button`} disabled={disabled} onClick={onComplete}>
       {busy && <LoaderCircle className="spin" size={15} />}{busy ? "Updating profile…" : "Complete activity"}
     </button>

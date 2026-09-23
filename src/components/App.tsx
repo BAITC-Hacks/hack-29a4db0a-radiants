@@ -5,6 +5,7 @@ import { ChevronDown, FileUp } from "lucide-react";
 import type { EmployeeView, Recommendation } from "../types/career";
 import { CompletionError, createCareerApi, type CareerApi, type ImportResult } from "../lib/frontend/api";
 import { useApiResource } from "../hooks/useApiResource";
+import { useRecommendations } from "../hooks/useRecommendations";
 import { EmployeeScreen, type CompletionSnapshot } from "./EmployeeScreen";
 import { HRDashboard } from "./HRDashboard";
 import { ImportDialog } from "./ImportDialog";
@@ -17,6 +18,7 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
   const [importOpen, setImportOpen] = useState(false);
   const [importNotice, setImportNotice] = useState("");
   const [pending, setPending] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
   const [completion, setCompletion] = useState<CompletionSnapshot | null>(null);
   const [failure, setFailure] = useState<{ before: EmployeeView; error: CompletionError } | null>(null);
   const mutationLock = useRef(false);
@@ -26,9 +28,36 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
   const listLoader = useCallback((signal: AbortSignal) => api.getEmployees(signal), [api]);
   const viewLoader = useCallback((signal: AbortSignal) => api.getEmployeeView(employeeId, signal), [api, employeeId]);
   const hrLoader = useCallback((signal: AbortSignal) => api.getHrSummary(signal), [api]);
+  const catalogLoader = useCallback((signal: AbortSignal) => api.getCatalog(signal), [api]);
   const employees = useApiResource("employees", listLoader);
   const profile = useApiResource(employeeId, viewLoader, !!employeeId && screen === "employee");
   const hr = useApiResource("hr", hrLoader, screen === "hr");
+  const catalog = useApiResource("catalog", catalogLoader);
+  const recommendations = useRecommendations(api, employeeId, profile.version,
+    !!profile.data && !profile.loading && !profile.error && screen === "employee" && !pending && !importing &&
+    !(failure?.before.employee.employee_id === employeeId && failure.error.phase !== "rejected"));
+
+  function selectEmployee(id: string) {
+    recommendations.cancel();
+    selected.current = id;
+    setEmployeeId(id);
+    setImportNotice("");
+    setCompletion(null);
+    setFailure(null);
+  }
+  function refreshProfile() { recommendations.cancel(); profile.reload(); }
+  function startImport() {
+    recommendations.cancel();
+    mutationLock.current = true;
+    setImporting(true);
+  }
+  function finishImport() {
+    // Even an uncertain upload outcome requires a fresh profile before AI resumes.
+    profile.reload();
+    employees.reload();
+    mutationLock.current = false;
+    setImporting(false);
+  }
 
   useEffect(() => {
     if (!employeeId && employees.data?.length) setEmployeeId(employees.data[0]!.employee_id);
@@ -37,6 +66,7 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
   async function complete(recommendation: Recommendation) {
     const before = profile.data;
     if (!before || mutationLock.current) return;
+    recommendations.cancel();
     mutationLock.current = true;
     setPending(before.employee.employee_id);
     setFailure(null);
@@ -57,6 +87,7 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
 
   async function refreshAfterCompletion() {
     if (!failure || mutationLock.current) return;
+    recommendations.cancel();
     const saved = failure;
     mutationLock.current = true;
     setPending(saved.before.employee.employee_id);
@@ -83,8 +114,7 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
       refreshed.find((employee) => employee.employee_id === selected.current)?.employee_id ??
       refreshed[0]?.employee_id ?? "";
     employees.replace(refreshed);
-    setEmployeeId(id);
-    if (id === selected.current) profile.reload();
+    selectEmployee(id);
     setCompletion(null);
     setFailure(null);
     hr.reload();
@@ -102,7 +132,7 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
       </a>
       <nav className="topbar-right" aria-label="Workspace">
         <button className={`nav-link ${screen === "employee" ? "selected" : ""}`} aria-label="Employee view" aria-current={screen === "employee" ? "page" : undefined} onClick={() => setScreen("employee")}>Employee</button>
-        <button className={`nav-link ${screen === "hr" ? "selected" : ""}`} aria-label="HR overview" aria-current={screen === "hr" ? "page" : undefined} onClick={() => setScreen("hr")}>HR dashboard</button>
+        <button className={`nav-link ${screen === "hr" ? "selected" : ""}`} aria-label="HR overview" aria-current={screen === "hr" ? "page" : undefined} onClick={() => { recommendations.cancel(); setScreen("hr"); }}>HR dashboard</button>
         <button className="button button-outline top-import" aria-label="Import data" disabled={pending !== null} onClick={() => { setImportNotice(""); setImportOpen(true); }}><FileUp size={16} /> Import</button>
       </nav>
     </header>
@@ -111,28 +141,34 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
         <div><h1>Development plan</h1><p>Review skills, career targets and recommended activities.</p></div>
         <label className="select-wrap" htmlFor="employee-select">
           <span className="select-label">Employee</span>
-          <select id="employee-select" aria-label="Select employee" value={employeeId} disabled={employees.loading || !employees.data?.length} onChange={(event) => { setEmployeeId(event.target.value); setImportNotice(""); }}>
+          <select id="employee-select" aria-label="Select employee" value={employeeId} disabled={employees.loading || !employees.data?.length} onChange={(event) => selectEmployee(event.target.value)}>
             {!employeeId && <option value="">{employees.loading ? "Loading employees…" : "Select employee"}</option>}
             {employees.data?.map((employee) => <option key={employee.employee_id} value={employee.employee_id}>{employee.full_name || employee.employee_id} · {employee.role}</option>)}
           </select><ChevronDown size={16} />
         </label>
       </div>
       {importNotice && <div className="inline-success" role="status">{importNotice}</div>}
-      {employees.error ? <ErrorState title="Could not load employees." detail={employees.error} onRetry={employees.reload} /> :
-        employees.loading ? <LoadingState text="Loading employees…" /> :
+      {profile.data && profile.error && <ErrorState title="Could not refresh this profile." detail={profile.error} onRetry={refreshProfile} />}
+      {employees.error && employees.data && <ErrorState title="Could not refresh employees." detail={employees.error} onRetry={employees.reload} />}
+      {employees.error && !employees.data ? <ErrorState title="Could not load employees." detail={employees.error} onRetry={employees.reload} /> :
+        employees.loading && !employees.data ? <LoadingState text="Loading employees…" /> :
         !employees.data?.length ? <EmptyState text="No employee profiles are available. Import a profile to get started." /> :
-        profile.error ? <ErrorState title="Could not load employee profile and recommendations." detail={profile.error} onRetry={profile.reload} /> :
-        profile.loading || !profile.data ? <LoadingState text="Analyzing your development profile…" /> :
-        <EmployeeScreen view={profile.data} completion={currentCompletion} onDismissCompletion={() => setCompletion(null)}
-          completing={pending === employeeId} completionDisabled={pending !== null || !!currentFailure && currentFailure.error.phase !== "rejected"}
+        profile.error && !profile.data ? <ErrorState title="Could not load employee profile." detail={profile.error} onRetry={refreshProfile} /> :
+        !profile.data ? <LoadingState text="Loading employee profile…" /> :
+        <EmployeeScreen view={profile.data} catalog={catalog.data} catalogError={catalog.error} onRetryCatalog={catalog.reload}
+          recommendations={pending || importing || profile.loading || profile.error || currentFailure && currentFailure.error.phase !== "rejected" ? [] : recommendations.data ?? profile.data.recommendations}
+          recommendationsLoading={recommendations.loading || importing || !!pending || profile.loading}
+          recommendationsError={recommendations.error} onRetryRecommendations={recommendations.retry}
+          completion={currentCompletion} onDismissCompletion={() => setCompletion(null)}
+          completing={pending === employeeId} completionDisabled={pending !== null || importing || profile.loading || !!profile.error || !!currentFailure && currentFailure.error.phase !== "rejected"}
           failure={currentFailure?.error ?? null} onRefresh={() => void refreshAfterCompletion()}
           onComplete={(recommendation) => void complete(recommendation)} />}
     </main> : <main className="page hr-page">
       <div className="page-heading"><div><h1>HR dashboard</h1><p>Skill gaps, employees needing follow-up and activity participation.</p></div></div>
       {hr.error ? <ErrorState title="Could not load HR summary." detail={hr.error} onRetry={hr.reload} /> :
         hr.loading || !hr.data ? <LoadingState text="Loading HR summary…" /> :
-        <HRDashboard summary={hr.data} onSelect={(id) => { setEmployeeId(id); setImportNotice(""); setScreen("employee"); }} />}
+        <HRDashboard summary={hr.data} onSelect={(id) => { selectEmployee(id); setScreen("employee"); }} />}
     </main>}
-    {importOpen && <ImportDialog api={api} onClose={closeImport} onImported={imported} />}
+    {importOpen && <ImportDialog api={api} onClose={closeImport} onImported={imported} onImportStart={startImport} onImportEnd={finishImport} />}
   </div>;
 }

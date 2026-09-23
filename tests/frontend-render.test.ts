@@ -28,7 +28,7 @@ describe("presentation of trusted EmployeeView values", () => {
     expect(html).toContain("Expected skill changes");
     expect(html).toContain("Reason four");
     expect(html).toContain("Supplied AI insight");
-    expect(html).toContain("AI-assisted explanation");
+    expect(html).toContain("AI-assisted");
     expect(html).toContain('<table class="skills-table">');
     expect(html).not.toContain('class="ring"');
     expect(html).not.toContain("Evidence based");
@@ -38,7 +38,7 @@ describe("presentation of trusted EmployeeView values", () => {
     view.recommendations[0]!.aiExplanation = " ";
     view.recommendations[0]!.reasons = ["<script>injected()</script>"];
     const html = screen(view);
-    expect(html).not.toContain("AI-assisted explanation");
+    expect(html).not.toContain("AI-assisted");
     expect(html).toContain("&lt;script&gt;");
     expect(html).not.toContain("<script>");
   });

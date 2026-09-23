@@ -1,6 +1,11 @@
-import type { Employee, EmployeeView } from "../../types/career";
+import type { Employee, EmployeeView, Recommendation } from "../../types/career";
+import type { CatalogResult, EmployeeDetail } from "../../contracts/api";
 import type { HrSummary } from "../analytics/hr-summary";
-import { isEmployeeList, isEmployeeView, isHrSummary, isImportResult } from "./response-validation";
+import { isEmployeeList, isEmployeeView, isHrSummary, isImportResult, isProfileHistory } from "./response-validation";
+
+export type ProfileResponse = EmployeeView & Partial<Pick<EmployeeDetail, "completedActivities" | "activeMandatoryObligations">>;
+export type DisplayCatalog = { skills: Pick<CatalogResult["skills"][number], "skill_id" | "name">[];
+  events: Pick<CatalogResult["events"][number], "event_id" | "title" | "duration_hours">[] };
 
 /** Optional transport fields. Domain HrSummary and EmployeeView remain unchanged. */
 export type HrSummaryResponse = HrSummary & {
@@ -14,8 +19,10 @@ export interface ImportResult {
 }
 export interface CareerApi {
   getEmployees(signal?: AbortSignal): Promise<EmployeeListItem[]>;
-  getEmployeeView(employeeId: string, signal?: AbortSignal): Promise<EmployeeView>;
-  completeActivity(employeeId: string, eventId: string): Promise<EmployeeView>;
+  getEmployeeView(employeeId: string, signal?: AbortSignal): Promise<ProfileResponse>;
+  getRecommendations(employeeId: string, signal?: AbortSignal): Promise<Recommendation[]>;
+  getCatalog(signal?: AbortSignal): Promise<DisplayCatalog>;
+  completeActivity(employeeId: string, eventId: string): Promise<ProfileResponse>;
   importData(file: File): Promise<ImportResult>;
   getHrSummary(signal?: AbortSignal): Promise<HrSummaryResponse>;
 }
@@ -73,7 +80,17 @@ export function createCareerApi(options: {
           : `Request failed (${response.status}).`, response.status); }
       }
       if (!response.ok) throw new ApiError(backendMessage(body) ?? `Request failed (${response.status}).`, response.status);
-      return object(body) && "data" in body ? body.data : body;
+      if (signal?.aborted) throw new DOMException("Request cancelled", "AbortError");
+      const data = object(body) && "data" in body ? body.data : body;
+      // Some explanation providers serialize a missing optional explanation as null.
+      const normalize = (value: unknown) => {
+        if (object(value) && Array.isArray(value.recommendations)) {
+          for (const rec of value.recommendations) if (object(rec) && rec.aiExplanation === null) delete rec.aiExplanation;
+        }
+      };
+      normalize(data);
+      if (object(data)) normalize(data.view);
+      return data;
     } catch (error) {
       if (signal?.aborted) throw new DOMException("Request cancelled", "AbortError");
       if (timedOut) throw new ApiError("The request timed out. Please try again.");
@@ -87,7 +104,7 @@ export function createCareerApi(options: {
   function invalid(): never { throw new ApiError("The server returned an unexpected response. Please retry or contact your team."); }
   const getEmployeeView: CareerApi["getEmployeeView"] = async (id, signal) => {
     const body = await request(`/employees/${encodeURIComponent(id)}`, {}, signal);
-    if (!isEmployeeView(body) || body.employee.employee_id !== id) return invalid();
+    if (!isEmployeeView(body) || !isProfileHistory(body) || body.employee.employee_id !== id) return invalid();
     return body;
   };
   return {
@@ -99,6 +116,26 @@ export function createCareerApi(options: {
       return isEmployeeList(items) ? items : invalid();
     },
     getEmployeeView,
+    async getRecommendations(id, signal) {
+      const body = await request(`/employees/${encodeURIComponent(id)}/recommendations`, {}, signal);
+      if (!isEmployeeView(body) || body.employee.employee_id !== id) return invalid();
+      // Never expose the returned profile to the recommendation state owner.
+      return body.recommendations;
+    },
+    async getCatalog(signal) {
+      const body = await request("/catalog", {}, signal);
+      if (!object(body) || !Array.isArray(body.skills) || !Array.isArray(body.events)) return invalid();
+      const skills = body.skills.map((item: unknown) => {
+        if (!object(item) || typeof item.skill_id !== "string" || typeof item.name !== "string") return invalid();
+        return { skill_id: item.skill_id, name: item.name };
+      });
+      const events = body.events.map((item: unknown) => {
+        if (!object(item) || typeof item.event_id !== "string" || typeof item.title !== "string" ||
+          typeof item.duration_hours !== "number" || !Number.isFinite(item.duration_hours) || item.duration_hours < 0) return invalid();
+        return { event_id: item.event_id, title: item.title, duration_hours: item.duration_hours };
+      });
+      return { skills, events };
+    },
     async completeActivity(employeeId, eventId) {
       let body: unknown;
       try {
@@ -110,8 +147,8 @@ export function createCareerApi(options: {
         const rejected = error instanceof ApiError && [400, 401, 403, 404, 409, 422].includes(error.status ?? 0);
         throw new CompletionError(error instanceof Error ? error.message : "Could not complete this activity.", rejected ? "rejected" : "unknown");
       }
-      if (object(body) && isEmployeeView(body.view) && body.view.employee.employee_id === employeeId) return body.view;
-      if (isEmployeeView(body) && body.employee.employee_id === employeeId) return body;
+      if (object(body) && isEmployeeView(body.view) && isProfileHistory(body.view) && body.view.employee.employee_id === employeeId) return body.view;
+      if (isEmployeeView(body) && isProfileHistory(body) && body.employee.employee_id === employeeId) return body;
       if (body === undefined || (object(body) && body.success === true)) {
         try { return await getEmployeeView(employeeId); }
         catch { throw new CompletionError("Activity completed, but the refreshed profile could not be loaded.", "refresh"); }

@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { CloudUpload, LoaderCircle, X } from "lucide-react";
 import type { CareerApi, ImportResult } from "../lib/frontend/api";
 
-export function ImportDialog({ api, onClose, onImported }: {
+export function ImportDialog({ api, onClose, onImported, onImportStart, onImportEnd }: {
   api: CareerApi; onClose: () => void; onImported: (result: ImportResult) => Promise<void>;
+  onImportStart?: () => void; onImportEnd?: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -31,6 +32,7 @@ export function ImportDialog({ api, onClose, onImported }: {
     setError("");
     let uploaded = result;
     try {
+      onImportStart?.();
       if (!uploaded) {
         uploaded = await api.importData(file);
         setResult(uploaded);
@@ -41,6 +43,7 @@ export function ImportDialog({ api, onClose, onImported }: {
       const detail = issue instanceof Error ? issue.message : "Could not import this file.";
       setError(uploaded ? `Import succeeded, but employee profiles could not be refreshed. ${detail}` : detail);
     } finally {
+      onImportEnd?.();
       lock.current = false;
       setBusy(false);
     }

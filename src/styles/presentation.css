@@ -156,3 +156,16 @@
   .completion-feedback { padding: 16px; }
   .dialog { padding: 20px; }
 }
+/* Async enrichment and history retain the same restrained table-based visual language. */
+.additional-skills { margin-top: 28px; }
+.explanation-source { display: block; color: var(--muted, #66736b); font-size: 11px; margin: 3px 0 9px; }
+.recommendation-status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #59665d; }
+.text-action { padding: 0; border: 0; background: none; color: #28563b; text-decoration: underline; cursor: pointer; font: inherit; }
+.activity-history { margin-top: 32px; padding-top: 24px; border-top: 1px solid #dfe5df; }
+.history-scroll { max-height: 420px; overflow: auto; }
+.history-table { min-width: 690px; }
+.history-table thead th { position: sticky; top: 0; background: #f7f9f6; z-index: 1; }
+.history-table th:first-child { min-width: 210px; max-width: 420px; overflow-wrap: anywhere; }
+.activity-status { font-size: 12px; white-space: nowrap; }
+.status-completed { color: #28563b; }
+.status-overdue { color: #8b4a2d; }

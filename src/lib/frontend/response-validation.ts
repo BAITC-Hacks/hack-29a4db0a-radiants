@@ -13,6 +13,14 @@ const skillMap = (value: unknown) => object(value) && Object.values(value).every
 const percent = (value: unknown) => number(value) && value >= 0 && value <= 100;
 const count = (value: unknown) => number(value) && value >= 0 && Number.isInteger(value);
 
+export function isProfileHistory(value: unknown): boolean {
+  return object(value) && [value.completedActivities, value.activeMandatoryObligations].every((rows) =>
+    rows === undefined || Array.isArray(rows) && rows.every((row) => object(row) &&
+      text(row.record_id) && text(row.employee_id) && text(row.event_id) && text(row.eventTitle) && text(row.date) &&
+      ["completed", "in_progress", "dropped", "no_show", "declined", "overdue"].includes(String(row.status)) &&
+      percent(row.completion_pct) && ["self", "manager", "hr"].includes(String(row.assigned_by))));
+}
+
 /** Shape checks only: no normalization, eligibility, ranking, or progress formulas. */
 function isEmployee(value: unknown): value is Employee {
   return object(value) && text(value.employee_id) && !!value.employee_id && text(value.full_name) &&

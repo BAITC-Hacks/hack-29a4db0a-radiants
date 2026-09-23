@@ -8,6 +8,33 @@ const profile = () => getEmployeeView(normalizeDataset(structuredClone(demoDatas
 afterEach(() => vi.useRealTimers());
 
 describe("typed frontend API", () => {
+  it("uses the separate GET endpoint and exposes recommendations only", async () => {
+    const staleProfile = profile();
+    staleProfile.readiness = 0;
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: staleProfile }));
+    const result = await createCareerApi({ fetcher }).getRecommendations("EMP-014");
+    expect(result).toEqual(staleProfile.recommendations);
+    expect(result).not.toHaveProperty("readiness");
+    expect(result).not.toHaveProperty("effectiveSkills");
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/employees/EMP-014/recommendations");
+  });
+  it("rejects recommendations for another employee and normalizes null AI text", async () => {
+    const view = profile();
+    Object.assign(view.recommendations[0]!, { aiExplanation: null });
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => Response.json({ data: view }));
+    const api = createCareerApi({ fetcher });
+    expect((await api.getRecommendations("EMP-014"))[0]?.aiExplanation).toBeUndefined();
+    await expect(api.getRecommendations("someone-else")).rejects.toThrow("unexpected response");
+  });
+  it("rejects a late recommendation response even when fetch ignores abort", async () => {
+    let resolve!: (response: Response) => void;
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(() => new Promise((done) => { resolve = done; }));
+    const controller = new AbortController();
+    const result = createCareerApi({ fetcher }).getRecommendations("EMP-014", controller.signal);
+    controller.abort();
+    resolve(Response.json(profile()));
+    await expect(result).rejects.toMatchObject({ name: "AbortError" });
+  });
   it("uses backend-computed values verbatim and encodes arbitrary employee ids", async () => {
     const view = profile();
     view.employee.employee_id = "hidden/id #1";
