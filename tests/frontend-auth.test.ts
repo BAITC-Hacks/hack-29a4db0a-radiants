@@ -52,7 +52,7 @@ describe("session-aware frontend privacy", () => {
   it("hides employee selection, HR and import for employee accounts", () => {
     const html = renderToStaticMarkup(createElement(App, { api: createCareerApi(), session: session(), onSignOut() {} }));
     expect(html).toContain("Выйти");
-    expect(html).toContain("добровольные шаги развития");
+    expect(html).toContain("Этот профиль видите только вы и HR.");
     expect(html).not.toContain("Обзор команды");
     expect(html).not.toContain("Загрузить данные");
     expect(html).not.toContain('id="employee-select"');
@@ -62,7 +62,7 @@ describe("session-aware frontend privacy", () => {
     expect(html).toContain("Обзор команды");
     expect(html).toContain("Загрузить данные");
     expect(html).toContain('id="employee-select"');
-    expect(html).toContain("Занятия отмечает завершёнными сам сотрудник в своём аккаунте.");
+    expect(html).toContain("Прохождение подтверждает сам сотрудник.");
   });
   it("validates the role-to-profile binding and CSRF token from server sessions", () => {
     expect(isAuthSession(session())).toBe(true);

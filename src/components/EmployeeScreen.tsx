@@ -1,10 +1,12 @@
-import { ArrowRight, CalendarDays, Check, ChevronDown, LoaderCircle, X } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, LoaderCircle, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { EmployeeView, Recommendation, SkillGap } from "../types/career";
 import type { ActivityView, CatalogResult, EmployeeDetail } from "../contracts/api";
 import type { CompletionError } from "../lib/frontend/api";
 import { NoNextStepState } from "./NoNextStepState";
 import { EmptyState, formatNumber } from "./States";
 import { formatReadiness, formatReadinessDelta, readinessBarValue, readinessDelta } from "../lib/frontend/readiness";
+import { historyLabel, readinessHelp, recommendationLabel } from "../lib/frontend/plain-language";
 
 export interface CompletionSnapshot { before: EmployeeView; after: EmployeeView }
 interface Props {
@@ -18,6 +20,7 @@ interface Props {
   onDismissCompletion: () => void;
 }
 export function EmployeeScreen({ view, skillNames = {}, events = [], allowCompletion = true, recommendationStatus, completing, completionDisabled, completion, failure, onRefresh, onComplete, onDismissCompletion }: Props) {
+  const [selected, setSelected] = useState<Recommendation | null>(null);
   const requirementIds = new Set(view.skillGaps.map((gap) => gap.skillId));
   const otherSkills = Object.entries(view.effectiveSkills)
     .filter(([id]) => !view.target || !requirementIds.has(id))
@@ -40,33 +43,34 @@ export function EmployeeScreen({ view, skillNames = {}, events = [], allowComple
         <div className="profile-name"><h2 title={view.employee.employee_id}>{view.employee.full_name || view.employee.employee_id}</h2></div>
         <p className="profile-role">{view.employee.role}<span className="grade-label">{view.employee.grade}</span></p>
         <p className="subline">{view.employee.department}</p>
-        <div className="profile-meta"><span>В компании {view.employee.tenure_months} мес.</span><span>№ {view.employee.employee_id}</span></div>
+        <div className="profile-meta"><span>В компании {view.employee.tenure_months} мес.</span></div>
       </div>
       <div className={`career-target-panel ${!view.target ? "without-target" : ""}`}>
         <span className="field-label">Карьерная цель</span>
         {view.target ? <>
           <h3>{view.target.role} <span>{view.target.grade}</span></h3>
-          <div className="readiness-heading"><span>Соответствие навыков</span><strong>{formatReadiness(view.readiness)}</strong></div>
+          <div className="readiness-heading"><span>Прогресс к цели</span><strong>{formatReadiness(view.readiness)}</strong></div>
           <progress className="readiness-progress" aria-label="Соответствие навыков цели" aria-valuetext={formatReadiness(view.readiness)} value={readinessBarValue(view.readiness)} max={100}>{formatReadiness(view.readiness)}</progress>
-          <p className="section-note">По требованиям к роли. Не является решением о повышении.</p>
+          <p className="section-note">Навыки по требованиям роли. Повышение обсуждается отдельно.</p>
         </> : <><h3>Цель пока не выбрана</h3><p>Обсудите следующий шаг с руководителем. Ваши текущие навыки доступны ниже.</p></>}
-        {view.recommendationDiagnostics && <details className="readiness-method"><summary>Как рассчитано соответствие цели<ChevronDown size={16} /></summary><p>{view.recommendationDiagnostics.readinessExplanation.formula}</p></details>}
+        {view.target && <details className="readiness-method"><summary>Что означает этот процент?<ChevronDown size={16} /></summary><p>{readinessHelp}</p></details>}
       </div>
     </section>
     <div className="content-grid">
       <section className="recommendations-panel" aria-busy={completing || recommendationStatus === "loading"} aria-labelledby="recommendations-heading">
-        <div className="section-header"><div><h2 id="recommendations-heading">Следующий шаг</h2><p className="section-note">Выберите один из вариантов с учётом вашей цели и опыта</p></div></div>
+        <div className="section-header"><div><h2 id="recommendations-heading">Что пройти дальше</h2><p className="section-note">Выберите один из вариантов. Проходить все не обязательно.</p></div></div>
         {recommendationStatus === "loading" && <p className="recommendation-status" role="status"><LoaderCircle size={15} className="spin" /> Уточняем объяснения. Уже можно выбрать занятие.</p>}
         {view.recommendations.length ? <div className="recommendation-list">{view.recommendations.map((recommendation, index) =>
           <RecommendationCard key={recommendation.eventId} recommendation={recommendation} rank={index + 1} view={view} skillNames={skillNames}
-            event={events.find((event) => event.event_id === recommendation.eventId)} allowCompletion={allowCompletion} busy={completing} disabled={completionDisabled} onComplete={() => onComplete(recommendation)} />)}</div> : <NoNextStepState view={view} />}
+            event={events.find((event) => event.event_id === recommendation.eventId)} allowCompletion={allowCompletion} busy={completing} disabled={completionDisabled} onComplete={() => setSelected(recommendation)} />)}</div> : <NoNextStepState view={view} />}
       </section>
       <section className="skills-panel surface" aria-labelledby="skills-heading">
-        <div className="section-header"><div><h2 id="skills-heading">{view.target ? "Навыки для цели" : "Ваши навыки"}</h2><p className="section-note">Уровни от 0 до 5{view.target ? " · сейчас и требования роли" : " · с учётом завершённого обучения"}</p></div></div>
+        <div className="section-header"><div><h2 id="skills-heading">{view.target ? view.skillGaps.some(gap => gap.gap > 0) ? "Что ещё развить" : "Навыки для цели" : "Ваши навыки"}</h2><p className="section-note">Уровни от 0 до 5{view.target ? " · сейчас и требования роли" : " · с учётом завершённого обучения"}</p></div></div>
+        <details className="level-help"><summary>Что означают уровни?<ChevronDown size={16} /></summary><p>0 — нет знаний; 1 — знаком с основами; 2 — справляется с поддержкой; 3 — работает самостоятельно; 4 — решает сложные задачи и помогает другим; 5 — задаёт стандарты.</p></details>
         {view.target && view.skillGaps.length > 0 ?
           <div className="table-wrap skills-scroll" role="region" aria-label="Навыки и требования роли" tabIndex={0}><table className="skills-table">
             <thead><tr><th scope="col">Навык</th><th scope="col">Сейчас</th><th scope="col">Для цели</th><th scope="col">Разница</th></tr></thead>
-            <tbody>{view.skillGaps.map((gap) => <SkillRow key={gap.skillId} gap={gap} />)}</tbody>
+            <tbody>{[...view.skillGaps].sort((a, b) => Number(b.gap > 0) - Number(a.gap > 0) || Number(b.critical) - Number(a.critical)).map((gap) => <SkillRow key={gap.skillId} gap={gap} />)}</tbody>
           </table></div> : view.target ? <EmptyState text="Требования к навыкам для этой роли пока не указаны." /> : null}
         {otherSkills.length > 0 ? view.target ? <details className="additional-skills"><summary>Другие навыки <span>{otherSkills.length}</span><ChevronDown size={16} /></summary><p className="section-note">Для этих навыков нет требования в выбранной цели.</p>{currentSkills}</details> : currentSkills : !view.target ? <EmptyState text="Навыки пока не добавлены в профиль." /> : null}
       </section>
@@ -80,11 +84,16 @@ export function EmployeeScreen({ view, skillNames = {}, events = [], allowComple
         <div className="section-header"><div><h2 id="completed-heading">Завершённое обучение</h2><p className="section-note">Завершённые занятия · сначала новые</p></div><span className="section-count">{view.completedActivities.length}</span></div>
         {view.completedActivities.length ? <ActivityTable activities={view.completedActivities} /> : <EmptyState text="Здесь появятся завершённые занятия." />}
       </section>}
-      {view.activityHistory && <section className="activity-section surface full-activity-history" aria-labelledby="history-heading">
-        <div className="section-header"><div><h2 id="history-heading">История активностей</h2><p className="section-note">Все статусы · сначала новые. Пропуск добровольной рекомендации не создаёт штрафа.</p></div><span className="section-count">{view.activityHistory.length}</span></div>
+      {view.activityHistory && <details className="activity-section surface full-activity-history">
+        <summary className="history-summary"><h2>Вся история участия</h2><span className="section-count">{view.activityHistory.length}</span><ChevronDown size={16} /></summary>
         {view.activityHistory.length ? <ActivityTable activities={view.activityHistory} fullHistory /> : <EmptyState text="Пока нет записей об участии." />}
-      </section>}
+      </details>}
     </div>
+    {selected && <CompletionConfirmation recommendation={selected} disabled={completionDisabled} onClose={() => setSelected(null)} onConfirm={() => {
+      const current = view.recommendations.find(rec => rec.eventId === selected.eventId);
+      setSelected(null);
+      if (current && !completionDisabled) onComplete(current);
+    }} />}
   </>;
 }
 const activityStatusLabels: Record<ActivityView["status"], string> = {
@@ -121,29 +130,43 @@ function RecommendationCard({ recommendation: rec, rank, view, skillNames, event
   recommendation: Recommendation; rank: number; view: EmployeeView; skillNames: Readonly<Record<string, string>>; event?: CatalogResult["events"][number]; allowCompletion: boolean; busy: boolean; disabled: boolean; onComplete: () => void;
 }) {
   const hasAiExplanation = rec.explanationSource === "llm" && Boolean(rec.aiExplanation?.trim());
-  const explanation = hasAiExplanation ? rec.aiExplanation!.trim() : rec.deterministicExplanation;
+  const explanation = recommendationLabel(rec, view, skillNames);
+  const gains = rec.expectedChanges.filter(change => change.after > change.before);
+  const unchanged = rec.expectedChanges.filter(change => change.after <= change.before);
   return <article className={`recommendation-card ${rank === 1 ? "top-recommendation" : ""}`}>
     <div className="rec-topline"><span className="recommendation-label">Вариант {rank}</span></div>
     <h3>{rec.title}</h3>
+    <p className="recommendation-purpose">{explanation}</p>
     {event && <div className="rec-facts" aria-label="О занятии"><span>{eventFormatLabels[event.format]}</span><span>{formatNumber(event.duration_hours)} ч</span></div>}
     {rec.nextSession ? <p className="rec-meta"><CalendarDays size={15} /> Ближайшая дата: <time dateTime={rec.nextSession}>{dateLabel(rec.nextSession)}</time></p> :
       event && <p className="rec-meta"><CalendarDays size={15} />{event.format === "self_paced" ? "Без фиксированной даты" : "Дата не указана"}</p>}
-    {rec.expectedChanges.length > 0 && <div className="impact-box"><h4>Ожидаемый эффект</h4><p className="impact-note">Оценка до завершения занятия. Текущие навыки пока не изменены.</p>
-      {rec.expectedChanges.map((change) => <div className="impact-line" key={change.skillId}>
+    {gains.length > 0 && <div className="impact-box"><h4>После занятия</h4>
+      {gains.map((change) => <div className="impact-line" key={change.skillId}>
         <span>{skillName(view, change.skillId, undefined, skillNames)}{change.critical && <span className="critical-label">Ключевой навык</span>}</span>
         <div><strong>{change.before} <span aria-label="до">→</span> {change.after}</strong><small>{change.required === 0 ? "Без требования к цели" : `Для цели: ${change.required}`}</small></div>
       </div>)}
     </div>}
-    <div className="recommendation-explanation"><div className="explanation-heading"><h4>Почему это подходит</h4><span className="explanation-source">{hasAiExplanation ? "С помощью ИИ" : "По данным профиля"}</span></div><p>{explanation}</p></div>
-    <details className="why-block"><summary>Подробнее о рекомендации<ChevronDown size={16} /></summary>
-      {rec.reasons.length > 0 && <ul>{[...new Set(rec.reasons)].map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
-      {rec.historySignal && !rec.reasons.includes(rec.historySignal) && <p className="history-signal">{rec.historySignal}</p>}
-      <p className="recommendation-score">Оценка рекомендации: <strong>{formatNumber(rec.score)}</strong></p>
+    <div className="recommendation-explanation"><p className="history-signal">{historyLabel(rec.historySignal)}</p><span className="explanation-source">{hasAiExplanation ? "С помощью ИИ" : "По данным профиля"}</span></div>
+    <details className="why-block"><summary>О занятии и расчёте<ChevronDown size={16} /></summary>
+      {event?.description && <p>{event.description}</p>}
+      <p>Указан ожидаемый рост навыков. Профиль изменится только после подтверждения прохождения.</p>
+      {unchanged.map(change => <p key={change.skillId}>{skillName(view, change.skillId, undefined, skillNames)}: уровень {change.before} уже достигнут; это занятие его не повысит.</p>)}
     </details>
     {allowCompletion && <button className={`button ${rank === 1 ? "button-green" : "button-outline"} complete-button`} disabled={disabled} onClick={onComplete}>
-      {busy && <LoaderCircle className="spin" size={16} />}{busy ? "Обновляем профиль…" : "Отметить завершённым"}{!busy && <ArrowRight size={16} />}
+      {busy && <LoaderCircle className="spin" size={16} />}{busy ? "Обновляем профиль…" : "Я прошёл это занятие"}{!busy && <Check size={16} />}
     </button>}
   </article>;
+}
+function CompletionConfirmation({ recommendation, disabled, onClose, onConfirm }: { recommendation: Recommendation; disabled: boolean; onClose: () => void; onConfirm: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { const element = dialog.current; element?.showModal(); return () => element?.close(); }, []);
+  return <dialog ref={dialog} className="dialog completion-dialog" aria-labelledby="confirm-completion-title" onCancel={onClose}>
+    <div className="dialog-head"><h2 id="confirm-completion-title">Завершить занятие?</h2><button className="icon-button" aria-label="Закрыть подтверждение" onClick={onClose}><X size={18} /></button></div>
+    <p className="confirmation-title">{recommendation.title}</p>
+    <p>Прохождение сохранится в истории, навыки и рекомендации обновятся. Отменить запись в приложении нельзя.</p>
+    {recommendation.nextSession && <p className="section-note">В демо результат записывается на дату занятия: {dateLabel(recommendation.nextSession)}.</p>}
+    <div className="dialog-foot"><button autoFocus className="button button-outline" onClick={onClose}>Не сейчас</button><button className="button button-green" disabled={disabled} onClick={onConfirm}><Check size={16} />Подтвердить прохождение</button></div>
+  </dialog>;
 }
 export function CompletionFeedback({ snapshot: { before, after }, skillNames = {}, onDismiss }: { snapshot: CompletionSnapshot; skillNames?: Readonly<Record<string, string>>; onDismiss: () => void }) {
   const delta = readinessDelta(before.readiness, after.readiness);

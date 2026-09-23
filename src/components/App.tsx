@@ -168,7 +168,7 @@ export default function App({ api, session, onSignOut, demoLoginEnabled = false 
     </header>
     {screen === "employee" ? <main id="main-content" className="page" tabIndex={-1}>
       <div className="page-heading">
-        <div><h1>План развития</h1><p>Цель, навыки и следующий шаг.</p></div>
+        <div><h1>{isHr ? "Развитие сотрудника" : "Моё развитие"}</h1></div>
         {isHr && <label className="select-wrap" htmlFor="employee-select">
           <span className="select-label">Сотрудник</span>
           <select id="employee-select" value={employeeId} disabled={employees.loading || !employees.data?.length} onChange={(event) => selectEmployee(event.target.value)}>
@@ -177,9 +177,8 @@ export default function App({ api, session, onSignOut, demoLoginEnabled = false 
           </select><ChevronDown size={16} />
         </label>}
       </div>
-      <p className="section-note privacy-note">{isHr ? "Занятия отмечает завершёнными сам сотрудник в своём аккаунте." : demoLoginEnabled ? "Демонстрационный профиль с общим доступом. Рекомендации — добровольные шаги развития." : "Профиль доступен вам и уполномоченным HR. Рекомендации — добровольные шаги развития."}</p>
+      <p className="section-note privacy-note">{isHr ? "Прохождение подтверждает сам сотрудник." : demoLoginEnabled ? "Демонстрационный профиль. Вы сами выбираете, что проходить." : "Этот профиль видите только вы и HR."}</p>
       {importNotice && <div className="inline-success" role="status">{importNotice}</div>}
-      {ai.status === "fallback" && <div className="ai-retry"><p className="section-note" role="status">Объяснения составлены по данным профиля. Уточнения ИИ сейчас недоступны.</p><button className="text-button" onClick={ai.retry}>Повторить запрос к ИИ</button></div>}
       {employees.error ? <ErrorState title="Не удалось загрузить сотрудников." detail={employees.error} onRetry={employees.reload} /> :
         employees.loading ? <LoadingState text="Загружаем профиль…" /> :
         !employees.data?.length ? <EmptyState text={isHr ? "Пока нет сотрудников. Загрузите профиль, чтобы начать." : "Ваш профиль недоступен. Обратитесь к HR."} /> :
@@ -188,7 +187,8 @@ export default function App({ api, session, onSignOut, demoLoginEnabled = false 
         <EmployeeScreen key={employeeId} view={ai.view ?? profile.data} skillNames={skillNames} events={catalog.data?.events} recommendationStatus={ai.status} allowCompletion={!isHr && session.user.employeeId === employeeId} completion={currentCompletion} onDismissCompletion={() => setCompletion(null)}
           completing={pending === employeeId} completionDisabled={pending !== null || !!currentFailure && currentFailure.error.phase !== "rejected"}
           failure={currentFailure?.error ?? null} onRefresh={() => void refreshAfterCompletion()}
-          onComplete={(recommendation) => void complete(recommendation)} />}
+            onComplete={(recommendation) => void complete(recommendation)} />}
+      {ai.status === "fallback" && <div className="ai-retry"><p className="section-note" role="status">ИИ сейчас недоступен. Подбор занятий и прогресс работают.</p><button className="text-button" onClick={ai.retry}>Попробовать снова</button></div>}
     </main> : <main id="main-content" className="page hr-page" tabIndex={-1}>
       <div className="page-heading"><div><h1>Обзор команды</h1><p>Где нужна поддержка и как проходит обучение.</p></div></div>
       <HRFilterControls filters={hrFilters} employees={employees.data ?? []} roleProfiles={catalog.data?.roleProfiles ?? []} onChange={setHrFilters} />
