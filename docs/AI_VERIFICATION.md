@@ -1,5 +1,10 @@
 # AI reliability and Backend handoff
 
+Current AI quality changes, verified offline results, remaining live gate and exact
+teammate commands are in [AI_QUALITY_HANDOFF.md](AI_QUALITY_HANDOFF.md). Historical
+live results below apply to their recorded earlier versions, not the new prompt
+and request-specific schema.
+
 ## Server integration
 
 `GET /api/employees/:id/recommendations` calls the persisted Next.js service. It reconstructs EmployeeDetail from SQLite and invokes `applyAiExplanations` with the server-only `createOpenAIExplainer`. Completed activities and all deterministic fields are preserved. Profile and completion routes stay fast and deterministic. The network request is outside the completion transaction. Unknown employee/domain errors still return normal API errors, not AI fallback.
@@ -8,7 +13,7 @@ The default model is `gpt-6-astra`, with explicit low reasoning effort, a 2000-t
 
 The adapter requires a completed Responses API response and rejects refusals before parsing text. Its schema requires an object containing `recommendations`, with `eventId`, `explanation`, and `evidenceRefs` per item. Extra fields, duplicate event explanations and text longer than 1000 characters are rejected. Evidence must include target, history and a skill whose target gap actually shrinks; availability cannot substitute for a gap. This validates structure and references, not the truth of every sentence of natural-language output. Review live text during rehearsal and always display deterministic evidence.
 
-The system prompt asks for short explanations grounded in target, history, and skill evidence. Supplied titles and evidence are treated as data rather than instructions. The model receives the target and already-ranked recommendation evidence, not the employee's full profile or the API key.
+The system prompt asks for short explanations grounded in target, history, and skill evidence, using the employee's preferred RU/KZ/EN language while preserving catalog names. Supplied titles and evidence are treated as data rather than instructions. The model receives a detached, whitelisted target/evidence projection, not the employee's full profile, internal metadata, previous AI text or the API key. Each event has its own allowed-ID/evidence schema branch. Text must actually name the target and a reduced skill transition, and specific unsupported claims are rejected. These checks do not prove arbitrary natural-language statements true.
 
 ## Deadline and fallback
 
