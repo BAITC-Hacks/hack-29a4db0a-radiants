@@ -6,7 +6,9 @@ export async function POST(request: Request) {
   try {
     assertOrigin(request);
     const body = loginSchema.parse(await readJsonBody(request));
-    const { session, token } = login(body.username, body.password);
+    const result = login(body.username, body.password, undefined, body.employeeId);
+    if ("kind" in result) return apiSuccess(result);
+    const { session, token } = result;
     logout(request);
     const response = apiSuccess(session);
     setSessionCookie(response, token, session.expiresAt);

@@ -206,6 +206,13 @@
 .auth-card .section-note, .auth-caption { font-size: 13px; color: var(--muted); }
 .auth-card .import-error { margin-top: 12px; }
 .auth-card .inline-success { margin-top: 20px; margin-bottom: 0; }
+.auth-card #login-privacy { margin-top: 16px; }
+.login-choices { margin: 28px 0; }
+.login-choices h2 { font-size: 20px; margin-bottom: 8px; }
+.login-choice-list { display: grid; gap: 10px; margin: 18px 0; max-height: 320px; overflow: auto; padding: 4px; }
+.login-choice { display: grid; gap: 4px; width: 100%; padding: 14px 16px; text-align: left; border: 1px solid #cad7cf; border-radius: 10px; color: var(--text); background: #fff; overflow-wrap: anywhere; }
+.login-choice:hover { border-color: var(--green); background: var(--green-soft); }
+.login-choice span { font-size: 12px; color: var(--muted); }
 .accounts-dialog { width: min(1040px, calc(100% - 40px)); max-width: 1040px; }
 .accounts-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; margin-top: 24px; }
 .accounts-list, .accounts-form { min-width: 0; }
