@@ -12,6 +12,7 @@ import { GET as employeeListRoute } from "@/app/api/employees/route";
 import { GET as employeeRoute } from "@/app/api/employees/[employeeId]/route";
 import { POST as completionRoute } from "@/app/api/employees/[employeeId]/activities/[eventId]/complete/route";
 import { POST as importRoute } from "@/app/api/import/route";
+import { createCareerApi } from "@/lib/frontend/api";
 
 let temporaryDirectory: string;
 
@@ -30,6 +31,25 @@ afterEach(() => {
 });
 
 describe("Career Quest backend", () => {
+  it("connects the teammate frontend transport to real route handlers and SQLite", async () => {
+    const fetcher: typeof fetch = async (url, init) => {
+      const request = new NextRequest("http://localhost" + String(url), { ...init, signal: init?.signal ?? undefined });
+      const parts = request.nextUrl.pathname.split("/");
+      if (parts[2] === "import") return importRoute(request);
+      if (!parts[3]) return employeeListRoute(request);
+      const employeeId = decodeURIComponent(parts[3]);
+      if (parts[4] === "activities") return completionRoute(request, { params: Promise.resolve({ employeeId, eventId: decodeURIComponent(parts[5]) }) });
+      return employeeRoute(request, { params: Promise.resolve({ employeeId }) });
+    };
+    const api = createCareerApi({ fetcher });
+    expect(await api.getEmployees()).toHaveLength(200);
+    expect((await api.getEmployeeView("E0178")).readiness).toBe(71.3);
+    expect((await api.completeActivity("E0178", "EV_005")).readiness).toBe(74.1);
+    const employee = { ...new EmployeeRepository().getById("E0001")!, employee_id: "TRANSPORT_IMPORT" };
+    const imported = await api.importData(new File([JSON.stringify(employee)], "employee.json"));
+    expect(imported.employeeIds).toEqual(["TRANSPORT_IMPORT"]);
+    expect((await api.getEmployeeView("TRANSPORT_IMPORT")).employee.employee_id).toBe("TRANSPORT_IMPORT");
+  });
   it("creates and seeds SQLite idempotently", () => {
     const db = getDatabase();
     expect(databaseCounts(db)).toEqual({

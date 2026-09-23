@@ -2,7 +2,7 @@
 
 Integration branch: `feature/backend-docker`.
 
-Included main at `1bf2026`, PR #2 (`3f55129` tests), PR #3 (`a1a5ed` review notes), and PR #4 (`56a2dec` adapter). PR #1 is already in main. Main is not changed by this branch.
+Included main at `1bf2026`, PR #2 (`3f55129` tests), PR #3 (`a1a5ed` review notes), PR #4 (`56a2dec` adapter), and the frontend API branch (`92dd0fd`). PR #1 is already in main. Main is not changed by this branch.
 
 ## Shared contract
 
@@ -30,7 +30,7 @@ Only the completed history row is persisted. Assessed skills remain unchanged. T
 
 ## Frontend integration performed
 
-Existing App.tsx and styles are hosted by Next.js. Browser calculations/localStorage have been replaced in the active product flow by relative API calls. Completion displays readiness delta and before/after skills. Imports send one JSON and/or one CSV in a single transaction. HR lists are no longer silently truncated. The historical Vite entry remains available with an API proxy; standalone localStorage helpers remain only for their existing regression tests.
+Existing App.tsx and styles are hosted by Next.js. Browser calculations/localStorage have been replaced in the active product flow by relative API calls. Completion displays readiness delta and before/after skills. The API accepts one JSON and/or one CSV in a single transaction; the teammate dialog currently uploads one file at a time. HR lists are no longer silently truncated. The historical Vite entry remains available with an API proxy; demo fixtures are now test-only.
 
 The UI reads recommendations from EmployeeView, displays `aiExplanation ?? deterministicExplanation`, and handles request errors and employee-selection cancellation. No duplicated skill arithmetic is performed by the browser.
 
@@ -42,7 +42,7 @@ The endpoint does not replace the event/skill catalog; it is an incremental empl
 
 ## НАПАРНИК/И — remaining coordination
 
-- AI/Data: shared engine and public types are preserved. Real OpenAI provider integration/key setup remains a separate step. Current routes intentionally use deterministic fallback; setting a key alone does not invoke it.
+- AI/Data: PR #5 and #6 were reviewed. PR #6 uses a Vite middleware with a client-provided dataset; the active app here uses server-owned SQLite and Next.js. These AI PRs remain separate rather than introducing a second source of data into this branch. Port the explanation call to the persisted recommendation service after key setup; current routes return deterministic fallback. Shared engine/types are preserved.
 - Frontend: App.tsx data loading, completion, import and HR wiring changed in this branch. Base subsequent edits on this integration to avoid restoring localStorage as the source of truth.
 - Merge this branch through its PR after integration checks; other PR branches were included locally with their original commits, without changing main directly.
 

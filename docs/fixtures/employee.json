@@ -44,10 +44,9 @@
     },
     "target": {
       "role": "Backend Engineer",
-      "grade": "Middle",
-      "source": "career_goal"
+      "grade": "Middle"
     },
-    "targetStatus": "ready",
+    "targetStatus": "active",
     "effectiveSkills": {
       "SK_PYTHON": 3,
       "SK_SQL": 2,
@@ -73,20 +72,31 @@
       "SK_TIME_MANAGEMENT": 2,
       "SK_ADAPTABILITY": 2
     },
-    "readiness": 59,
+    "readiness": 52.9,
     "skillGaps": [
       {
         "skillId": "SK_API_DESIGN",
         "name": "API Design",
         "currentLevel": 2,
+        "projectedLevel": 2,
         "requiredLevel": 3,
         "gap": 1,
+        "critical": true
+      },
+      {
+        "skillId": "SK_PYTHON",
+        "name": "Python",
+        "currentLevel": 3,
+        "projectedLevel": 3,
+        "requiredLevel": 3,
+        "gap": 0,
         "critical": true
       },
       {
         "skillId": "SK_CONTAINERS",
         "name": "Containers & Orchestration",
         "currentLevel": 0,
+        "projectedLevel": 0,
         "requiredLevel": 2,
         "gap": 2,
         "critical": false
@@ -95,6 +105,7 @@
         "skillId": "SK_OBSERVABILITY",
         "name": "Observability",
         "currentLevel": 0,
+        "projectedLevel": 0,
         "requiredLevel": 2,
         "gap": 2,
         "critical": false
@@ -103,6 +114,7 @@
         "skillId": "SK_APP_SECURITY",
         "name": "Application Security",
         "currentLevel": 1,
+        "projectedLevel": 1,
         "requiredLevel": 2,
         "gap": 1,
         "critical": false
@@ -111,6 +123,7 @@
         "skillId": "SK_CICD",
         "name": "CI/CD",
         "currentLevel": 1,
+        "projectedLevel": 1,
         "requiredLevel": 2,
         "gap": 1,
         "critical": false
@@ -119,6 +132,7 @@
         "skillId": "SK_CLOUD",
         "name": "Cloud Platforms",
         "currentLevel": 1,
+        "projectedLevel": 1,
         "requiredLevel": 2,
         "gap": 1,
         "critical": false
@@ -127,6 +141,7 @@
         "skillId": "SK_COMMUNICATION",
         "name": "Communication",
         "currentLevel": 2,
+        "projectedLevel": 2,
         "requiredLevel": 3,
         "gap": 1,
         "critical": false
@@ -135,6 +150,7 @@
         "skillId": "SK_MENTORING",
         "name": "Mentoring",
         "currentLevel": 0,
+        "projectedLevel": 0,
         "requiredLevel": 1,
         "gap": 1,
         "critical": false
@@ -143,6 +159,7 @@
         "skillId": "SK_PROBLEM_SOLVING",
         "name": "Problem Solving",
         "currentLevel": 2,
+        "projectedLevel": 2,
         "requiredLevel": 3,
         "gap": 1,
         "critical": false
@@ -151,6 +168,7 @@
         "skillId": "SK_PUBLIC_SPEAKING",
         "name": "Public Speaking",
         "currentLevel": 0,
+        "projectedLevel": 0,
         "requiredLevel": 1,
         "gap": 1,
         "critical": false
@@ -159,6 +177,7 @@
         "skillId": "SK_SQL",
         "name": "SQL",
         "currentLevel": 2,
+        "projectedLevel": 2,
         "requiredLevel": 3,
         "gap": 1,
         "critical": false
@@ -167,6 +186,7 @@
         "skillId": "SK_SYSTEM_DESIGN",
         "name": "System Design",
         "currentLevel": 1,
+        "projectedLevel": 1,
         "requiredLevel": 2,
         "gap": 1,
         "critical": false
@@ -175,9 +195,105 @@
         "skillId": "SK_TEAMWORK",
         "name": "Teamwork",
         "currentLevel": 2,
+        "projectedLevel": 2,
         "requiredLevel": 3,
         "gap": 1,
         "critical": false
+      },
+      {
+        "skillId": "SK_STAKEHOLDER_MGMT",
+        "name": "Stakeholder Management",
+        "currentLevel": 1,
+        "projectedLevel": 1,
+        "requiredLevel": 1,
+        "gap": 0,
+        "critical": false
+      }
+    ],
+    "recommendations": [
+      {
+        "eventId": "EV_005",
+        "title": "System Design Fundamentals",
+        "score": 50,
+        "reasons": [
+          "Supports requirements for Backend Engineer Middle.",
+          "System Design: 1->2 toward required 2 (target skill).",
+          "API Design: 2->3 toward required 3 (critical skill).",
+          "No recent negative participation signal for this activity type."
+        ],
+        "expectedChanges": [
+          {
+            "skillId": "SK_SYSTEM_DESIGN",
+            "before": 1,
+            "after": 2,
+            "required": 2,
+            "critical": false
+          },
+          {
+            "skillId": "SK_API_DESIGN",
+            "before": 2,
+            "after": 3,
+            "required": 3,
+            "critical": true
+          }
+        ],
+        "historySignal": "No recent negative participation signal for this activity type.",
+        "nextSession": "2026-11-23",
+        "deterministicExplanation": "System Design Fundamentals advances the Backend Engineer Middle trajectory by changing System Design 1->2, API Design 2->3. No recent negative participation signal for this activity type. Next session: 2026-11-23.",
+        "explanationSource": "fallback"
+      },
+      {
+        "eventId": "EV_009",
+        "title": "Cloud Certification Prep",
+        "score": 20,
+        "reasons": [
+          "Supports requirements for Backend Engineer Middle.",
+          "Cloud Platforms: 1->2 toward required 2 (target skill).",
+          "CI/CD: 1->2 toward required 2 (target skill).",
+          "No recent negative participation signal for this activity type."
+        ],
+        "expectedChanges": [
+          {
+            "skillId": "SK_CLOUD",
+            "before": 1,
+            "after": 2,
+            "required": 2,
+            "critical": false
+          },
+          {
+            "skillId": "SK_CICD",
+            "before": 1,
+            "after": 2,
+            "required": 2,
+            "critical": false
+          }
+        ],
+        "historySignal": "No recent negative participation signal for this activity type.",
+        "deterministicExplanation": "Cloud Certification Prep advances the Backend Engineer Middle trajectory by changing Cloud Platforms 1->2, CI/CD 1->2. No recent negative participation signal for this activity type. Available self-paced.",
+        "explanationSource": "fallback"
+      },
+      {
+        "eventId": "EV_036",
+        "title": "Public Speaking Club",
+        "score": 10,
+        "reasons": [
+          "Supports requirements for Backend Engineer Middle.",
+          "Public Speaking: 0->1 toward required 1 (target skill).",
+          "No recent negative participation signal for this activity type."
+        ],
+        "expectedChanges": [
+          {
+            "skillId": "SK_PUBLIC_SPEAKING",
+            "before": 0,
+            "after": 1,
+            "required": 1,
+            "critical": false
+          }
+        ],
+        "historySignal": "No recent negative participation signal for this activity type.",
+        "nextSession": "2026-10-08",
+        "deterministicExplanation": "Public Speaking Club advances the Backend Engineer Middle trajectory by changing Public Speaking 0->1. No recent negative participation signal for this activity type. Next session: 2026-10-08.",
+        "explanationSource": "fallback"
       }
     ],
     "completedActivities": [
@@ -192,9 +308,7 @@
         "score": 88,
         "feedback_rating": null,
         "assigned_by": "hr",
-        "eventTitle": "Information Security Awareness",
-        "eventType": "compliance",
-        "eventFormat": "self_paced"
+        "eventTitle": "Information Security Awareness"
       },
       {
         "record_id": "R002174",
@@ -207,9 +321,7 @@
         "score": 93,
         "feedback_rating": null,
         "assigned_by": "hr",
-        "eventTitle": "Personal Data Protection",
-        "eventType": "compliance",
-        "eventFormat": "self_paced"
+        "eventTitle": "Personal Data Protection"
       },
       {
         "record_id": "R002175",
@@ -222,9 +334,7 @@
         "score": 70,
         "feedback_rating": null,
         "assigned_by": "hr",
-        "eventTitle": "Code of Conduct & Workplace Safety",
-        "eventType": "compliance",
-        "eventFormat": "self_paced"
+        "eventTitle": "Code of Conduct & Workplace Safety"
       },
       {
         "record_id": "R002192",
@@ -237,9 +347,7 @@
         "score": null,
         "feedback_rating": 5,
         "assigned_by": "hr",
-        "eventTitle": "New Employee Onboarding",
-        "eventType": "onboarding",
-        "eventFormat": "offline"
+        "eventTitle": "New Employee Onboarding"
       },
       {
         "record_id": "R002624",
@@ -252,9 +360,7 @@
         "score": null,
         "feedback_rating": null,
         "assigned_by": "self",
-        "eventTitle": "Structured Problem Solving",
-        "eventType": "workshop",
-        "eventFormat": "offline"
+        "eventTitle": "Structured Problem Solving"
       },
       {
         "record_id": "R002626",
@@ -267,9 +373,7 @@
         "score": null,
         "feedback_rating": 3,
         "assigned_by": "self",
-        "eventTitle": "Business Writing & Documentation",
-        "eventType": "workshop",
-        "eventFormat": "online"
+        "eventTitle": "Business Writing & Documentation"
       },
       {
         "record_id": "R002727",
@@ -282,9 +386,7 @@
         "score": null,
         "feedback_rating": 5,
         "assigned_by": "self",
-        "eventTitle": "Secure Coding Workshop",
-        "eventType": "workshop",
-        "eventFormat": "offline"
+        "eventTitle": "Secure Coding Workshop"
       }
     ],
     "activeMandatoryObligations": []

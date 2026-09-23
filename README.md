@@ -53,7 +53,7 @@ Official JSON files + parsed CSV
 - Backend: `src/server`, `src/app/api`, `src/contracts`, dependencies, application config and Docker.
 - Frontend: `src/components`, `src/styles`, `src/lib/frontend` and application pages.
 
-The separate backend domain implementation has been removed. Shared domain types are not redefined; `src/contracts/types.ts` re-exports them. Public API extensions are in `src/contracts/api.ts`.
+The frontend API branch at 92dd0fd is included, preserving its cancellation, mutation recovery and decimal progress components. The separate backend domain implementation has been removed. Shared domain types are not redefined; `src/contracts/types.ts` re-exports them. Public API extensions are in `src/contracts/api.ts`.
 
 Completion appends one `LOCAL_<uuid>` history record in a transaction, then rebuilds the shared view. It does not increment assessed `employee.skills`. Teaching caps limit gains without lowering existing attained skills. Availability uses the fixed snapshot `2026-10-01`.
 
@@ -78,7 +78,7 @@ Employee filters: `search`, `role`, `grade`, `department`. HR filters: `role`, `
 
 Completion body: `{ completedAt?: "YYYY-MM-DD", score?: 0..100, feedbackRating?: 1..5 }`. Send `{}` for defaults. Self-paced completion defaults to the snapshot date; scheduled completion uses the next session. Non-repeatable duplicate completion returns 409; EV_036 can repeat.
 
-Import uses multipart/form-data with `employees` (JSON) and/or `history` (CSV), as uploaded files or text fields. JSON accepts one employee, an array or the official `{ meta, employees }` wrapper. The dialog accepts both files together. Existing employees update, new employees insert and duplicate record IDs skip. All input and the combined dataset are validated by the shared adapter. A failed row rolls back the entire request. Catalog replacement is not exposed through this incremental-import endpoint.
+Import uses multipart/form-data with `employees` (JSON) and/or `history` (CSV), as uploaded files or text fields. JSON accepts one employee, an array or the official `{ meta, employees }` wrapper. The endpoint accepts both files together; the teammate dialog currently uploads one file at a time. Existing employees update, new employees insert and duplicate record IDs skip. All input and the combined dataset are validated by the shared adapter. A failed row rolls back the entire request. Catalog replacement is not exposed through this incremental-import endpoint.
 
 Error codes: 400 invalid JSON/multipart or empty import; 422 validation/reference errors; 404 missing employee/event; 409 duplicate completion. Import details include file, row, field and reason.
 

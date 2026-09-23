@@ -34,12 +34,17 @@ function backendMessage(body: unknown): string | undefined {
   if (!object(body)) return;
   if (typeof body.message === "string") return body.message;
   if (typeof body.error === "string") return body.error;
-  if (object(body.error) && typeof body.error.message === "string") return body.error.message;
+  if (object(body.error) && typeof body.error.message === "string") {
+    const details = Array.isArray(body.error.details) ? body.error.details.filter(object).map((item) =>
+      [item.file, item.row && `row ${item.row}`, item.field, item.message].filter(Boolean).join(": ")
+    ).join("; ") : "";
+    return details || body.error.message;
+  }
 }
 
 /**
- * Provisional HTTP routes: no server routes were published when this adapter was added.
- * Keep route/response changes here when the backend lands. See docs/FRONTEND_API.md.
+ * Maps the SQLite API envelopes and employee cards to the shared frontend contract.
+ * Keep route/response adaptations here. See docs/BACKEND_HANDOFF.md.
  */
 export function createCareerApi(options: {
   baseUrl?: string; fetcher?: typeof fetch; timeoutMs?: number;

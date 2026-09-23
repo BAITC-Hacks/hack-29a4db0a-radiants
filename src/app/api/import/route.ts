@@ -1,6 +1,7 @@
 import { apiError, apiSuccess } from "@/server/http";
 import { importData } from "@/server/services/import";
 import { AppError } from "@/server/errors";
+import { parseActivityCsv, parseEmployeeImport } from "@/server/data/parsers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,15 +26,17 @@ export async function POST(request: Request) {
     }
     const employees = await fileContent(formData.get("employees"));
     const history = await fileContent(formData.get("history"));
-    return apiSuccess(
-      importData({
+    const result = importData({
         employeesJson: employees?.text,
         employeeFileName: employees?.name,
         historyCsv: history?.text,
         historyFileName: history?.name,
-      }),
-      201,
-    );
+      });
+    const employeeIds = [...new Set([
+      ...(employees ? parseEmployeeImport(employees.text, employees.name).map((employee) => employee.employee_id) : []),
+      ...(history ? parseActivityCsv(history.text, history.name).map((activity) => activity.employee_id) : []),
+    ])];
+    return apiSuccess({ ...result, employeeIds }, 201);
   } catch (error) {
     return apiError(error);
   }
