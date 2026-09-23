@@ -1,56 +1,34 @@
-import { describe, expect, it } from "vitest";
-import { demoDataset } from "../src/lib/frontend/demo-data";
-import { parseImportText } from "../src/lib/frontend/dataset";
-import { normalizeDataset } from "../src/lib/data/normalize";
-import { getEmployeeView } from "../src/lib/recommendation";
+import { describe, expect, it, vi } from "vitest";
+import { createCareerApi } from "../src/lib/frontend/api";
 
-describe("frontend data import", () => {
-  it("adds an employee profile from JSON without replacing existing profiles", () => {
-    const employee = {
-      ...demoDataset.employees[0]!, employee_id: "EMP-NEW", full_name: "Test Employee",
-    };
-    const next = parseImportText(JSON.stringify([employee]), "employees.json", structuredClone(demoDataset));
-    expect(next.employees.map((item) => item.employee_id)).toContain("EMP-NEW");
-    expect(next.employees).toHaveLength(demoDataset.employees.length + 1);
+describe("frontend import transport (normalization belongs to the backend)", () => {
+  it("uploads the original JSON file without reading or parsing it", async () => {
+    const file = new File(["not JSON — backend must validate it"], "employees.json", { type: "application/json" });
+    const read = vi.spyOn(file, "text").mockRejectedValue(new Error("The UI must not read files"));
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: "Malformed employee JSON" }), { status: 422 }));
+    await expect(createCareerApi({ fetcher }).importData(file)).rejects.toThrow("Malformed employee JSON");
+    expect(read).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    const [url, init] = fetcher.mock.calls[0]!;
+    expect(url).toBe("/api/import");
+    expect(init?.method).toBe("POST");
+    expect(init?.body).toBeInstanceOf(FormData);
+    expect((init?.body as FormData).get("employees")).toBe(file);
+    expect(init?.headers).not.toHaveProperty("Content-Type");
   });
-
-  it("opens recommendations for a newly imported employee without source changes", () => {
-    const employee = { ...demoDataset.employees[0]!, employee_id: "EMP-NEW", full_name: "Test Employee" };
-    const next = parseImportText(JSON.stringify({ employees: [employee] }), "profiles.json", structuredClone(demoDataset));
-    const view = getEmployeeView(normalizeDataset(next), "EMP-NEW");
-    expect(view.target?.grade).toBe("Senior");
-    expect(view.recommendations.length).toBeGreaterThan(0);
+  it("uploads CSV and returns imported ids and duplicate-history warnings unchanged", async () => {
+    const result = { employeeIds: ["EMP-NEW"], warnings: ["Duplicate record R-1 skipped."] };
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(result));
+    expect(await createCareerApi({ fetcher }).importData(new File(["raw,csv"], "history.CSV"))).toEqual(result);
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
-
-  it("merges multiple history records by record id, not employee id", () => {
-    const records = ["R-1", "R-2"].map((record_id) => ({
-      record_id, employee_id: "EMP-014", event_id: "EV_DEMO_01", date: "2026-10-01", due_date: null,
-      status: "completed", completion_pct: 100, score: null, feedback_rating: null, assigned_by: "self",
-    }));
-    const next = parseImportText(JSON.stringify({ history: records }), "history.json", structuredClone(demoDataset));
-    expect(next.history.filter((item) => item.employee_id === "EMP-014")).toHaveLength(3);
+  it("accepts an empty successful response so the caller can refresh employees", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
+    expect(await createCareerApi({ fetcher }).importData(new File(["[]"], "employees.json"))).toEqual({ success: true });
   });
-
-  it("imports CSV activity history and parses quoted values", () => {
-    const csv = 'record_id,employee_id,event_id,date,due_date,status,completion_pct,score,feedback_rating,assigned_by\nR-3,EMP-014,EV_DEMO_01,2026-10-01,,completed,100,,,self';
-    const next = parseImportText(csv, "activity_history.csv", structuredClone(demoDataset));
-    expect(next.history.some((item) => item.record_id === "R-3" && item.status === "completed")).toBe(true);
-  });
-
-  it("reconstructs skills from imported post-review activity and excludes the completed event", () => {
-    const record = {
-      record_id: "R-COMPLETE", employee_id: "EMP-014", event_id: "EV_DEMO_01", date: "2026-10-01", due_date: null,
-      status: "completed", completion_pct: 100, score: null, feedback_rating: null, assigned_by: "self",
-    };
-    const next = parseImportText(JSON.stringify({ history: [record] }), "history.json", structuredClone(demoDataset));
-    const view = getEmployeeView(normalizeDataset(next), "EMP-014");
-    expect(view.effectiveSkills.SK_SYS).toBe(4);
-    expect(view.recommendations.some((item) => item.eventId === "EV_DEMO_01")).toBe(false);
-  });
-
-  it("rejects malformed data and an imported employee without target requirements", () => {
-    expect(() => parseImportText("{nope", "employees.json", structuredClone(demoDataset))).toThrow();
-    const employee = { ...demoDataset.employees[0]!, employee_id: "EMP-BAD", role: "Unknown role" };
-    expect(() => parseImportText(JSON.stringify([employee]), "employees.json", structuredClone(demoDataset))).toThrow(/No role requirements/);
+  it("rejects unsupported extensions without sending a request", async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    await expect(createCareerApi({ fetcher }).importData(new File(["text"], "profile.exe"))).rejects.toThrow("JSON or CSV");
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });

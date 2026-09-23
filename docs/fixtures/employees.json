@@ -1,0 +1,17 @@
+{
+  "data": {
+    "items": [
+      {
+        "employeeId": "E0001",
+        "fullName": "Marat Yessenov",
+        "department": "Backend Development",
+        "role": "Backend Engineer",
+        "grade": "Junior",
+        "workFormat": "office",
+        "preferredLanguage": "kk",
+        "hasCareerGoal": true
+      }
+    ],
+    "total": 1
+  }
+}

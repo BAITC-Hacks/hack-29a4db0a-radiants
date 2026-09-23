@@ -1,33 +1,46 @@
 {
   "name": "career-quest",
-  "private": true,
   "version": "0.1.0",
-  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 0.0.0.0",
-    "lint": "eslint src/components src/lib/frontend src/main.tsx tests/frontend-import.test.ts --max-warnings=0",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "test": "vitest run",
+    "test:ai-live": "vitest run tests/openai-live.test.ts",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "lint": "eslint src/components src/lib/frontend src/main.tsx tests/frontend-import.test.ts --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "dev:demo": "vite --host 0.0.0.0",
+    "build:demo": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "csv-parse": "^7.0.2",
+    "next": "^16.3.6",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5",
+    "lucide-react": "^1.47.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "typescript": "^5.8.3",
+    "vitest": "^5.0.1",
+    "@eslint/js": "^10.0.1",
     "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.12.0",
-    "typescript": "^5.8.3",
     "typescript-eslint": "^8.70.1",
-    "vite": "^8.3.0",
-    "vitest": "^5.0.1"
+    "vite": "^8.3.0"
   },
-  "dependencies": {
-    "lucide-react": "^1.47.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
-  }
+  "type": "module"
 }
