@@ -24,6 +24,12 @@ export function ImportDialog({ api, onClose, onImported }: {
     if (!/\.(json|csv)$/i.test(candidate.name)) { setFile(null); setError("Choose a JSON or CSV file."); return; }
     setFile(candidate);
   }
+  function importAnother() {
+    setFile(null);
+    setError("");
+    setResult(null);
+    setDone(false);
+  }
   async function upload() {
     if (!file || lock.current) return;
     lock.current = true;
@@ -47,10 +53,10 @@ export function ImportDialog({ api, onClose, onImported }: {
   }
   return <dialog ref={dialog} className="dialog import-dialog" aria-labelledby="import-title"
     onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }}>
-    <div className="dialog-head"><div><span className="eyebrow">BRING YOUR DATA</span><h2 id="import-title">Import profile or activity history</h2></div>
+    <div className="dialog-head"><h2 id="import-title">Import profile or activity history</h2>
       <button className="icon-button" autoFocus disabled={busy} aria-label="Close import dialog" onClick={onClose}><X size={18} /></button>
     </div>
-    <p className="dialog-copy">Choose a JSON or CSV file. Your profile will refresh after the upload has been processed.</p>
+    <p className="dialog-copy">For a new employee, import the profile JSON first, then the activity history CSV. The official activity and skill catalog is already loaded. Your profile refreshes after each upload.</p>
     {!done && <div className="dropzone" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); choose(event.dataTransfer.files[0]); }}>
       <CloudUpload size={27} /><strong>{file ? file.name : "Drop a file here, or browse"}</strong><span>JSON / CSV</span>
       <button className="button button-outline" disabled={busy || !!result} onClick={() => input.current?.click()}>Choose file</button>
@@ -61,8 +67,10 @@ export function ImportDialog({ api, onClose, onImported }: {
     {error && <div className="import-error" role="alert">{error}</div>}
     {result?.warnings?.length ? <div className="import-warnings"><strong>Import notes</strong><ul>{result.warnings.map((warning, index) => <li key={index}>{warning}</li>)}</ul></div> : null}
     {done && <div className="inline-success" role="status">{result?.message || "Import completed. Employee profiles refreshed."}</div>}
+    {done && /\.json$/i.test(file?.name ?? "") && <p className="dialog-copy">Next: import the history CSV for this employee, if you have one.</p>}
     <div className="dialog-foot">
       <button className="button button-outline" disabled={busy} onClick={onClose}>{done ? "Close" : "Cancel"}</button>
+      {done && <button className="button button-outline" onClick={importAnother}>Import another file</button>}
       {done ? <button className="button button-green" onClick={onClose}>View profile</button> :
         <button className="button button-green" disabled={busy || !file} onClick={() => void upload()}>{busy ? "Please wait…" : result ? "Retry refresh" : "Upload file"}</button>}
     </div>

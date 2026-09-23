@@ -1,4 +1,5 @@
 import type { Employee, EmployeeView, Recommendation } from "../../types/career";
+import type { ActivityView, CatalogResult, EmployeeDetail } from "../../contracts/api";
 import type { EmployeeListItem, HrSummaryResponse, ImportResult } from "./api";
 
 type ObjectValue = Record<string, unknown>;
@@ -12,6 +13,22 @@ const grade = (value: unknown) => ["Junior", "Middle", "Senior", "Lead"].include
 const skillMap = (value: unknown) => object(value) && Object.values(value).every((n) => level(n) && Number.isInteger(n));
 const percent = (value: unknown) => number(value) && value >= 0 && value <= 100;
 const count = (value: unknown) => number(value) && value >= 0 && Number.isInteger(value);
+
+export function isCatalog(value: unknown): value is CatalogResult {
+  return object(value) && Array.isArray(value.skills) && value.skills.every((skill) =>
+    object(skill) && text(skill.skill_id) && !!skill.skill_id && text(skill.name) && !!skill.name &&
+    ["hard", "soft"].includes(String(skill.type)) && text(skill.category) && text(skill.description)) &&
+    new Set(value.skills.map((skill) => skill.skill_id)).size === value.skills.length &&
+    Array.isArray(value.roleProfiles) && value.roleProfiles.every((profile) =>
+      object(profile) && text(profile.role) && grade(profile.grade) && skillMap(profile.required_skills) && strings(profile.critical_skills)) &&
+    Array.isArray(value.events) && value.events.every((event) =>
+      object(event) && text(event.event_id) && text(event.title) && text(event.description) &&
+      ["compliance", "onboarding", "course", "workshop", "mentoring", "certification", "meetup"].includes(String(event.type)) &&
+      ["online", "offline", "self_paced"].includes(String(event.format)) && number(event.duration_hours) && typeof event.mandatory === "boolean" &&
+      strings(event.target_roles) && Array.isArray(event.target_grades) && event.target_grades.every(grade) &&
+      skillMap(event.prerequisites) && strings(event.upcoming_sessions) && Array.isArray(event.develops_skills) &&
+      event.develops_skills.every((effect) => object(effect) && text(effect.skill_id) && number(effect.gain) && level(effect.max_level)));
+}
 
 /** Shape checks only: no normalization, eligibility, ranking, or progress formulas. */
 function isEmployee(value: unknown): value is Employee {
@@ -33,9 +50,24 @@ function isRecommendation(value: unknown): value is Recommendation {
     strings(value.reasons) && text(value.historySignal) && optionalText(value.nextSession) &&
     optionalText(value.aiExplanation) && text(value.deterministicExplanation) &&
     ["llm", "fallback"].includes(String(value.explanationSource)) &&
+    (value.explanationSource !== "llm" || (text(value.aiExplanation) && !!value.aiExplanation.trim())) &&
     Array.isArray(value.expectedChanges) && value.expectedChanges.every((change) =>
       object(change) && text(change.skillId) && level(change.before) && level(change.after) &&
       level(change.required) && typeof change.critical === "boolean");
+}
+function isActivityView(value: unknown): value is ActivityView {
+  return object(value) && text(value.record_id) && text(value.employee_id) && text(value.event_id) &&
+    text(value.eventTitle) && text(value.date) && (value.due_date === null || text(value.due_date)) && percent(value.completion_pct) &&
+    ["completed", "in_progress", "dropped", "no_show", "declined", "overdue"].includes(String(value.status)) &&
+    (value.score === null || number(value.score)) &&
+    (value.feedback_rating === null || number(value.feedback_rating)) &&
+    ["self", "manager", "hr"].includes(String(value.assigned_by));
+}
+export function isEmployeeDetail(value: unknown): value is EmployeeDetail {
+  if (!isEmployeeView(value)) return false;
+  const detail = value as unknown as ObjectValue;
+  return Array.isArray(detail.completedActivities) && detail.completedActivities.every(isActivityView) &&
+    Array.isArray(detail.activeMandatoryObligations) && detail.activeMandatoryObligations.every(isActivityView);
 }
 export function isEmployeeView(value: unknown): value is EmployeeView {
   return object(value) && isEmployee(value.employee) && percent(value.readiness) &&

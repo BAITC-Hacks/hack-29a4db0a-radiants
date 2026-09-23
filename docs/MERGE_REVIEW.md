@@ -9,7 +9,7 @@ Verified on main `06b46ad`: the requested server-data adaptation is complete thr
 - `GET /api/employees/:id/recommendations` is a Next.js Node route returning `{ data: EmployeeDetail }`.
 - `getRecommendations` reconstructs the profile from SQLite, applies validated explanation enrichment and preserves completed activities, deterministic ranking, skills and readiness.
 - Profile and completion remain independent of the LLM. Missing key, invalid output or deadline expiry returns deterministic fallback.
-- Remaining Frontend work: request this endpoint independently of the fast profile, display its explanation and discard stale responses after selection/completion/import. Final browser/live acceptance remains tracked in [issue #7](https://github.com/BAITC-Hacks/hack-29a4db0a-radiants/issues/7); server integration alone does not prove this UI flow.
+- Final product integration now requests this endpoint independently of the fast profile and rejects stale responses after selection/completion/import. Completed history and mandatory obligations have separate UI sections. See FINAL_VALIDATION.md for the combined release checks; the original PR #8 results below remain historical.
 
 ## Original PR #8 review
 

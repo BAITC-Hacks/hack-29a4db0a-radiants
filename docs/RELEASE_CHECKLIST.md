@@ -26,14 +26,16 @@ These are local observations, not proof of live OpenAI or of the final merged re
 
 PR #10 reports a passing real E0178 service call and a second Docker HTTP call with three LLM explanations in 7026 ms, preserving readiness/skills/IDs. It also reports Docker build and healthy recreation. The full command output and final browser flow still need to be linked in issue #7; this agent did not run those live calls. E0058 was not executed live there.
 
-## Open gates
+## Final integration results
 
-- [ ] Frontend displays completedActivities, and effective skills when target is null. Currently missing in the checked UI.
-- [ ] Frontend calls the AI endpoint independently of initial profile loading, and rejects stale responses after completion/import/selection changes.
-- [ ] Backend posts the full sanitized live-check output from its laptop, covers the remaining E0058 case, then verifies actual browser AI and key-disabled fallback.
-- [ ] Final release passes npm ci, npm test, npm run typecheck, npm run lint, npm run build after merge.
-- [ ] Backend verifies final Docker startup, container restart persistence and the complete rehearsal in JURY_DEMO.md.
-- [ ] Record the final commit SHA and a short demonstration recording; freeze features before presenting.
+- [x] Completed activities and mandatory obligations are displayed separately. Known effective skills remain visible without a target; catalog names load independently.
+- [x] AI fetch is separate from the fast profile; canceled or stale responses cannot overwrite selection/completion/import state.
+- [x] Both E0178 and E0058 live checks passed. Sanitized output is recorded in FINAL_VALIDATION.md. Browser AI success and no-key fallback were also observed.
+- [x] Combined branch: 176 offline tests, TypeScript and expanded frontend/hooks lint passed. Fresh-clone Docker ran npm ci and production build successfully.
+- [x] Browser rehearsal covered JSON → CSV import, skipped duplicates, completion, HR, no-target skills, critical-gap priority and persistence after container restart/recreation. See FINAL_VALIDATION.md for the exact checked revisions and counts.
+- [x] Runtime revision recorded: 2638726. Only documentation changes follow this runtime revision.
+
+Optional presentation preparation for the team: record a short backup demo using DEMO.md. No recording was created by this validation run.
 
 ## Known limitations
 
