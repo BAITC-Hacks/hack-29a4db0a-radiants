@@ -1,4 +1,5 @@
 import { normalizeDataset, roleProfileKey, type NormalizedDataset } from "../data/normalize";
+import { getNextSession, getUnmetPrerequisites, matchesAudience, SNAPSHOT_DATE } from "./eligibility";
 import {
   GRADES,
   type ActivityRecord,
@@ -15,7 +16,7 @@ import {
   type SkillLevel,
 } from "../../types/career";
 
-export const SNAPSHOT_DATE = "2026-10-01";
+export { SNAPSHOT_DATE } from "./eligibility";
 const RECENT_HISTORY_DAYS = 365;
 
 export type RecommendationExclusionCode = "mandatory" | "audience" | "prerequisites" | "unavailable" | "completed" | "in_progress" | "no_gap_reduction";
@@ -320,10 +321,10 @@ function eligibilityExclusions(
   const reasons: RecommendationExclusion[] = [];
   if (event.mandatory) reasons.push({ code: "mandatory", message: "Mandatory obligations are shown separately and are never career recommendations." });
   if (!matchesAudience(event, employee, target)) reasons.push({ code: "audience", message: "The activity does not match the employee's current or target role and grade." });
-  if (!meetsPrerequisites(event, skills)) {
-    const missing = Object.entries(event.prerequisites)
-      .filter(([skillId, required]) => (skills[skillId] ?? 0) < (required ?? 0))
-      .map(([skillId, required]) => `${skillById?.get(skillId)?.name ?? skillId}: current ${skills[skillId] ?? 0}, required ${required}`);
+  const missingPrerequisites = getUnmetPrerequisites(event, skills);
+  if (missingPrerequisites.length > 0) {
+    const missing = missingPrerequisites
+      .map(({ skillId, current, required }) => `${skillById?.get(skillId)?.name ?? skillId}: current ${current}, required ${required}`);
     reasons.push({ code: "prerequisites", message: `Prerequisites are not met: ${missing.join("; ")}.` });
   }
   if (event.format !== "self_paced" && !nextSession) reasons.push({ code: "unavailable", message: `No scheduled session is available on or after ${SNAPSHOT_DATE}.` });
@@ -335,29 +336,6 @@ function eligibilityExclusions(
     reasons.push({ code: "in_progress", message: "This activity is already in progress and is not offered as a new step." });
   }
   return reasons;
-}
-
-function matchesAudience(
-  event: DevelopmentEvent,
-  employee: Employee,
-  target: { role: string; grade: Grade },
-): boolean {
-  const includes = (role: string, grade: Grade) =>
-    event.target_roles.includes(role) && event.target_grades.includes(grade);
-  return includes(employee.role, employee.grade) || includes(target.role, target.grade);
-}
-
-function meetsPrerequisites(event: DevelopmentEvent, skills: Record<string, SkillLevel>): boolean {
-  return Object.entries(event.prerequisites).every(
-    ([skillId, requiredLevel]) => (skills[skillId] ?? 0) >= (requiredLevel ?? 0),
-  );
-}
-
-function getNextSession(event: DevelopmentEvent): string | undefined {
-  if (event.format === "self_paced" && event.upcoming_sessions.length === 0) {
-    return undefined;
-  }
-  return event.upcoming_sessions.filter((session) => session >= SNAPSHOT_DATE).sort()[0];
 }
 
 function simulateEvent(

@@ -71,6 +71,8 @@ The teammate's refined frontend design is included, preserving cancellation, mut
 
 Completion appends one `LOCAL_<uuid>` history record in a transaction, then rebuilds the shared view. It does not increment assessed `employee.skills`. Teaching caps limit gains without lowering existing attained skills. Availability uses the fixed snapshot `2026-10-01`.
 
+AI/Data completion-policy handoff: [pure eligibility guard and single-event preview](docs/COMPLETION_POLICY_HANDOFF.md). **Integration is pending on this branch:** the current completion route still bypasses prerequisites. The new ordinary HTTP regression intentionally fails until Backend calls the guard inside the transaction; do not merge with that failure or describe the bypass as fixed. The preview replays a virtual history record through the existing engine and does not change the public API or UI.
+
 See [backend handoff](docs/BACKEND_HANDOFF.md), [starter adapter](docs/STARTER_DATASET_ADAPTER.md), [domain progress validation](docs/PROGRESS_VALIDATION.md), and [earlier frontend review](docs/FRONTEND_INTEGRATION_REVIEW.md). The earlier review describes the pre-API revision.
 
 ## API
