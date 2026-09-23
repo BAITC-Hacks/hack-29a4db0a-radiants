@@ -32,6 +32,14 @@ HR can open **Доступ сотрудников** to view accounts and create 
 
 The UI is in Russian, with Career Quest branding and locally hosted Manrope. Data-provided employee/course names and explanations retain their original language. Returning to the page revalidates the session; logout is synchronized across tabs without transmitting credentials. See [current frontend delivery and validation](docs/FRONTEND_PRIVATE_UI.md).
 
+### Optional shared employee demo login
+
+`DEMO_EMPLOYEE_LOGIN=false` is the default. For a demonstration with synthetic data, set `DEMO_EMPLOYEE_LOGIN=true` in the ignored `.env`, then recreate the container with `docker compose up --build`. Employees can sign in with their full name exactly as listed in the dataset and password **admin**. For names shared by more than one profile, append the employee ID: `Ksenia Pavlova (E0058)`. Unicode names and spaces are accepted. Imported employee profiles work on login without a separate account-provisioning step.
+
+The login page and authenticated app show **Демо-режим: общий доступ к профилям сотрудников. Личные данные в этом режиме не защищены индивидуальным паролем.** Anyone with the shared password can access a named employee's demo profile, so this mode does not provide employee privacy. HR continues to use `hr-admin` with its individual generated password; `admin` does not grant HR access. Individual account passwords remain unchanged. Demo identity rows are labeled separately in HR access management and do not block creation of a personal account.
+
+To restore individual authentication, set `DEMO_EMPLOYEE_LOGIN=false` and recreate the container. The shared login stops working and sessions created through it are rejected. Existing individual credentials continue to work. Use the Next.js/Compose entry point for this demo mode; its login hint reads the server flag at runtime.
+
 Local development requires Node.js 22+:
 
 ```bash
@@ -141,6 +149,8 @@ Defaults: `CAREER_QUEST_DB_PATH=.data/career-quest.sqlite`, `CAREER_QUEST_DATA_D
 
 See [jury rehearsal](docs/JURY_DEMO.md) for the three importable evaluation profiles, adversarial checks and a three-minute demonstration. [Release checklist](docs/RELEASE_CHECKLIST.md) separates verified behavior from the remaining live-AI and frontend gates.
 
-Starter data is synthetic. Server sessions and role checks protect employee/HR access. Employee listing and catalog endpoints do not expose engagement history. Corporate SSO, account recovery, consent-based peer sharing and an organizational retention policy remain deployment work; this local account system is the hackathon implementation.
+Starter data is synthetic. With shared demo login disabled, server sessions and role checks protect employee/HR access. The optional shared demo login removes employee identity assurance and must not be used for private employee data. Employee listing and catalog endpoints do not expose engagement history. Corporate SSO, account recovery, consent-based peer sharing and an organizational retention policy remain deployment work; this local account system is the hackathon implementation.
 
 See [the 3–5 minute demo and startup guide](docs/DEMO.md), [the frontend API contract](docs/FRONTEND_API.md), [previous validation results](docs/FINAL_VALIDATION.md), and [privacy integration validation](docs/PRIVACY_VALIDATION.md).
+
+Authenticated real-AI screenshots for E0058, the deployed build SHA and the saved successful live-test output are in [LIVE_AI_PROOF.md](docs/LIVE_AI_PROOF.md).

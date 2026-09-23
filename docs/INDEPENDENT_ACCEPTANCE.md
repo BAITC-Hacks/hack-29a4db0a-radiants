@@ -37,8 +37,41 @@ Initial product checks used `8dcbc23`; the missing-goal skills fix and combined 
 
 ## Evidence boundaries and handoff
 
-Backend's real OpenAI and Docker/browser evidence is recorded separately in [FINAL_VALIDATION.md](FINAL_VALIDATION.md): both E0178 and E0058 returned validated explanations, and the final browser displayed real AI text. This reviewer did not run those billed calls or Docker locally. Raw sanitized live terminal output remains useful release evidence; do not post credentials, headers or resolved Compose environment.
+Backend's real OpenAI and Docker/browser evidence is recorded separately in [FINAL_VALIDATION.md](FINAL_VALIDATION.md): both E0178 and E0058 returned validated explanations, and the final browser displayed real AI text. This reviewer did not run those billed calls. Docker was subsequently checked independently as recorded below. Raw sanitized live terminal output remains useful release evidence; do not post credentials, headers or resolved Compose environment.
 
 `next start` served this local production-build review but warned about `output: standalone`. The supported one-command demonstration remains Docker Compose as documented in [DEMO.md](DEMO.md); this review does not replace Backend's fresh-clone Docker rehearsal.
 
 No unresolved functional regression was identified in the scoped checks. Keep the demo private and synthetic: there is no real employee/HR authorization. Explain readiness as a development indicator, recommendations as alternative next actions, and rule-based output as fallback rather than live AI. A short backup recording and final rehearsal on the Backend laptop remain presentation tasks for the team.
+
+## Independent Docker follow-up
+
+Docker Desktop 4.92.0 / Engine 29.8.0 / Compose v5.5.1 were installed and running on this reviewer's Windows machine. The checkout at `2ed1e8f` differs from runtime `85a7f26` only by this report. No application code or container configuration was changed. A new Compose project, `career-quest-independent-20260923`, used port 5196 and its own previously absent named volume. The OpenAI key was explicitly empty for this run.
+
+```powershell
+$env:APP_PORT = '5196'
+$env:OPENAI_API_KEY = ''
+docker compose -p career-quest-independent-20260923 up --build -d --wait --wait-timeout 120
+```
+
+- First image build passed, including Linux `npm ci` (197 packages installed, zero reported vulnerabilities), the production Next.js build and its TypeScript check. The container reached `healthy`.
+- Fresh `/api/health`: 200 employees / 40 events / 60 skills / 32 role profiles / 2743 history records. This was a new volume, not reused local-demo state.
+- In the actual browser, E0178 had readiness 71.3, six completed records and three explicitly rule-based explanations. Completing EV_005 changed readiness to 74.1 and System Design from 1 to 2, preserved API Design at 4, added exactly one history record (2744 total), and replaced EV_005 with the next recommendations. Browser reload preserved the result.
+- Importing `docs/fixtures/jury-employee.json`, then `jury-history.csv`, through the UI added one employee and two history records. JURY_DEMO_001 showed readiness 74.1, completed EV_005 and overdue mandatory EV_001 separately. Reimporting the CSV skipped both existing records with a visible warning and did not change counts.
+- HR rendered all 60 skill-gap rows, 27 employees needing a next step, and 40 activity rows on this state.
+- `docker compose -p career-quest-independent-20260923 up -d --force-recreate --wait --wait-timeout 120` replaced the container while retaining the named volume. It returned `healthy`; API and browser checks retained E0178 readiness 74.1 and seven completed records, the imported profile at 74.1, and exact totals of 201 employees / 2746 history records. The official catalog remained 40 / 60 / 32.
+- The recommendations endpoint still returned three `fallback` explanations without a key. This is an independent Docker/fallback check, not an additional live OpenAI verification.
+
+The disposable review instance is available locally at http://127.0.0.1:5196 while Docker Desktop is running. It already contains the completion/import above; it is not a fresh demo seed. No team database or existing volume was deleted. A non-blocking `/favicon.ico` 404 was observed; no functional fix was needed for this check.
+
+## Follow-up after privacy PR #14
+
+While the backup recording was being prepared, main advanced to `1e0bab4`. The review branch incorporated it as `a99d2eb`; the application matches that main, with only documentation differences. The old recording was not represented as a current release demo. A new 1:47 browser recording and role-aware speaker notes are described in [FINAL_REHEARSAL.md](FINAL_REHEARSAL.md).
+
+- Rechecked `npm test`: 229 passed, 2 live cases skipped; typecheck and lint passed. A new isolated Docker production build passed, including TypeScript and healthcheck.
+- Project `career-quest-auth-recording-20260923`, port 5198, exact matching APP_ORIGIN, separate fresh volume, no key and AI_EXPLANATIONS_ENABLED=false. Schema version 2 and official seed counts matched.
+- Anonymous employee API returned 401. After actual employee UI login, another employee's profile and HR API returned 403; employee selector/import/HR navigation were absent.
+- Employee E0178 completed EV_005 through the UI: readiness 71.3 -> 74.1, System Design 1 -> 2, API Design remained 4, seven completed records. Authenticated reload retained the progress.
+- UI sign-out hid the private profile. Separate HR sign-in exposed selection/import/HR but no completion buttons. A direct HR completion request with valid CSRF and Origin returned 403 without a write.
+- HR UI JSON then CSV import added JURY_DEMO_001 and two records. HR tables rendered 60 / 27 / 40 rows. E0175 retained visible current skills and an explicit missing-goal state.
+- After forced container recreation, successful employee login, readiness 74.1, seven completed activities and exact 201 employee / 2746 history totals were retained. The recommendation endpoint returned fallback; logout made the private API return 401 again.
+- Generated passwords were read into process memory for the test, not printed or committed. No credentials were copied to the host or exposed in video. This is focused functional acceptance, not a comprehensive security audit or a new live model call.

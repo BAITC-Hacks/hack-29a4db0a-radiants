@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { AuthSession, SessionUser } from "@/contracts/auth";
 import { getDatabase } from "@/server/db/database";
 import { AppError } from "@/server/errors";
+import { isDemoEmployeeLoginEnabled, isDemoUserId, normalizeEmployeeName, resolveDemoEmployeeLogin, revokeDemoSessions } from "./demo-login";
 
 export const SESSION_COOKIE = "cq_session";
 export const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
@@ -14,12 +15,16 @@ const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const SCRYPT_OPTIONS = { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 };
 const usernameSchema = z.string().trim().min(3).max(80).regex(/^[a-zA-Z0-9_.-]+$/).transform((name) => name.toLowerCase());
 const passwordSchema = z.string().min(12).max(128);
-export const loginSchema = z.object({ username: usernameSchema, password: z.string().min(1).max(128) }).strict();
+const loginNameSchema = z.string().trim().min(1).max(200).refine(
+  (name) => isDemoEmployeeLoginEnabled() || usernameSchema.safeParse(name).success,
+  "Use your individual account username",
+);
+export const loginSchema = z.object({ username: loginNameSchema, password: z.string().min(1).max(128) }).strict();
 export const accountSchema = z.object({ username: usernameSchema, password: passwordSchema, employeeId: z.string().min(1).max(100) }).strict();
 
-interface UserRow { user_id: string; username: string; role: SessionUser["role"]; employee_id: string | null; password_hash: string; active: number }
+interface UserRow { user_id: string; username: string; role: SessionUser["role"]; employee_id: string | null; password_hash: string; active: number; employee_name?: string | null }
 function publicUser(row: UserRow): SessionUser {
-  return { id: row.user_id, username: row.username, role: row.role, employeeId: row.employee_id };
+  return { id: row.user_id, username: isDemoUserId(row.user_id) && row.employee_name ? row.employee_name : row.username, role: row.role, employeeId: row.employee_id };
 }
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
 function secureEqual(left: string, right: string): boolean {
@@ -62,6 +67,7 @@ export function createUser(input: { username: string; password: string; role: Se
 
 /** Initial local demo credentials are generated once and never sent through an HTTP endpoint. */
 export function ensureAuthBootstrap(db = getDatabase()): void {
+  if (!isDemoEmployeeLoginEnabled()) revokeDemoSessions(db);
   if ((db.prepare("SELECT COUNT(*) AS count FROM auth_users").get() as { count: number }).count) return;
   const directory = path.dirname(db.name);
   const credentialsPath = path.join(/* turbopackIgnore: true */ directory, "initial-access.json");
@@ -106,9 +112,14 @@ export function createSession(user: SessionUser, db = getDatabase()): { session:
 export function authenticate(request: Request, db = authDatabase()): AuthSession {
   const token = sessionToken(request);
   if (!token) throw new AppError(401, "AUTH_REQUIRED", "Sign in to continue");
-  const row = db.prepare(`SELECT u.*, s.expires_at FROM auth_sessions s JOIN auth_users u ON u.user_id=s.user_id
+  const row = db.prepare(`SELECT u.*, s.expires_at, e.full_name AS employee_name FROM auth_sessions s JOIN auth_users u ON u.user_id=s.user_id
+    LEFT JOIN employees e ON e.employee_id=u.employee_id
     WHERE s.token_hash=? AND s.expires_at>? AND u.active=1`).get(digest(token), Date.now()) as (UserRow & { expires_at: number }) | undefined;
   if (!row) throw new AppError(401, "AUTH_REQUIRED", "Your session has expired or is no longer valid");
+  if (isDemoUserId(row.user_id) && (!isDemoEmployeeLoginEnabled() || row.role !== "employee" || !row.employee_name)) {
+    db.prepare("DELETE FROM auth_sessions WHERE user_id=?").run(row.user_id);
+    throw new AppError(401, "AUTH_REQUIRED", "Demo access has ended. Sign in with your individual account.");
+  }
   return { user: publicUser(row), expiresAt: new Date(row.expires_at).toISOString(), csrfToken: csrfFor(token) };
 }
 
@@ -141,7 +152,7 @@ export function assertMutation(request: Request, session: AuthSession): void {
 }
 
 export function login(username: string, password: string, db = authDatabase()): { session: AuthSession; token: string } {
-  const normalized = username.toLowerCase();
+  const normalized = normalizeEmployeeName(username);
   const now = Date.now();
   db.prepare("DELETE FROM auth_login_attempts WHERE window_start <= ?").run(now - LOGIN_WINDOW_MS);
   const keys = ["user:" + digest(normalized), "global"];
@@ -149,8 +160,13 @@ export function login(username: string, password: string, db = authDatabase()): 
     const attempt = db.prepare("SELECT failures FROM auth_login_attempts WHERE attempt_key=?").get(key) as { failures: number } | undefined;
     if (attempt && attempt.failures >= (index ? 100 : 5)) throw new AppError(429, "LOGIN_RATE_LIMITED", "Too many login attempts. Try again in 15 minutes");
   }
-  const row = db.prepare("SELECT * FROM auth_users WHERE username=? COLLATE NOCASE").get(normalized) as UserRow | undefined;
-  const valid = verifyPassword(password, row?.password_hash ?? DUMMY_PASSWORD_HASH);
+  let row = db.prepare("SELECT * FROM auth_users WHERE username=? COLLATE NOCASE").get(normalized) as UserRow | undefined;
+  let valid = verifyPassword(password, row && !isDemoUserId(row.user_id) ? row.password_hash : DUMMY_PASSWORD_HASH);
+  // The shared password never authenticates an HR account or replaces its password.
+  if (isDemoEmployeeLoginEnabled() && secureEqual(password, "admin") && row?.role !== "hr") {
+    row = resolveDemoEmployeeLogin(username, db);
+    valid = Boolean(row);
+  }
   if (!row || !valid || !row.active) {
     db.transaction(() => {
       for (const key of keys) db.prepare(`INSERT INTO auth_login_attempts(attempt_key,failures,window_start) VALUES (?,1,?)
@@ -159,7 +175,7 @@ export function login(username: string, password: string, db = authDatabase()): 
     throw new AppError(401, "INVALID_CREDENTIALS", "Username or password is incorrect");
   }
   db.prepare("DELETE FROM auth_login_attempts WHERE attempt_key=?").run(keys[0]);
-  audit(row.user_id, "session.login", undefined, db);
+  audit(row.user_id, isDemoUserId(row.user_id) ? "session.demo_login" : "session.login", undefined, db);
   return createSession(publicUser(row), db);
 }
 

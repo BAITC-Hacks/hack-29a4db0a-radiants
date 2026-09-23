@@ -15,7 +15,7 @@ import { ImportDialog } from "./ImportDialog";
 import { AccountsDialog } from "./AccountsDialog";
 import { EmptyState, ErrorState, LoadingState } from "./States";
 
-export default function App({ api, session, onSignOut }: { api: CareerApi; session: AuthSession; onSignOut: () => void }) {
+export default function App({ api, session, onSignOut, demoLoginEnabled = false }: { api: CareerApi; session: AuthSession; onSignOut: () => void; demoLoginEnabled?: boolean }) {
   const isHr = session.user.role === "hr";
   const [employeeId, setEmployeeId] = useState(session.user.employeeId ?? "");
   const [screen, setScreen] = useState<"employee" | "hr">("employee");
@@ -177,7 +177,7 @@ export default function App({ api, session, onSignOut }: { api: CareerApi; sessi
           </select><ChevronDown size={16} />
         </label>}
       </div>
-      <p className="section-note privacy-note">{isHr ? "Занятия отмечает завершёнными сам сотрудник в своём аккаунте." : "Профиль доступен вам и уполномоченным HR. Рекомендации — добровольные шаги развития."}</p>
+      <p className="section-note privacy-note">{isHr ? "Занятия отмечает завершёнными сам сотрудник в своём аккаунте." : demoLoginEnabled ? "Демонстрационный профиль с общим доступом. Рекомендации — добровольные шаги развития." : "Профиль доступен вам и уполномоченным HR. Рекомендации — добровольные шаги развития."}</p>
       {importNotice && <div className="inline-success" role="status">{importNotice}</div>}
       {ai.status === "fallback" && <div className="ai-retry"><p className="section-note" role="status">Объяснения составлены по данным профиля. Уточнения ИИ сейчас недоступны.</p><button className="text-button" onClick={ai.retry}>Повторить запрос к ИИ</button></div>}
       {employees.error ? <ErrorState title="Не удалось загрузить сотрудников." detail={employees.error} onRetry={employees.reload} /> :

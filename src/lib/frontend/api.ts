@@ -48,6 +48,8 @@ export function apiErrorMessage(status?: number, code?: string, body?: unknown):
     ORIGIN_FORBIDDEN: "Адрес приложения не разрешён сервером. Обратитесь к оператору: нужно проверить URL и APP_ORIGIN.",
     VALIDATION_ERROR: "Проверьте отмеченные поля или строки файла.",
     USERNAME_EXISTS: "Это имя пользователя уже занято. Выберите другое.",
+    AMBIGUOUS_EMPLOYEE_NAME: "Найдено несколько сотрудников с таким именем. Добавьте ID профиля в скобках после полного имени.",
+    DEMO_ACCOUNT_CONFLICT: "Не удалось открыть демонстрационный доступ. Обратитесь к оператору приложения.",
     EMPLOYEE_NOT_FOUND: "Профиль сотрудника не найден. Сначала импортируйте или выберите существующий профиль.",
     INVALID_JSON: "Не удалось прочитать JSON. Проверьте формат данных.",
     INVALID_MULTIPART: "Не удалось прочитать файл. Выберите файл и повторите загрузку.",
@@ -58,7 +60,8 @@ export function apiErrorMessage(status?: number, code?: string, body?: unknown):
     // Keep a server-provided wait duration, without rendering an arbitrary response body.
     const message = object(body) && object(body.error) && typeof body.error.message === "string" ? body.error.message : "";
     const seconds = message.match(/(?:after|in|через)\s+(\d+)\s*(?:seconds?|сек)/i)?.[1];
-    return seconds ? `Слишком много попыток входа. Повторите через ${seconds} сек.` : "Слишком много попыток. Подождите перед следующим входом.";
+    const minutes = message.match(/(?:after|in|через)\s+(\d+)\s*(?:minutes?|мин)/i)?.[1];
+    return seconds ? `Слишком много попыток входа. Повторите через ${seconds} сек.` : minutes ? `Слишком много попыток входа. Повторите через ${minutes} мин.` : "Слишком много попыток. Подождите перед следующим входом.";
   }
   if (status === 401) return messages.AUTH_REQUIRED;
   if (status === 403) return messages.FORBIDDEN;

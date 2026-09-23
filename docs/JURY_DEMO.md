@@ -6,20 +6,22 @@ The supplied dataset is synthetic. Use the Backend demo laptop and one tested Ne
 Run `docker compose up --build`. A server key in ignored `.env` enables AI; an absent key uses deterministic fallback. If the team uses `.env.local` instead, add `--env-file .env.local` after `docker compose`.
 Never post the key or resolved Compose environment. Keep the repository private.
 
-Use a fresh, separately named Compose project/volume for a clean rehearsal. For example, set `APP_PORT=3001` in the shell or ignored `.env`, then run `docker compose -p career-quest-jury-01 up --build` and open port 3001. The existing demo can continue on port 3000 with its own volume. Use a new project name for each clean rehearsal. Clearing localStorage does not reset SQLite.
+Use a fresh, separately named Compose project/volume for a clean rehearsal. For example, set `APP_PORT=3001` and `APP_ORIGIN=http://127.0.0.1:3001` in the shell or ignored `.env`, then run `docker compose -p career-quest-jury-01 up --build` and open that exact address. The existing demo can continue on port 3000 with its own volume. Use a new project name for each clean rehearsal. Clearing localStorage does not reset SQLite.
 
 Check `GET /api/health`: 200 employees, 40 events, 60 skills, 32 role profiles, 2743 activityHistory rows.
 
 ## Three-minute demonstration
 
-1. Open E0178, Backend Engineer Middle -> Senior, readiness 71.3. Show assessed versus effective skills, completed history and recommendation evidence.
+1. Sign in as the individual employee account linked to E0178, Backend Engineer Middle -> Senior, readiness 71.3. Show assessed versus effective skills, completed history and recommendation evidence. Obtain bootstrap passwords privately before screen sharing; never show initial-access.json on the projector.
 2. Explain EV_005 with the actual target, critical System Design gap, current history signal and skill effect. Identify whether the text is LLM-generated or fallback; do not call deterministic output a live AI answer.
 3. Complete EV_005. System Design rises 1 -> 2, API Design stays 4 despite the course cap of 3, readiness rises 71.3 -> 74.1 (+2.8 percentage points). The next recommendations change. Health history is now 2744.
-4. Reload and select E0178 again; persisted progress must remain. Restart the server/container and repeat.
-5. Import the three profiles below, then their CSV. Open JURY_CRITICAL and explain why a critical engineering gap wins over the lowest speaking skill. Show HR's complete lists.
+4. Reload; the employee's own profile and persisted progress must remain. Restart the server/container and repeat.
+5. Sign out, then sign in as HR. Import the three profiles below, then their CSV. Open JURY_CRITICAL and explain why a critical engineering gap wins over the lowest speaking skill. Show HR's complete lists. HR cannot complete activities for another employee; an imported profile needs its own provisioned account for self-completion.
 
 Keep a short recording of the actual successful run as a presentation backup, clearly identified as a recording.
 Do not promise measured engagement improvement, promotion, or production access control. These are not established by the prototype.
+
+The independently recorded 1:47 fallback run with employee/HR sign-in after PR #14, Russian speaker notes and remaining team handoff are documented in [FINAL_REHEARSAL.md](FINAL_REHEARSAL.md). It does not replace the Backend laptop's live-AI rehearsal.
 
 ## Importable check profiles
 
@@ -53,4 +55,5 @@ On the supplied fixture this updates one existing employee, not a new record: re
 
 Run `npm run test:ai-live` on the Backend laptop with the ignored server key. This is a billed, opt-in test of two official profiles through the persisted service, using temporary databases. It must return actual llm explanations within 10 seconds, without changing deterministic fields. Review the printed explanations against target, gap and history facts.
 Then verify the browser actually calls the AI endpoint and displays its text. A passing provider test alone does not prove UI integration.
+The Backend laptop's authenticated E0058 screenshots, deployed source/image SHA and saved two-case live output are available in [LIVE_AI_PROOF.md](LIVE_AI_PROOF.md).
 Finally recreate the test container without the key and verify fallback. Never retry completion merely because an AI explanation failed.

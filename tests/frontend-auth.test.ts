@@ -29,6 +29,25 @@ describe("session-aware frontend privacy", () => {
     expect(html).not.toContain("Обзор команды");
     expect(html).toContain("Вход в аккаунт");
     expect(html).not.toContain("README");
+    expect(html).not.toContain("Демо-режим");
+    expect(html).not.toContain("<strong>admin</strong>");
+    expect(html).toMatch(/minLength="3"/i);
+    expect(html).toMatch(/maxLength="80"/i);
+    expect(html).toContain('pattern="');
+  });
+  it("shows shared demo credentials and full-name validation only with an explicitly enabled flag", () => {
+    const disabled = renderToStaticMarkup(createElement(LoginForm, { demoLoginEnabled: false, onSignedIn() {} }));
+    expect(disabled).not.toContain("Демо-режим");
+    expect(disabled).not.toContain("<strong>admin</strong>");
+    const enabled = renderToStaticMarkup(createElement(LoginForm, { demoLoginEnabled: true, onSignedIn() {} }));
+    expect(enabled).toContain("Демо-режим: общий доступ");
+    expect(enabled).toContain("<strong>admin</strong>");
+    expect(enabled).toContain("Полное имя или логин");
+    expect(enabled).toContain("Ksenia Pavlova (E0058)");
+    expect(enabled).toMatch(/minLength="1"/i);
+    expect(enabled).toMatch(/maxLength="200"/i);
+    expect(enabled).not.toContain('pattern="');
+    expect(enabled).not.toContain("доступны вам и HR с правами доступа");
   });
   it("hides employee selection, HR and import for employee accounts", () => {
     const html = renderToStaticMarkup(createElement(App, { api: createCareerApi(), session: session(), onSignOut() {} }));

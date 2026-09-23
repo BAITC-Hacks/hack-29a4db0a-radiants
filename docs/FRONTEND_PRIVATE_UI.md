@@ -1,6 +1,6 @@
 # Private frontend delivery — 2026-09-23
 
-Based on team `main` at `1e0bab4`; branch `feat/private-frontend`. This implements the frontend handoff without replacing the authenticated App with the earlier public frontend. Backend routes, canonical contracts, database migrations, dependencies and Docker configuration are unchanged.
+Started from team `main` at `1e0bab4`, integrated the updated `main` at `1666aeb`; branch `feat/private-frontend`. This implements the frontend handoff without replacing the authenticated App with the earlier public frontend. This frontend change does not alter backend routes, canonical contracts, database migrations, dependencies or Docker configuration relative to the integrated main.
 
 ## Delivered
 
@@ -14,6 +14,7 @@ Based on team `main` at `1e0bab4`; branch `feat/private-frontend`. This implemen
 - Confirmed current skills and target gaps, all effective skills without a goal, mandatory due dates, complete activity history and assignment sources remain visible. `projectedLevel` is not presented as a forecast. Backend `expectedChanges` appear separately as an estimate before completion, with before → after values and target/critical requirements; no readiness forecast is invented.
 - Recommendations are **Вариант 1/2/3**, explicitly presented as alternatives. Cards include catalog duration/format and the backend-selected next session, or a truthful no-fixed-date state for self-paced events. Backend diagnostics, excluded-event reasons, score and readiness formula are available in disclosure controls. AI source labels require both `explanationSource === "llm"` and nonempty AI text. The existing deterministic snapshot comparison and request cancellation are preserved.
 - HR role/grade/department filters use the existing server query contract. Reset clears all filters, empty populations have an explicit message, and all returned rows remain accessible in scrollable tables. Employee accounts have no HR controls.
+- The optional shared demo login introduced by main is preserved, remains disabled by default, and has Russian notices only when the server explicitly enables it. The private flow described here uses individual authentication. Demo identities do not prevent HR from creating a personal employee account.
 
 ## Session lifecycle
 
@@ -25,12 +26,13 @@ Logout immediately removes protected content. Failed logout stays locked with an
 
 - Production `next build`: pass, including TypeScript.
 - ESLint with `--max-warnings=0`: pass.
-- Full suite: **291 passed, 2 skipped**, using `npm test -- --maxWorkers=2 --testTimeout=20000`. The two skipped tests are optional live AI calls; no paid AI requests were made. Earlier parallel runs during development hit the existing 5-second timeout in the all-profile diagnostics test; final verification used the documented larger timeout without weakening assertions or changing backend tests.
+- Full suite after integration with main: **295 passed, 2 skipped**, using `npm test -- --maxWorkers=2 --testTimeout=20000`. The two skipped tests are optional live AI calls; no paid AI requests were made. Earlier parallel runs during development hit the existing 5-second timeout in the all-profile diagnostics test; final verification used the documented larger timeout without weakening assertions or changing backend tests.
 - Tests cover backend role/CSRF/origin guards, private history, session expiry/logout, auth lifecycle races, AI stale responses, account response validation and reconciliation, import, completion and persisted SQLite behavior.
 - Actual browser flow against the real Next.js dev API and a separate ignored SQLite database: guest sees only login; wrong password gives a neutral error; HR has account/import controls and no completion button; JSON import → preselected account → validated creation → password cleared → CSV import → sign out → new employee login.
 - Employee browser flow: no employee picker or HR controls; voluntary completion changed readiness **74.1 → 76.9**, history **2 → 3**, and reload retained both. A real development-route compilation timeout also showed unknown-result recovery and required profile refresh before another completion attempt.
 - Two browser tabs: logout in one removed protected profiles and showed login in both. The native file chooser retained selection and the import dialog. The narrow account form and its horizontally scrollable account table were reviewed.
 - Final browser review at **1280 × 850** and **390 × 844**: HR account states and duplicate prevention; all three filters; matching population 1, empty population 0 and reset to 201; all 60 skill-gap, 27 follow-up and 40 participation rows in their scrollable tables. New employee login has no HR controls; variant labels, date/format/duration and distinct expected effects render without page overflow. Viewport overrides were reset and the test account signed out.
+- After integration with main, the individual-login browser smoke check passed again with `DEMO_EMPLOYEE_LOGIN=false`: no shared-password hint, own Jury Demo profile, persisted 76.9% readiness, three recommendation variants, no HR actions, confirmed logout. A dev preview remains available at `http://127.0.0.1:3100/` using the separate ignored test database.
 
 ## Waiting for backend
 

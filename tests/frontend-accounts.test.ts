@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AccountsDialog, EmployeeAccessStatus, accountCreationState, employeeAccessState, validateAccountFields } from "../src/components/AccountsDialog";
+import { AccountsDialog, EmployeeAccessStatus, accountCreationState, accountStatusLabel, employeeAccessState, validateAccountFields } from "../src/components/AccountsDialog";
 import { ApiError, createCareerApi, type EmployeeAccount } from "../src/lib/frontend/api";
 
 const user = { id: "user-42", username: "private.employee", employeeId: "E0042", role: "employee" as const };
@@ -126,6 +126,31 @@ describe("private employee account management", () => {
     expect(html).toContain("Неактивен");
     expect(html).not.toContain("Нет аккаунта");
     expect(html).not.toContain("password");
+  });
+  it("does not block personal account creation when only a persisted demo identity exists", () => {
+    const demoAccount: EmployeeAccount = { ...account, id: "demo:42", username: "demo.e0042" };
+    expect(employeeAccessState(user.employeeId, [demoAccount], false, "")).toBe("none");
+    expect(employeeAccessState(user.employeeId, [{ ...demoAccount, active: false }], false, "")).toBe("none");
+    expect(employeeAccessState(user.employeeId, [demoAccount, account], false, "")).toBe("created");
+    expect(accountCreationState([demoAccount], { username: demoAccount.username, employeeId: user.employeeId })).toBe("conflict");
+    expect(accountCreationState([demoAccount, account], user)).toBe("found");
+    expect(accountStatusLabel(demoAccount)).toBe("Демодоступ · активная запись");
+    expect(accountStatusLabel({ ...demoAccount, active: false })).toBe("Демодоступ · неактивная запись");
+  });
+  it("labels demo access separately without claiming demo login is currently enabled", () => {
+    const demoAccount: EmployeeAccount = { ...account, id: "demo:42", username: "demo.e0042" };
+    const html = renderToStaticMarkup(createElement(EmployeeAccessStatus, { employeeId: user.employeeId, accounts: [demoAccount], checking: false, error: "" }));
+    expect(html).toContain("Нет личного аккаунта");
+    expect(html).toContain("Демодоступ");
+    expect(html).toContain("demo.e0042");
+    expect(html).toContain("только при включённом деморежиме");
+    expect(html).not.toContain("Аккаунт создан");
+    expect(html).not.toContain("Новый аккаунт для этого профиля не требуется");
+    const mixed = renderToStaticMarkup(createElement(EmployeeAccessStatus, { employeeId: user.employeeId, accounts: [demoAccount, account], checking: false, error: "" }));
+    expect(mixed).toContain("Аккаунт создан");
+    expect(mixed).toContain("private.employee");
+    expect(mixed).toContain("Демодоступ");
+    expect(mixed).not.toContain("Нет личного аккаунта");
   });
   it("renders a preselected real profile and private password form without fake account actions", () => {
     const html = renderToStaticMarkup(createElement(AccountsDialog, { api: createCareerApi(), employees, initialEmployeeId: "E0042", onClose() {} }));

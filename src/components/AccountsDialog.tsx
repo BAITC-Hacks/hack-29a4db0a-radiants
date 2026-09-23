@@ -6,6 +6,14 @@ type Fields = "employeeId" | "username" | "password" | "confirmed";
 type FieldErrors = Partial<Record<Fields, string>>;
 type Attempt = { username: string; employeeId: string; confirmed: boolean };
 
+/** Presentation of the backend's reserved identity prefix; never an authorization check. */
+const isDemoAccount = (account: EmployeeAccount) => account.id.startsWith("demo:");
+export function accountStatusLabel(account: EmployeeAccount): string {
+  return isDemoAccount(account)
+    ? `Демодоступ · ${account.active ? "активная запись" : "неактивная запись"}`
+    : account.active ? "Активен" : "Неактивен";
+}
+
 export function validateAccountFields(input: { employeeId: string; username: string; password: string; confirmed: boolean }, employees: EmployeeListItem[]): FieldErrors {
   const errors: FieldErrors = {};
   if (!employees.some((employee) => employee.employee_id === input.employeeId)) errors.employeeId = "Выберите существующий профиль сотрудника.";
@@ -19,25 +27,30 @@ export function validateAccountFields(input: { employeeId: string; username: str
 export function accountCreationState(accounts: EmployeeAccount[], attempt: Pick<Attempt, "username" | "employeeId">): "found" | "conflict" | "missing" {
   const account = accounts.find((item) => item.username.toLowerCase() === attempt.username);
   if (!account) return "missing";
-  return account.role === "employee" && account.employeeId === attempt.employeeId ? "found" : "conflict";
+  return account.role === "employee" && account.employeeId === attempt.employeeId && !isDemoAccount(account) ? "found" : "conflict";
 }
 
 export function employeeAccessState(employeeId: string, accounts: EmployeeAccount[] | null, checking: boolean, error: string): "loading" | "unavailable" | "none" | "created" {
   if (checking) return "loading";
   if (error || accounts === null) return "unavailable";
-  return accounts.some((account) => account.role === "employee" && account.employeeId === employeeId) ? "created" : "none";
+  return accounts.some((account) => account.role === "employee" && account.employeeId === employeeId && !isDemoAccount(account)) ? "created" : "none";
 }
 
 export function EmployeeAccessStatus({ employeeId, accounts, checking, error }: {
   employeeId: string; accounts: EmployeeAccount[] | null; checking: boolean; error: string;
 }) {
   const state = employeeAccessState(employeeId, accounts, checking, error);
+  const linked = accounts?.filter((account) => account.role === "employee" && account.employeeId === employeeId) ?? [];
+  const personal = linked.filter((account) => !isDemoAccount(account));
+  const demo = linked.filter(isDemoAccount);
   return <div className="accounts-access-state" role="status" aria-live="polite">
     {state === "loading" && <p>Проверяем наличие аккаунта…</p>}
     {state === "unavailable" && <p>Статус аккаунта неизвестен. Обновите список доступов.</p>}
-    {state === "none" && <strong>Нет аккаунта</strong>}
-    {state === "created" && <><strong>Аккаунт создан</strong><ul>{accounts!.filter((account) => account.role === "employee" && account.employeeId === employeeId).map((account) =>
+    {state === "none" && <strong>{demo.length ? "Нет личного аккаунта" : "Нет аккаунта"}</strong>}
+    {state === "created" && <><strong>Аккаунт создан</strong><ul>{personal.map((account) =>
       <li key={account.id}>{account.username} · {account.active ? "Активен" : "Неактивен"}</li>)}</ul><p>Новый аккаунт для этого профиля не требуется. Если доступ утрачен или аккаунт неактивен, обратитесь к оператору.</p></>}
+    {(state === "none" || state === "created") && demo.length > 0 && <><ul>{demo.map((account) => <li key={account.id}>{account.username} · {accountStatusLabel(account)}</li>)}</ul>
+      <p>Демодоступ работает только при включённом деморежиме. Для личного входа с паролем нужен отдельный аккаунт.</p></>}
   </div>;
 }
 
@@ -185,8 +198,10 @@ export function AccountsDialog({ api, employees, initialEmployeeId, onClose }: {
         {accounts && <div className="accounts-table"><table><thead><tr><th>Имя пользователя</th><th>Сотрудник</th><th>ID профиля</th><th>Статус</th></tr></thead>
           <tbody>{accounts.map((account) => <tr key={account.id}>
             <td>{account.username}</td><td>{account.employeeId === null ? "HR-аккаунт" : employees.find((employee) => employee.employee_id === account.employeeId)?.full_name ?? "Профиль недоступен"}</td>
-            <td>{account.employeeId ?? "—"}</td><td>{account.active ? "Активен" : "Неактивен"}</td>
-          </tr>)}</tbody></table>{accounts.length === 0 && <p className="empty-state">Аккаунтов пока нет.</p>}</div>}
+            <td>{account.employeeId ?? "—"}</td><td>{accountStatusLabel(account)}</td>
+          </tr>)}</tbody></table>{accounts.length === 0 && <p className="empty-state">Аккаунтов пока нет.</p>}
+          {accounts.some(isDemoAccount) && <p className="field-hint">Записи демодоступа остаются в списке после отключения деморежима. Они не заменяют личные аккаунты с паролем.</p>}
+        </div>}
       </section>
       <form className="accounts-form" noValidate onSubmit={(event) => { event.preventDefault(); void createAccount(); }}>
         <h3>Создать личный доступ</h3>

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createCareerApi, CompletionError } from "../src/lib/frontend/api";
+import { createCareerApi, CompletionError, apiErrorMessage } from "../src/lib/frontend/api";
 import { normalizeDataset } from "../src/lib/data/normalize";
 import { getEmployeeView, getRecommendationDiagnostics } from "../src/lib/recommendation";
 import { demoDataset } from "./fixtures/career-dataset";
@@ -11,6 +11,11 @@ const profile = () => {
 afterEach(() => vi.useRealTimers());
 
 describe("typed frontend API", () => {
+  it("localizes demo login errors and preserves the server wait in minutes", () => {
+    expect(apiErrorMessage(409, "AMBIGUOUS_EMPLOYEE_NAME")).toContain("ID профиля в скобках");
+    expect(apiErrorMessage(409, "DEMO_ACCOUNT_CONFLICT")).toContain("Обратитесь к оператору");
+    expect(apiErrorMessage(429, "LOGIN_RATE_LIMITED", { error: { message: "Too many login attempts. Try again in 15 minutes" } })).toContain("через 15 мин.");
+  });
   it("loads the shared catalog through the existing endpoint", async () => {
     const { skills, events, roleProfiles } = demoDataset;
     const catalog = { skills, events, roleProfiles };
