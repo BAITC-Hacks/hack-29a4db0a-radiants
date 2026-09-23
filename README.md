@@ -21,4 +21,18 @@ Recommendation score is deterministic: 40 points per critical target-gap level c
 
 HR aggregates are available through `buildHrSummary(normalizedDataset)` from `src/lib/analytics/hr-summary.ts`.
 
+## Completion and progress contract
+
+Use the fixed dataset date `2026-10-01` for availability. Start effective skills from the employee assessment, with missing skills equal to 0, then apply completed activities after `last_review_date` in date order. History reconstruction and recommendation previews share the same rule:
+
+```text
+after = max(before, min(before + gain, max_level))
+```
+
+An activity never lowers an attained skill: `before=4, gain=1, max_level=3` stays at 4. Gains from below still stop at the activity cap. Skill levels remain integers from 0 to 5.
+
+`readiness` measures partial fulfillment of target requirements. Each required skill contributes `min(currentLevel / requiredLevel, 1)`, weighted 2 for critical skills and 1 otherwise. Divide the weighted sum by total weight, multiply by 100, and round to one decimal. A zero-level requirement is fully satisfied; an empty requirements list yields 100. A Lead without a career goal keeps `targetStatus: "needs_career_goal"` and readiness 0. This is a development indicator, not a promotion decision.
+
+Backend: append a completed history record and rebuild `EmployeeView` from the updated dataset. Do not also mutate assessed skills, which would count the gain twice. Frontend: display the returned readiness (which may be decimal), its change, and recommendation `expectedChanges`; do not recalculate business rules. The `EmployeeView` shape is unchanged.
+
 Run the AI/Data checks with `npm test` and `npm run typecheck`.
