@@ -13,6 +13,9 @@ Source of coordination: GitHub issue #7. PRs #9 and #10 are merged into main at 
 - Browser import, employees JSON then history CSV: 3 new profiles and 6 history records, official catalog counts unchanged.
 - Reimport of the same history CSV: 0 inserted, 6 skipped; counts remain 203 employees / 2750 history after the one completion.
 - JURY_HISTORY server view: System Design 2, API Design 4, Mentoring 1, three completed activities.
+- Browser upsert of JURY_LEAD with Data Analyst / Middle goal: 0 inserted, 1 updated; readiness 43.8; EV_020, EV_025 and EV_022 displayed. Effective skills and all database counts remain unchanged.
+- After that upsert, all 203 employee HTTP views independently reproduce HR gap frequencies and no-next-step IDs; participation totals match all 2750 history rows.
+- Sequential warm local-dev profile HTTP requests: median 18 ms, p95 25 ms, maximum 37 ms. This is not a production UI render or real-AI latency measurement.
 - AI endpoint without a key returns the same deterministic data; mocked real-route tests cover successful enrichment and provider failure.
 - Pure engine: 200 profiles, 173 positive first completions, 787 recommendations validated before/after completion.
 - After merging main 06b46ad into this branch: 142 offline tests passed, 2 live cases skipped; TypeScript, the configured frontend lint script and Next.js production build passed. npm ci installed 196 packages with 0 reported vulnerabilities.

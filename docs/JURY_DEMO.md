@@ -36,6 +36,7 @@ They use only official skill/event IDs and introduce no extra catalog entries.
 Successful import adds 3 employees and 6 history rows: 203 employees / 2749 history on a fresh seed, or 2750 after the one E0178 completion above.
 Reimporting the same CSV skips all six record IDs without further skill gain.
 To test a goal change, upsert JURY_LEAD with `career_goal: { target_role: "Data Analyst", target_grade: "Middle" }`; the target and relevant recommendations must change.
+On the supplied fixture this updates one existing employee, not a new record: readiness becomes 43.8, recommendations are EV_020 / EV_025 / EV_022, effective skills stay identical and history counts do not change. The current UI import path was checked for this case.
 
 ## Quality tests, not just arithmetic
 
