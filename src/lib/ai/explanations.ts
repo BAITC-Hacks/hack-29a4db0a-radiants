@@ -66,15 +66,23 @@ export function validateAiExplanations(
   allowedRefsByEvent: Map<string, string[]>,
 ): Map<string, string> {
   const accepted = new Map<string, string>();
+  const occurrences = new Map<string, number>();
+  for (const explanation of explanations) {
+    occurrences.set(explanation.eventId, (occurrences.get(explanation.eventId) ?? 0) + 1);
+  }
   for (const explanation of explanations) {
     const allowedRefs = allowedRefsByEvent.get(explanation.eventId);
     const uniqueRefs = new Set(explanation.evidenceRefs);
     if (
       !allowedRefs ||
-      accepted.has(explanation.eventId) ||
+      occurrences.get(explanation.eventId) !== 1 ||
       typeof explanation.explanation !== "string" ||
       !explanation.explanation.trim() ||
+      explanation.explanation.length > 1000 ||
       uniqueRefs.size < 3 ||
+      !uniqueRefs.has("target") ||
+      !uniqueRefs.has("history") ||
+      ![...uniqueRefs].some((ref) => ref.startsWith("skill:")) ||
       [...uniqueRefs].some((ref) => !allowedRefs.includes(ref))
     ) {
       continue;
@@ -89,6 +97,8 @@ function allowedEvidenceRefs(recommendation: Recommendation): string[] {
     "target",
     "history",
     "availability",
-    ...recommendation.expectedChanges.map((change) => `skill:${change.skillId}`),
+    ...recommendation.expectedChanges
+      .filter((change) => Math.min(change.after, change.required) > Math.min(change.before, change.required))
+      .map((change) => `skill:${change.skillId}`),
   ];
 }
