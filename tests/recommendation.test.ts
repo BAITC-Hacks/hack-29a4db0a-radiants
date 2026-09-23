@@ -103,6 +103,30 @@ function makeDataset(
 }
 
 describe("recommendation engine", () => {
+  it("explains fallback in plain Russian while preserving catalog names, skill effects and ranking", () => {
+    for (const scheduled of [false, true]) {
+      const event = makeEvent("EV_RUSSIAN", {
+        title: "System Design Fundamentals",
+        ...(scheduled ? { format: "online", upcoming_sessions: ["2026-10-20"] } : {}),
+      });
+      const source = makeDataset([event], [], { preferred_language: "en" });
+      const original = structuredClone(source);
+      const view = getEmployeeView(normalizeDataset(source), employee.employee_id);
+      const rec = view.recommendations[0]!;
+      expect(rec).toMatchObject({ eventId: "EV_RUSSIAN", title: event.title, score: 40, explanationSource: "fallback" });
+      expect(rec.expectedChanges).toEqual([{ skillId: "SK_SYSTEM_DESIGN", before: 2, after: 3, required: 4, critical: true }]);
+      expect(rec.deterministicExplanation).toContain("System Design Fundamentals поможет подготовиться к роли Backend Engineer Senior");
+      expect(rec.deterministicExplanation).toContain("System Design: 2 → 3 (для цели нужен уровень 4, ключевой навык)");
+      expect(rec.deterministicExplanation).toContain(scheduled ? "Ближайшее занятие: 2026-10-20." : "Можно пройти в своём темпе.");
+      expect(rec.historySignal).toContain("Данных недостаточно, чтобы судить о ваших предпочтениях");
+      expect(rec.reasons).toContain("System Design: 2 → 3; для цели нужен уровень 4 (ключевой навык).");
+      const copy = [rec.deterministicExplanation, rec.historySignal, ...rec.reasons];
+      expect(copy.every((text) => /[А-Яа-яЁё]/u.test(text))).toBe(true);
+      expect(copy.join(" ")).not.toMatch(/траектор|сигнал|коррелир|advances the|recent participation|Available self-paced/i);
+      expect(source).toEqual(original);
+    }
+  });
+
   it("uses a fixed snapshot date and resolves the next grade by default", () => {
     const view = getEmployeeView(normalizeDataset(makeDataset([])), employee.employee_id);
     expect(SNAPSHOT_DATE).toBe("2026-10-01");
@@ -219,7 +243,7 @@ describe("recommendation engine", () => {
     expect(view.recommendations.map((item) => [item.eventId, item.score])).toEqual([
       ["EV_CRITICAL", 40], ["EV_SPEAKING", -10],
     ]);
-    expect(view.recommendations[1]?.historySignal).toContain("3 recent participation signal");
+    expect(view.recommendations[1]?.historySignal).toContain("незавершённое участие: 3");
   });
 
   it("excludes mandatory, completed, in-progress, prerequisite-blocked, and unavailable events", () => {
@@ -273,7 +297,7 @@ describe("recommendation engine", () => {
       employee.employee_id,
     );
     expect(withMissedSession.recommendations[0]?.score).toBe(baseline.recommendations[0]?.score! - 10);
-    expect(withMissedSession.recommendations[0]?.historySignal).toContain("1 recent participation signal");
+    expect(withMissedSession.recommendations[0]?.historySignal).toContain("незавершённое участие: 1");
   });
 
   it("uses an explicit career goal and requests one for Lead without a goal", () => {
@@ -304,7 +328,7 @@ describe("recommendation engine", () => {
     const records = [1, 2, 3].map((day) => makeRecord("UNRELATED", "no_show", "2026-08-0" + day));
     const ranked = getEmployeeView(normalizeDataset(makeDataset([candidate, unrelated], records)), employee.employee_id);
     expect(ranked.recommendations[0]?.score).toBe(34);
-    expect(ranked.recommendations[0]?.historySignal).toContain("format-only");
+    expect(ranked.recommendations[0]?.historySignal).toContain("поскольку темы разные");
   });
 
   it("does not promote a topic using feedback about unrelated skills", () => {
@@ -315,7 +339,7 @@ describe("recommendation engine", () => {
     const source = makeDataset([candidate, unrelated], [makeRecord("UNRELATED", "completed", "2025-12-01", 5)]);
     const ranked = getEmployeeView(normalizeDataset(source), employee.employee_id);
     expect(ranked.recommendations[0]?.score).toBe(40);
-    expect(ranked.recommendations[0]?.historySignal).not.toContain("Positive feedback");
+    expect(ranked.recommendations[0]?.historySignal).not.toContain("Высокие оценки");
   });
 
   it("distinguishes externally assigned declines from self-initiated attendance failures", () => {
@@ -323,7 +347,7 @@ describe("recommendation engine", () => {
     const record = { ...makeRecord("CANDIDATE", "declined"), assigned_by: "manager" as const };
     const ranked = getEmployeeView(normalizeDataset(makeDataset([candidate], [record])), employee.employee_id);
     expect(ranked.recommendations[0]?.score).toBe(35);
-    expect(ranked.recommendations[0]?.historySignal).toContain("externally assigned");
+    expect(ranked.recommendations[0]?.historySignal).toContain("назначенных руководителем или HR");
   });
 
   it("reports the actual negative-history count even after the score penalty is capped", () => {
@@ -331,12 +355,12 @@ describe("recommendation engine", () => {
     const records = [1, 2, 3, 4, 5].map((day) => makeRecord("CANDIDATE", "no_show", "2026-08-0" + day));
     const ranked = getEmployeeView(normalizeDataset(makeDataset([candidate], records)), employee.employee_id);
     expect(ranked.recommendations[0]?.score).toBe(10);
-    expect(ranked.recommendations[0]?.historySignal).toContain("5 recent participation");
+    expect(ranked.recommendations[0]?.historySignal).toContain("незавершённое участие: 5");
   });
 
   it("does not interpret missing history as evidence of a positive preference", () => {
     const ranked = getEmployeeView(normalizeDataset(makeDataset([makeEvent("CANDIDATE")])), employee.employee_id);
-    expect(ranked.recommendations[0]?.historySignal).toContain("insufficient");
+    expect(ranked.recommendations[0]?.historySignal).toContain("Данных недостаточно");
   });
 
   it("changes an equally useful next step when its relevant participation history changes", () => {

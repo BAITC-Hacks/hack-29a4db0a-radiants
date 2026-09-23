@@ -30,7 +30,7 @@ Compose binds to `127.0.0.1` by default. For deployment behind an internal HTTPS
 
 HR can open **Доступ сотрудников** to view accounts and create access for an existing profile. The form confirms the employee binding, accepts a 12–128-character password and clears it after the server response. Transfer credentials privately; they cannot be viewed later. Successful JSON import also offers **Создать доступ** with the imported profile selected. After an uncertain creation, the UI reads the account list before allowing another attempt.
 
-The UI is in Russian, with Career Quest branding and locally hosted Manrope. Data-provided employee/course names and explanations retain their original language. Returning to the page revalidates the session; logout is synchronized across tabs without transmitting credentials. See [current frontend delivery and validation](docs/FRONTEND_PRIVATE_UI.md).
+The UI is in Russian, with Career Quest branding and locally hosted Manrope. Recommendation explanations, including AI and deterministic fallback text, use plain Russian: purpose, expected skill change and relevant participation history. Official employee/course/technology names remain as supplied by the catalog. The AI provider rejects obviously non-Russian prose and uses the Russian fallback; this heuristic is not a full language or factual verifier. Returning to the page revalidates the session; logout is synchronized across tabs without transmitting credentials. See [current frontend delivery and validation](docs/FRONTEND_PRIVATE_UI.md).
 
 ### Optional shared employee demo login
 

@@ -10,7 +10,7 @@ const recommendation: Recommendation = {
   reasons: ["Critical skill gap"],
   expectedChanges: [{ skillId: "SK_SYSTEM_DESIGN", before: 2, after: 3, required: 4, critical: true }],
   historySignal: "No recent negative participation signal.",
-  deterministicExplanation: "This activity advances the target trajectory.",
+  deterministicExplanation: "Занятие поможет развить навык для вашей цели.",
   explanationSource: "fallback",
 };
 
@@ -49,14 +49,14 @@ describe("AI recommendation explanations", () => {
         { eventId: "EV_TOO_LITTLE", explanation: "Too little evidence", evidenceRefs: ["target", "history"] },
         {
           eventId: "EV_001",
-          explanation: "Grounded explanation",
+          explanation: "Занятие поможет развить навык для вашей цели.",
           evidenceRefs: ["target", "history", "skill:SK_SYSTEM_DESIGN"],
         },
       ],
       allowed,
     );
     expect(accepted.size).toBe(1);
-    expect(accepted.get("EV_001")).toBe("Grounded explanation");
+    expect(accepted.get("EV_001")).toBe("Занятие поможет развить навык для вашей цели.");
   });
 
   it("uses valid AI text and falls back when the explainer fails", async () => {
@@ -95,7 +95,7 @@ describe("AI recommendation explanations", () => {
               recommendations: [
                 {
                   eventId: "EV_001",
-                  explanation: "Evidence based.",
+                  explanation: "Занятие поможет развить навык для вашей цели.",
                   evidenceRefs: ["target", "history", "availability"],
                 },
               ],
@@ -113,6 +113,33 @@ describe("AI recommendation explanations", () => {
     expect(result[0]?.eventId).toBe("EV_001");
     expect(requestBody).toContain('"type":"json_schema"');
     expect(requestBody).toContain('"strict":true');
+    const systemPrompt = JSON.parse(requestBody).input[0].content;
+    expect(systemPrompt).toContain("простым русским языком");
+    expect(systemPrompt).toContain("всегда пиши по-русски");
+    expect(systemPrompt).toContain("ожидаемым результатом после завершения");
+  });
+
+  it.each([
+    "Advanced Python supports the Middle Backend Engineer target by raising Python from 2 to 3. There are no comparable participation records.",
+    "Да. Advanced Python supports the Middle Backend Engineer target by raising Python from 2 to 3. There are no comparable participation records.",
+    "Курс цель навык рост уровень опыт. This activity supports the target by improving a critical skill and meeting the required level. There are no comparable participation records, so evidence is insufficient to infer a preference.",
+  ])("uses the Russian fallback for English prose, including token Russian padding (%#)", async (explanation) => {
+    const result = await withPayload({ status: "completed", output_text: JSON.stringify({
+      recommendations: [{ eventId: "EV_001", explanation, evidenceRefs: ["target", "history", "skill:SK_SYSTEM_DESIGN"] }],
+    }) });
+    expect(result).toEqual(view);
+    expect(result.recommendations[0]?.explanationSource).toBe("fallback");
+    expect(result.recommendations[0]?.aiExplanation).toBeUndefined();
+    expect(result.recommendations[0]?.deterministicExplanation).toContain("Занятие поможет");
+  });
+
+  it("accepts Russian prose with official English catalog names", async () => {
+    const explanation = "System Design Workshop поможет подготовиться к роли Backend Engineer уровня Senior: ожидаемый уровень навыка вырастет с 2 до 3, для цели нужен 4. Пока недостаточно данных, чтобы понять, подходит ли вам этот формат.";
+    const result = await withPayload({ status: "completed", output_text: JSON.stringify({
+      recommendations: [{ eventId: "EV_001", explanation, evidenceRefs: ["target", "history", "skill:SK_SYSTEM_DESIGN"] }],
+    }) });
+    expect(result.recommendations[0]?.explanationSource).toBe("llm");
+    expect(result.recommendations[0]?.aiExplanation).toBe(explanation);
   });
 
   it.each([undefined, "", "   "])("does not send a request when the API key is empty", async (apiKey) => {
@@ -133,7 +160,7 @@ describe("AI recommendation explanations", () => {
       { type: "message", content: [{ type: "output_text", text: validText() }] },
     ] });
     expect(result).toEqual({ ...view, recommendations: [{
-      ...recommendation, aiExplanation: "Grounded explanation", explanationSource: "llm",
+      ...recommendation, aiExplanation: "Занятие поможет развить навык для вашей цели.", explanationSource: "llm",
     }] });
     expect(view.recommendations[0]?.explanationSource).toBe("fallback");
   });
@@ -243,7 +270,7 @@ describe("AI recommendation explanations", () => {
 });
 
 function validText(): string {
-  return JSON.stringify({ recommendations: [{ eventId: "EV_001", explanation: "Grounded explanation", evidenceRefs: ["target", "history", "skill:SK_SYSTEM_DESIGN"] }] });
+  return JSON.stringify({ recommendations: [{ eventId: "EV_001", explanation: "Занятие поможет развить навык для вашей цели.", evidenceRefs: ["target", "history", "skill:SK_SYSTEM_DESIGN"] }] });
 }
 
 async function withPayload(payload: unknown): Promise<EmployeeView> {
