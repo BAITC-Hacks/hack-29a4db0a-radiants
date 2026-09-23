@@ -25,16 +25,20 @@ describe("presentation of trusted EmployeeView values", () => {
     expect(html).toContain("Current progress");
     expect(html).toContain("Projected");
     expect(html).toContain("3.5");
-    expect(html).toContain("EXPECTED SKILL IMPACT");
+    expect(html).toContain("Expected skill changes");
     expect(html).toContain("Reason four");
     expect(html).toContain("Supplied AI insight");
+    expect(html).toContain("AI-assisted explanation");
+    expect(html).toContain('<table class="skills-table">');
+    expect(html).not.toContain('class="ring"');
+    expect(html).not.toContain("Evidence based");
   });
   it("works without AI text and escapes any supplied HTML", () => {
     const view = profile();
     view.recommendations[0]!.aiExplanation = " ";
     view.recommendations[0]!.reasons = ["<script>injected()</script>"];
     const html = screen(view);
-    expect(html).not.toContain("AI insight");
+    expect(html).not.toContain("AI-assisted explanation");
     expect(html).toContain("&lt;script&gt;");
     expect(html).not.toContain("<script>");
   });
@@ -136,5 +140,20 @@ describe("presentation of trusted EmployeeView values", () => {
     expect(html).toContain(">4<");
     expect(html).toContain("—");
     expect(html).not.toContain("Completion rate");
+  });
+  it("presents HR gaps and follow-up employees as tables with meaningful statuses", () => {
+    const html = renderToStaticMarkup(createElement(HRDashboard, {
+      summary: {
+        weakCompetencies: [{ skillId: "SK_A", name: "Analysis", employeesBelowRequirement: 7 }],
+        employeesWithoutRecommendations: [{ employeeId: "EMP-X", fullName: "Test Profile", reason: "needs_career_goal" }],
+        participationByEvent: [],
+      }, onSelect() {},
+    }));
+    expect(html).toContain("Common skill gaps");
+    expect(html).toContain('scope="row">Analysis');
+    expect(html).toContain('class="number">7');
+    expect(html).toContain('class="text-button">Test Profile');
+    expect(html).toContain("Career goal needed");
+    expect(html).not.toContain("avatar");
   });
 });

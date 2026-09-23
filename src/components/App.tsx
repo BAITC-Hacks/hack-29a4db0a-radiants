@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BriefcaseBusiness, ChevronDown, Compass, FileUp, Sparkles, Users } from "lucide-react";
+import { ChevronDown, FileUp } from "lucide-react";
 import type { EmployeeView, Recommendation } from "../types/career";
 import { CompletionError, createCareerApi, type CareerApi, type ImportResult } from "../lib/frontend/api";
 import { useApiResource } from "../hooks/useApiResource";
@@ -96,20 +96,20 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
   return <div className="app-shell">
     <header className="topbar">
       <a className="brand" href="#home" onClick={(event) => { event.preventDefault(); setScreen("employee"); }}>
-        <span className="brand-mark"><Compass size={19} /></span><span>career<span className="brand-light">quest</span></span>
+        <span>Career Quest</span><span className="brand-caption">Employee development</span>
       </a>
       <nav className="topbar-right" aria-label="Workspace">
-        <button className={`nav-link ${screen === "employee" ? "selected" : ""}`} aria-label="Employee view" aria-current={screen === "employee" ? "page" : undefined} onClick={() => setScreen("employee")}><BriefcaseBusiness size={16} /> Employee view</button>
-        <button className={`nav-link ${screen === "hr" ? "selected" : ""}`} aria-label="HR overview" aria-current={screen === "hr" ? "page" : undefined} onClick={() => setScreen("hr")}><Users size={16} /> HR overview</button>
-        <button className="button button-dark top-import" aria-label="Import data" disabled={pending !== null} onClick={() => { setImportNotice(""); setImportOpen(true); }}><FileUp size={16} /> Import data</button>
+        <button className={`nav-link ${screen === "employee" ? "selected" : ""}`} aria-label="Employee view" aria-current={screen === "employee" ? "page" : undefined} onClick={() => setScreen("employee")}>Employee</button>
+        <button className={`nav-link ${screen === "hr" ? "selected" : ""}`} aria-label="HR overview" aria-current={screen === "hr" ? "page" : undefined} onClick={() => setScreen("hr")}>HR dashboard</button>
+        <button className="button button-outline top-import" aria-label="Import data" disabled={pending !== null} onClick={() => { setImportNotice(""); setImportOpen(true); }}><FileUp size={16} /> Import</button>
       </nav>
     </header>
     {screen === "employee" ? <main className="page">
       <div className="page-heading">
-        <div><div className="eyebrow"><Sparkles size={14} /> PEOPLE DEVELOPMENT</div><h1>Growth, with direction.</h1><p>A clear next step, grounded in your development profile.</p></div>
+        <div><h1>Development plan</h1><p>Review skills, career targets and recommended activities.</p></div>
         <label className="select-wrap" htmlFor="employee-select">
-          <span className="sr-only">Select employee</span>
-          <select id="employee-select" value={employeeId} disabled={employees.loading || !employees.data?.length} onChange={(event) => { setEmployeeId(event.target.value); setImportNotice(""); }}>
+          <span className="select-label">Employee</span>
+          <select id="employee-select" aria-label="Select employee" value={employeeId} disabled={employees.loading || !employees.data?.length} onChange={(event) => { setEmployeeId(event.target.value); setImportNotice(""); }}>
             {!employeeId && <option value="">{employees.loading ? "Loading employees…" : "Select employee"}</option>}
             {employees.data?.map((employee) => <option key={employee.employee_id} value={employee.employee_id}>{employee.full_name || employee.employee_id} · {employee.role}</option>)}
           </select><ChevronDown size={16} />
@@ -126,7 +126,7 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
           failure={currentFailure?.error ?? null} onRefresh={() => void refreshAfterCompletion()}
           onComplete={(recommendation) => void complete(recommendation)} />}
     </main> : <main className="page hr-page">
-      <div className="page-heading"><div><div className="eyebrow"><Users size={14} /> PEOPLE INSIGHTS</div><h1>HR overview</h1><p>Development needs and participation across your team.</p></div></div>
+      <div className="page-heading"><div><h1>HR dashboard</h1><p>Skill gaps, employees needing follow-up and activity participation.</p></div></div>
       {hr.error ? <ErrorState title="Could not load HR summary." detail={hr.error} onRetry={hr.reload} /> :
         hr.loading || !hr.data ? <LoadingState text="Loading HR summary…" /> :
         <HRDashboard summary={hr.data} onSelect={(id) => { setEmployeeId(id); setImportNotice(""); setScreen("employee"); }} />}
