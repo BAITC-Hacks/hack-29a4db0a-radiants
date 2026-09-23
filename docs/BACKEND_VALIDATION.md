@@ -34,4 +34,4 @@
 
 ## Limits
 
-The real OpenAI call is not enabled or verified in this integration. Current recommendation responses remain deterministic fallback. Authentication remains outside the hackathon MVP. The API supports employee JSON plus history CSV in one multipart request; the teammate dialog currently uploads one file at a time. Tests verify the combined request independently of that dialog.
+The later AI integration enables and verifies the real OpenAI call on the recommendations endpoint; see AI_VERIFICATION.md for its 131 offline tests and live HTTP result. Profile/completion remain deterministic, and the separate frontend AI request is still pending. Authentication remains outside the hackathon MVP. The API supports employee JSON plus history CSV in one multipart request; the teammate dialog currently uploads one file at a time. Tests verify the combined request independently of that dialog.

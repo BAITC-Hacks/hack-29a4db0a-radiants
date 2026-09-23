@@ -12,8 +12,9 @@ const enabled = process.env.npm_lifecycle_event === "test:ai-live" || process.en
 
 it.runIf(enabled).each(["E0178", "E0058"])("gets a real explanation from the SQLite service for %s", async (employeeId) => {
   if (existsSync(".env.local")) loadEnvFile(".env.local");
+  if (existsSync(".env")) loadEnvFile(".env");
   const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) throw new Error("Live check requires server-side OPENAI_API_KEY in the environment or .env.local; no request was sent.");
+  if (!apiKey) throw new Error("Live check requires server-side OPENAI_API_KEY in the environment, .env.local or .env; no request was sent.");
   const directory = mkdtempSync(path.join(os.tmpdir(), "career-live-ai-"));
   const previousPath = process.env.CAREER_QUEST_DB_PATH;
   const previousData = process.env.CAREER_QUEST_DATA_DIR;

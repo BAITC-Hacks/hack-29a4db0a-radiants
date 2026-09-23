@@ -3,9 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDatabase, databaseCounts, getDatabase } from "@/server/db/database";
-import { completeActivity, getEmployeeProjection, getRecommendations } from "@/server/services/career-quest";
+import { AI_REQUEST_BUDGET_MS, completeActivity, getEmployeeProjection, getRecommendations } from "@/server/services/career-quest";
 import { GET as recommendationsRoute } from "@/app/api/employees/[employeeId]/recommendations/route";
 import type { RecommendationExplainer } from "@/lib/ai/explanations";
+import { GET as profileRoute } from "@/app/api/employees/[employeeId]/route";
 
 let directory: string;
 beforeEach(() => {
@@ -16,6 +17,7 @@ beforeEach(() => {
   vi.stubEnv("OPENAI_API_KEY", "");
 });
 afterEach(() => {
+  vi.useRealTimers();
   closeDatabase();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
@@ -75,6 +77,7 @@ describe("AI on the persisted official dataset", () => {
       { params: Promise.resolve({ employeeId: "E0178" }) });
     const result = await response.json();
     expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(result.data.completedActivities.length).toBeGreaterThan(0);
     expect(result.data.recommendations.every((rec: { explanationSource: string }) => rec.explanationSource === "llm")).toBe(true);
     expect(fetcher).toHaveBeenCalledTimes(1);
@@ -86,5 +89,72 @@ describe("AI on the persisted official dataset", () => {
     const response = await recommendationsRoute(new Request("http://localhost"), { params: Promise.resolve({ employeeId: "E0178" }) });
     expect(response.status).toBe(200);
     expect((await response.json()).data).toEqual(getEmployeeProjection("E0178"));
+  });
+
+  it("keeps profile and completion independent of a hung AI request", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-only");
+    const fetcher = vi.fn<typeof fetch>(() => new Promise(() => {}));
+    vi.stubGlobal("fetch", fetcher);
+    const response = await profileRoute(new Request("http://localhost"), { params: Promise.resolve({ employeeId: "E0178" }) });
+    expect(response.status).toBe(200);
+    const completed = await completeActivity("E0178", "EV_005", {});
+    expect(completed.view.readiness).toBe(74.1);
+    expect(completed.view.recommendations.every((rec) => rec.explanationSource === "fallback")).toBe(true);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 without invoking the provider for an unknown employee", async () => {
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    const response = await recommendationsRoute(new Request("http://localhost"), { params: Promise.resolve({ employeeId: "MISSING" }) });
+    expect(response.status).toBe(404);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("does not invoke the provider for an employee without a target", async () => {
+    const row = getDatabase().prepare("SELECT employee_id FROM employees WHERE grade = 'Lead' AND career_goal_json IS NULL LIMIT 1").get() as { employee_id: string };
+    const explain = vi.fn();
+    const result = await getRecommendations(row.employee_id, getDatabase(), { explain });
+    expect(result.targetStatus).toBe("needs_career_goal");
+    expect(result.recommendations).toEqual([]);
+    expect(explain).not.toHaveBeenCalled();
+  });
+
+  it("aborts the real transport at 8 seconds and returns HTTP fallback", async () => {
+    const baseline = getEmployeeProjection("E0178");
+    vi.useFakeTimers();
+    vi.stubEnv("OPENAI_API_KEY", "test-only");
+    let signal: AbortSignal | null | undefined;
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>((_url, init) => {
+      signal = init?.signal;
+      return new Promise(() => {});
+    }));
+    const response = recommendationsRoute(new Request("http://localhost"), { params: Promise.resolve({ employeeId: "E0178" }) });
+    await vi.advanceTimersByTimeAsync(8_000);
+    expect(signal?.aborted).toBe(true);
+    expect((await (await response).json()).data).toEqual(baseline);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("bounds a custom hanging explainer by the full request budget and ignores late results", async () => {
+    const baseline = getEmployeeProjection("E0178");
+    vi.useFakeTimers();
+    let finish!: (value: Awaited<ReturnType<RecommendationExplainer['explain']>>) => void;
+    const pending = getRecommendations("E0178", getDatabase(), {
+      explain: () => new Promise((resolve) => { finish = resolve; }),
+    });
+    await vi.advanceTimersByTimeAsync(AI_REQUEST_BUDGET_MS);
+    const fallback = await pending;
+    expect(fallback).toEqual(baseline);
+    finish([]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fallback).toEqual(baseline);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("skips AI after the request budget has already expired", async () => {
+    const explain = vi.fn();
+    expect(await getRecommendations("E0178", getDatabase(), { explain }, performance.now() - 1)).toEqual(getEmployeeProjection("E0178"));
+    expect(explain).not.toHaveBeenCalled();
   });
 });

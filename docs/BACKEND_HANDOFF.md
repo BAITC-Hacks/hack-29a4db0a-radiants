@@ -1,14 +1,16 @@
 # Backend integration handoff
 
-Integration branch: `feature/backend-docker`.
+Backend base merged to main: `457f608` (PR #8, including PRs #3/#5).
 
-Included main at `1bf2026`, PR #2 (`3f55129` tests), PR #3 (`a1a5ed` review notes), PR #4 (`56a2dec` adapter), and the frontend API branch (`92dd0fd`). PR #1 is already in main. Main is not changed by this branch.
+AI integration builds on PR #9 (`3fe01d5`) and adds request-budget checks, additional runtime regressions and live verification. PR #6's old Vite handler is superseded; do not restore it. Frontend included in the backend base is `92dd0fd`.
 
 ## Shared contract
 
 The authoritative domain types remain in `src/types/career.ts`. Backend now uses `adaptStarterDataset -> normalizeDataset -> getEmployeeView / buildHrSummary`. The duplicate backend recommendation engine and its incompatible DTOs have been removed.
 
 `GET /api/employees/:id` and `GET /api/employees/:id/recommendations` return `{ data: EmployeeDetail }`. EmployeeDetail extends EmployeeView, adding completedActivities and activeMandatoryObligations. Recommendation fields are eventId, title, reasons, expectedChanges, historySignal, nextSession, deterministicExplanation, aiExplanation?, explanationSource. Readiness is a number, possibly with one decimal place. No-target state is `needs_career_goal`.
+
+Only the recommendations endpoint invokes OpenAI. Profile and completion return deterministic data without waiting for AI. The provider deadline is at most 8 seconds; the recommendation route budgets 9.5 seconds from handler entry, including profile reconstruction, with fallback on exhaustion. Responses use `Cache-Control: no-store`. LLM calls happen outside SQLite transactions. No new route or second set of domain types is introduced.
 
 Completion returns:
 
@@ -42,8 +44,14 @@ The endpoint does not replace the event/skill catalog; it is an incremental empl
 
 ## НАПАРНИК/И — remaining coordination
 
-- AI/Data: PR #5 and #6 were reviewed. PR #6 uses a Vite middleware with a client-provided dataset; the active app here uses server-owned SQLite and Next.js. These AI PRs remain separate rather than introducing a second source of data into this branch. Port the explanation call to the persisted recommendation service after key setup; current routes return deterministic fallback. Shared engine/types are preserved.
-- Frontend: App.tsx data loading, completion, import and HR wiring changed in this branch. Base subsequent edits on this integration to avoid restoring localStorage as the source of truth.
-- Merge this branch through its PR after integration checks; other PR branches were included locally with their original commits, without changing main directly.
+- AI/Data: PR #5 is merged; PR #9 supplies the persisted explanation service and evidence validation. Backend verification passed with the real server key. Keep the canonical types/engine and the 8-second provider deadline.
+- Frontend: render the fast profile/completion result immediately, then request `GET /api/employees/:id/recommendations`. Render `aiExplanation ?? deterministicExplanation` using the returned `explanationSource`; no extra AI status DTO is required. Abort/discard old requests on employee change, completion or import. Key responses by both employee and a local request generation so an older same-employee response cannot overwrite newly completed progress. The frontend in the backend base does not yet issue this separate request.
+- Import: retain the jury flow JSON then CSV. Catalog initialization is already server-owned. Combined upload UI remains optional.
+
+## Environment and checks
+
+Put server-only `OPENAI_API_KEY` and optional `OPENAI_MODEL` in ignored `.env`. Compose reads it automatically; Next.js loads it in development. With no key, the same route returns deterministic fallback. `.env.local` also works locally; Compose requires `--env-file .env.local` for that filename. Never commit the key or use a public frontend env prefix.
+
+Verified: 131 offline tests, TypeScript, frontend lint, Docker production build, one opt-in live SQLite-service case for E0178 and a real Docker HTTP request returning three `llm` recommendations in 7,026 ms. Numeric fields/IDs remained unchanged and existing readiness 74.1 persisted. See AI_VERIFICATION.md for scope and limitations.
 
 Run `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`. Start the complete app with `docker compose up --build`. See README for reset and environment options. Example API responses are under `docs/fixtures`.
