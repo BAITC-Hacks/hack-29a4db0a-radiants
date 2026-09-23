@@ -51,6 +51,11 @@ The native SQLite dependency may require platform C++ build tools if a prebuilt 
 
 ## Validation
 
+[Final independent acceptance](docs/FINAL_FIVE_CHECKS.md) records production browser
+checks of private imported accounts, denied operations, completion, restart and
+visible explanations on `cedd34d`. These checks used fallback; a real AI response
+for the imported profile on the final build still needs Backend verification.
+
 ```bash
 npm test
 npm run typecheck
