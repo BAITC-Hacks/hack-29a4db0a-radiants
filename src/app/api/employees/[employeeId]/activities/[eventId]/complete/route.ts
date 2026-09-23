@@ -1,6 +1,7 @@
 import { completeActivitySchema } from "@/contracts/schemas";
 import { apiError, apiSuccess, readJsonBody } from "@/server/http";
 import { completeActivity } from "@/server/services/career-quest";
+import { authenticate, assertMutation, requireSelf, audit } from "@/server/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,9 +11,14 @@ export async function POST(
   context: { params: Promise<{ employeeId: string; eventId: string }> },
 ) {
   try {
+    const session = authenticate(request);
+    assertMutation(request, session);
     const { employeeId, eventId } = await context.params;
+    requireSelf(session, employeeId);
     const body = completeActivitySchema.parse(await readJsonBody(request));
-    return apiSuccess(await completeActivity(employeeId, eventId, body), 201);
+    const result = await completeActivity(employeeId, eventId, body);
+    audit(session.user.id, "activity.completed", result.activity.record_id);
+    return apiSuccess(result, 201);
   } catch (error) {
     return apiError(error);
   }

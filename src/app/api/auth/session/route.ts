@@ -1,10 +1,8 @@
-import { apiError, apiSuccess } from "@/server/http";
-import { getCatalog } from "@/server/services/career-quest";
 import { authenticate } from "@/server/auth";
-
+import { apiError, apiSuccess } from "@/server/http";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export function GET(request: Request) {
-  try { authenticate(request); return apiSuccess(getCatalog()); }
+  try { return apiSuccess(authenticate(request)); }
   catch (error) { return apiError(error); }
 }

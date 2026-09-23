@@ -33,7 +33,7 @@ The AI result may update only explanation fields for the matching employee and c
 - Recommendation expectedChanges are previews. Compare effectiveSkills before/after completion for actual progress.
 - On an uncertain completion outcome, reload the profile rather than automatically retrying the POST. Duplicate non-repeatable completion is rejected by the server.
 - Import success with a failed profile refresh retries the read, not the already committed upload.
-- HR renders server aggregates; navigation separation is not real authorization in this hackathon MVP.
+- HR renders server aggregates. Server sessions enforce own-only employee access and HR-only analytics/import. See BACKEND_PRIVACY.md and FRONTEND_PRIVACY_PLAN.md for authentication, CSRF, diagnostics, all-status history and the complete implementation plan.
 
 ## Local commands
 

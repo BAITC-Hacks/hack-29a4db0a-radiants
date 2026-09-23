@@ -7,14 +7,18 @@ import { AI_REQUEST_BUDGET_MS, completeActivity, getEmployeeProjection, getRecom
 import { GET as recommendationsRoute } from "@/app/api/employees/[employeeId]/recommendations/route";
 import type { RecommendationExplainer } from "@/lib/ai/explanations";
 import { GET as profileRoute } from "@/app/api/employees/[employeeId]/route";
+import { authHeaders, testIdentity, type TestIdentity } from "./helpers/auth";
 
 let directory: string;
-beforeEach(() => {
+let identity: TestIdentity;
+beforeEach(async () => {
   closeDatabase();
   directory = fs.mkdtempSync(path.join(os.tmpdir(), "career-ai-runtime-"));
   vi.stubEnv("CAREER_QUEST_DB_PATH", path.join(directory, "test.sqlite"));
   vi.stubEnv("CAREER_QUEST_DATA_DIR", path.resolve("data"));
   vi.stubEnv("OPENAI_API_KEY", "");
+  vi.stubEnv("APP_ORIGIN", "http://localhost");
+  identity = await testIdentity();
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -73,7 +77,7 @@ describe("AI on the persisted official dataset", () => {
       }));
     });
     vi.stubGlobal("fetch", fetcher);
-    const response = await recommendationsRoute(new Request("http://localhost/api/employees/E0178/recommendations"),
+    const response = await recommendationsRoute(new Request("http://localhost/api/employees/E0178/recommendations", { headers: authHeaders(identity) }),
       { params: Promise.resolve({ employeeId: "E0178" }) });
     const result = await response.json();
     expect(response.status).toBe(200);
@@ -86,7 +90,7 @@ describe("AI on the persisted official dataset", () => {
   it("returns deterministic HTTP data on an OpenAI failure", async () => {
     vi.stubEnv("OPENAI_API_KEY", "test-only");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("Unavailable", { status: 503 })));
-    const response = await recommendationsRoute(new Request("http://localhost"), { params: Promise.resolve({ employeeId: "E0178" }) });
+    const response = await recommendationsRoute(new Request("http://localhost", { headers: authHeaders(identity) }), { params: Promise.resolve({ employeeId: "E0178" }) });
     expect(response.status).toBe(200);
     expect((await response.json()).data).toEqual(getEmployeeProjection("E0178"));
   });
@@ -95,7 +99,7 @@ describe("AI on the persisted official dataset", () => {
     vi.stubEnv("OPENAI_API_KEY", "test-only");
     const fetcher = vi.fn<typeof fetch>(() => new Promise(() => {}));
     vi.stubGlobal("fetch", fetcher);
-    const response = await profileRoute(new Request("http://localhost"), { params: Promise.resolve({ employeeId: "E0178" }) });
+    const response = await profileRoute(new Request("http://localhost", { headers: authHeaders(identity) }), { params: Promise.resolve({ employeeId: "E0178" }) });
     expect(response.status).toBe(200);
     const completed = await completeActivity("E0178", "EV_005", {});
     expect(completed.view.readiness).toBe(74.1);
@@ -106,7 +110,7 @@ describe("AI on the persisted official dataset", () => {
   it("returns 404 without invoking the provider for an unknown employee", async () => {
     const fetcher = vi.fn();
     vi.stubGlobal("fetch", fetcher);
-    const response = await recommendationsRoute(new Request("http://localhost"), { params: Promise.resolve({ employeeId: "MISSING" }) });
+    const response = await recommendationsRoute(new Request("http://localhost", { headers: authHeaders(identity) }), { params: Promise.resolve({ employeeId: "MISSING" }) });
     expect(response.status).toBe(404);
     expect(fetcher).not.toHaveBeenCalled();
   });
@@ -129,7 +133,7 @@ describe("AI on the persisted official dataset", () => {
       signal = init?.signal;
       return new Promise(() => {});
     }));
-    const response = recommendationsRoute(new Request("http://localhost"), { params: Promise.resolve({ employeeId: "E0178" }) });
+    const response = recommendationsRoute(new Request("http://localhost", { headers: authHeaders(identity) }), { params: Promise.resolve({ employeeId: "E0178" }) });
     await vi.advanceTimersByTimeAsync(8_000);
     expect(signal?.aborted).toBe(true);
     expect((await (await response).json()).data).toEqual(baseline);

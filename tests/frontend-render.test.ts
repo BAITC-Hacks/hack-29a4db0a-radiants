@@ -4,17 +4,41 @@ import { describe, expect, it } from "vitest";
 import { EmployeeScreen, CompletionFeedback } from "../src/components/EmployeeScreen";
 import { HRDashboard } from "../src/components/HRDashboard";
 import { normalizeDataset } from "../src/lib/data/normalize";
-import { getEmployeeView } from "../src/lib/recommendation";
+import { getEmployeeView, getRecommendationDiagnostics } from "../src/lib/recommendation";
 import { demoDataset } from "./fixtures/career-dataset";
 import { CompletionError } from "../src/lib/frontend/api";
 import type { ActivityView, EmployeeDetail } from "../src/contracts/api";
 
 const profile = () => getEmployeeView(normalizeDataset(structuredClone(demoDataset)), "EMP-014");
-const screen = (view: ReturnType<typeof profile> & Partial<Pick<EmployeeDetail, "completedActivities" | "activeMandatoryObligations">>, skillNames?: Record<string, string>) => renderToStaticMarkup(createElement(EmployeeScreen, {
+const screen = (view: ReturnType<typeof profile> & Partial<Pick<EmployeeDetail, "completedActivities" | "activeMandatoryObligations" | "activityHistory" | "recommendationDiagnostics">>, skillNames?: Record<string, string>) => renderToStaticMarkup(createElement(EmployeeScreen, {
   view, skillNames, completing: false, completionDisabled: false, completion: null, failure: null,
   onRefresh() {}, onComplete() {}, onDismissCompletion() {},
 }));
 describe("presentation of trusted EmployeeView values", () => {
+  it("shows supplied diagnostics and readiness formula without computing explanations in the UI", () => {
+    const view = profile();
+    view.recommendations = [];
+    const diagnostics = getRecommendationDiagnostics(normalizeDataset(structuredClone(demoDataset)), "EMP-014");
+    diagnostics.summary = "The catalog cannot currently close these gaps.";
+    diagnostics.blockedEvents = [{ eventId: "EV_TEST", title: "System design workshop", reasons: [{ code: "prerequisites", message: "Required System Design 2; current 1." }] }];
+    diagnostics.readinessExplanation.formula = "Server-owned readiness formula";
+    const html = screen({ ...view, recommendationDiagnostics: diagnostics });
+    expect(html).toContain("The catalog cannot currently close these gaps.");
+    expect(html).toContain("Required System Design 2; current 1.");
+    expect(html).toContain("Server-owned readiness formula");
+  });
+  it("shows complete private participation history including assigned source and due dates", () => {
+    const html = screen({ ...profile(), activityHistory: [{
+      record_id: "FULL-1", employee_id: "EMP-014", event_id: "EV-FULL", eventTitle: "Voluntary workshop",
+      date: "2026-09-01", due_date: "2026-09-30", status: "declined", completion_pct: 0,
+      score: null, feedback_rating: null, assigned_by: "manager",
+    }] });
+    expect(html).toContain('aria-label="All activity records"');
+    expect(html).toContain("Voluntary workshop");
+    expect(html).toContain("Declined");
+    expect(html).toContain("Manager");
+    expect(html).toContain('<time dateTime="2026-09-30">2026-09-30</time>');
+  });
   it("labels gains with a zero target requirement without inventing a requirement", () => {
     const view = profile();
     const change = view.recommendations[0]!.expectedChanges[0]!;
@@ -123,6 +147,7 @@ describe("presentation of trusted EmployeeView values", () => {
       score: null, feedback_rating: null, assigned_by: "self",
     };
     const view: EmployeeDetail = {
+      activityHistory: [], recommendationDiagnostics: getRecommendationDiagnostics(normalizeDataset(structuredClone(demoDataset)), "EMP-014"),
       ...profile(), completedActivities: [record, { ...record, record_id: "REC-NEW", eventTitle: "Latest recorded course", date: "2026-10-01" }],
       activeMandatoryObligations: [
         { ...record, record_id: "MANDATORY-OVERDUE", event_id: "EV-REQUIRED", eventTitle: "Required compliance", status: "overdue", completion_pct: 25, due_date: "2026-09-30" },
@@ -147,6 +172,14 @@ describe("presentation of trusted EmployeeView values", () => {
     expect(completedTable.indexOf("Latest recorded course")).toBeLessThan(completedTable.indexOf('scope="row">Recorded course'));
     expect(view).toEqual(original);
     expect(html.split("Complete activity").length - 1).toBe(view.recommendations.length);
+  });
+  it("hides completion controls in HR profile views", () => {
+    const html = renderToStaticMarkup(createElement(EmployeeScreen, {
+      view: profile(), allowCompletion: false, completing: false, completionDisabled: false, completion: null, failure: null,
+      onRefresh() {}, onComplete() {}, onDismissCompletion() {},
+    }));
+    expect(html).toContain("Recommended next steps");
+    expect(html).not.toContain("Complete activity");
   });
   it("shows history empty states only for supplied empty arrays", () => {
     const html = screen({ ...profile(), completedActivities: [], activeMandatoryObligations: [] });

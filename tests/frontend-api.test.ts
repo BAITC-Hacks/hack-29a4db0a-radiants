@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createCareerApi, CompletionError } from "../src/lib/frontend/api";
 import { normalizeDataset } from "../src/lib/data/normalize";
-import { getEmployeeView } from "../src/lib/recommendation";
+import { getEmployeeView, getRecommendationDiagnostics } from "../src/lib/recommendation";
 import { demoDataset } from "./fixtures/career-dataset";
 
-const profile = () => ({ ...getEmployeeView(normalizeDataset(structuredClone(demoDataset)), "EMP-014"), completedActivities: [], activeMandatoryObligations: [] });
+const profile = () => {
+  const dataset = normalizeDataset(structuredClone(demoDataset));
+  return { ...getEmployeeView(dataset, "EMP-014"), completedActivities: [], activeMandatoryObligations: [], activityHistory: [], recommendationDiagnostics: getRecommendationDiagnostics(dataset, "EMP-014") };
+};
 afterEach(() => vi.useRealTimers());
 
 describe("typed frontend API", () => {
@@ -38,6 +41,14 @@ describe("typed frontend API", () => {
     for (const body of [missingHistory, missingExplanation]) {
       const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: body }));
       await expect(createCareerApi({ fetcher }).getRecommendations("EMP-014")).rejects.toThrow("unexpected response");
+    }
+  });
+  it("rejects malformed diagnostics and missing full participation history", async () => {
+    const missingHistory = { ...profile(), activityHistory: undefined };
+    const badDiagnostics = { ...profile(), recommendationDiagnostics: { status: "no_eligible_events" } };
+    for (const body of [missingHistory, badDiagnostics]) {
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: body }));
+      await expect(createCareerApi({ fetcher }).getEmployeeView("EMP-014")).rejects.toThrow("unexpected response");
     }
   });
   it("rejects recommendation responses for a different employee", async () => {

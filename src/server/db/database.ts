@@ -4,7 +4,7 @@ import path from "node:path";
 import { parseStarterFiles } from "@/server/data/parsers";
 import { AppError } from "@/server/errors";
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 const EXPECTED_STARTER_COUNTS = {
   skills: 60,
@@ -105,7 +105,42 @@ function applyMigrations(db: Database.Database): void {
 
   db.prepare(
     "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)",
-  ).run(SCHEMA_VERSION, new Date().toISOString());
+  ).run(1, new Date().toISOString());
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS auth_users (
+      user_id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL CHECK (role IN ('employee', 'hr')),
+      employee_id TEXT REFERENCES employees(employee_id) ON DELETE CASCADE,
+      active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+      created_at INTEGER NOT NULL,
+      CHECK ((role = 'employee' AND employee_id IS NOT NULL) OR (role = 'hr' AND employee_id IS NULL))
+    );
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+      token_hash TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES auth_users(user_id) ON DELETE CASCADE,
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_auth_sessions_expiry ON auth_sessions(expires_at);
+    CREATE TABLE IF NOT EXISTS auth_login_attempts (
+      attempt_key TEXT PRIMARY KEY,
+      failures INTEGER NOT NULL,
+      window_start INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS auth_audit (
+      audit_id TEXT PRIMARY KEY,
+      user_id TEXT,
+      action TEXT NOT NULL,
+      target_id TEXT,
+      created_at INTEGER NOT NULL
+    );
+  `);
+  db.prepare("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (?, ?)")
+    .run(2, new Date().toISOString());
 }
 
 function readStarterFile(name: string): string {

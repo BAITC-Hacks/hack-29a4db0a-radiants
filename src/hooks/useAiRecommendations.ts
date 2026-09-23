@@ -10,9 +10,15 @@ interface Snapshot { baseline: EmployeeDetail; view?: EmployeeDetail; status: Ai
 export function useAiRecommendations(api: CareerApi, baseline: EmployeeDetail | undefined, enabled: boolean) {
   const requests = useRef(createAiRecommendationRequest());
   const [snapshot, setSnapshot] = useState<Snapshot>();
+  const [revision, setRevision] = useState(0);
   const cancel = useCallback(() => {
     requests.current.cancel();
     setSnapshot(undefined);
+  }, []);
+  const retry = useCallback(() => {
+    requests.current.cancel();
+    setSnapshot(undefined);
+    setRevision((value) => value + 1);
   }, []);
 
   useEffect(() => {
@@ -27,8 +33,8 @@ export function useAiRecommendations(api: CareerApi, baseline: EmployeeDetail | 
         status: view?.recommendations.some((item) => item.explanationSource === "llm") ? "ready" : "fallback" }),
       () => setSnapshot({ baseline, status: "fallback" }));
     return () => request.cancel();
-  }, [api, baseline, enabled]);
+  }, [api, baseline, enabled, revision]);
 
   const current = enabled && snapshot?.baseline === baseline ? snapshot : undefined;
-  return { view: current?.view ?? baseline, status: current?.status ?? "idle", cancel };
+  return { view: current?.view ?? baseline, status: current?.status ?? "idle", cancel, retry };
 }
