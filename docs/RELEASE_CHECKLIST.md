@@ -39,7 +39,7 @@ Optional presentation preparation for the team: record a short backup demo using
 
 ## Known limitations
 
-- Authentication/authorization is not implemented. Employee/HR navigation is not access control; use a closed synthetic-data demo only.
+- Server sessions and own-only/HR authorization are implemented; see BACKEND_PRIVACY.md and PRIVACY_VALIDATION.md. Corporate SSO, recovery and consent-based peer sharing remain future deployment work. Use the synthetic dataset for the demo.
 - AI evidence validation checks schema, allowed references and required factors, not complete semantic truth.
 - Ranking weights are explicit heuristics. There is no measured claim of improved employee engagement.
 - Recommendations are alternatives for the next action, not a multi-step optimizer.

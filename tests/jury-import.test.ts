@@ -13,18 +13,24 @@ import { createCareerApi } from "@/lib/frontend/api";
 import { closeDatabase, databaseCounts, getDatabase } from "@/server/db/database";
 import { EmployeeRepository } from "@/server/repositories";
 import type { EmployeeDetail, HrSummaryResult } from "@/contracts/api";
+import { authHeaders, testIdentity, type TestIdentity } from "./helpers/auth";
 
 const employeeId = "JURY_DEMO_001";
 const profileJson = fs.readFileSync("docs/fixtures/jury-employee.json", "utf8");
 const historyCsv = fs.readFileSync("docs/fixtures/jury-history.csv", "utf8");
 let temporaryDirectory: string;
+let hrIdentity: TestIdentity;
+let employeeIdentity: TestIdentity | undefined;
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.stubEnv("OPENAI_API_KEY", "");
+  vi.stubEnv("APP_ORIGIN", "http://localhost");
   closeDatabase();
   temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "career-quest-jury-"));
   vi.stubEnv("CAREER_QUEST_DB_PATH", path.join(temporaryDirectory, "jury.sqlite"));
   vi.stubEnv("CAREER_QUEST_DATA_DIR", path.resolve("data"));
+  hrIdentity = await testIdentity();
+  employeeIdentity = undefined;
 });
 
 afterEach(() => {
@@ -34,7 +40,9 @@ afterEach(() => {
 });
 
 const fetcher: typeof fetch = async (url, init) => {
-  const request = new NextRequest("http://localhost" + String(url), { ...init, signal: init?.signal ?? undefined });
+  if (String(url).includes("/activities/") && !employeeIdentity) employeeIdentity = await testIdentity("employee", employeeId);
+  const identity = String(url).includes("/activities/") ? employeeIdentity! : hrIdentity;
+  const request = new NextRequest("http://localhost" + String(url), { ...init, signal: init?.signal ?? undefined, headers: authHeaders(identity, init?.headers) });
   const parts = request.nextUrl.pathname.split("/");
   if (parts[2] === "import") return importRoute(request);
   if (parts[2] === "hr") return hrRoute(request);
@@ -48,11 +56,11 @@ const fetcher: typeof fetch = async (url, init) => {
 async function upload(field: "employees" | "history", source: string, filename: string) {
   const form = new FormData();
   form.set(field, new File([source], filename));
-  return importRoute(new Request("http://localhost/api/import", { method: "POST", body: form }));
+  return importRoute(new Request("http://localhost/api/import", { method: "POST", body: form, headers: authHeaders(hrIdentity) }));
 }
 
 async function detail(): Promise<EmployeeDetail> {
-  const response = await employeeRoute(new Request("http://localhost"), { params: Promise.resolve({ employeeId }) });
+  const response = await employeeRoute(new Request("http://localhost", { headers: authHeaders(hrIdentity) }), { params: Promise.resolve({ employeeId }) });
   expect(response.status).toBe(200);
   return (await response.json()).data;
 }
@@ -84,7 +92,7 @@ describe("jury workflow: profile JSON, then history CSV", () => {
       event_id: "EV_001", status: "overdue", due_date: "2026-09-15", score: null, feedback_rating: null,
     })]);
     expect(imported.recommendations.every((item) => !["EV_001", "EV_005"].includes(item.eventId))).toBe(true);
-    const recommendations = await recommendationsRoute(new Request("http://localhost"), { params: Promise.resolve({ employeeId }) });
+    const recommendations = await recommendationsRoute(new Request("http://localhost", { headers: authHeaders(hrIdentity) }), { params: Promise.resolve({ employeeId }) });
     expect(recommendations.status).toBe(200);
     expect((await recommendations.json()).data).toEqual(imported);
 
@@ -101,7 +109,7 @@ describe("jury workflow: profile JSON, then history CSV", () => {
     for (const change of nextStep.expectedChanges) {
       expect(completed.effectiveSkills[change.skillId]).toBe(change.after);
     }
-    const summaryResponse = await hrRoute(new NextRequest("http://localhost/api/hr/summary?department=Jury%20Demo"));
+    const summaryResponse = await hrRoute(new NextRequest("http://localhost/api/hr/summary?department=Jury%20Demo", { headers: authHeaders(hrIdentity) }));
     const summary: HrSummaryResult = (await summaryResponse.json()).data;
     expect(summary).toMatchObject({ population: 1, totalActivities: 3, completionRate: 66.7 });
     expect(summary.participationByStatus).toMatchObject({ completed: 2, overdue: 1 });

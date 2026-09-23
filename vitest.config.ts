@@ -9,6 +9,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // SQLite fixtures and password derivation are memory intensive on demo laptops.
+    maxWorkers: 2,
     include: ["tests/**/*.test.ts"],
     sequence: { concurrent: false },
   },

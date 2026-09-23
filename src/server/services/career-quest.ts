@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 import type { CatalogResult, CompleteActivityResult, EmployeeCard, EmployeeDetail, HrSummaryResult } from "@/contracts/api";
 import { SNAPSHOT_DATE, REPEATABLE_EVENT_ID, type ActivityRecord } from "@/contracts/types";
-import { getEmployeeView } from "@/lib/recommendation";
+import { getEmployeeView, getRecommendationDiagnostics } from "@/lib/recommendation";
 import { normalizeDataset, type NormalizedDataset } from "@/lib/data/normalize";
 import { buildHrSummary } from "@/lib/analytics/hr-summary";
 import { applyAiExplanations, type RecommendationExplainer } from "@/lib/ai/explanations";
@@ -23,6 +23,8 @@ function employeeDetail(dataset: NormalizedDataset, employeeId: string): Employe
   const activityView = (record: ActivityRecord) => ({ ...record, eventTitle: dataset.eventById.get(record.event_id)?.title ?? record.event_id });
   return {
     ...view,
+    activityHistory: history.map(activityView),
+    recommendationDiagnostics: getRecommendationDiagnostics(dataset, employeeId),
     completedActivities: completed.map(activityView),
     activeMandatoryObligations: history.filter((record) =>
       record.status !== "completed" && dataset.eventById.get(record.event_id)?.mandatory &&
@@ -58,6 +60,8 @@ export async function getRecommendations(
   deadline = performance.now() + AI_REQUEST_BUDGET_MS,
 ): Promise<EmployeeDetail> {
   const detail = getEmployeeProjection(employeeId, db ?? getDatabase());
+  // Internal deployments can explicitly prohibit sending any evidence to an external model.
+  if (process.env.AI_EXPLANATIONS_ENABLED?.trim().toLowerCase() === "false") return detail;
   const remainingMs = deadline - performance.now();
   if (remainingMs <= 0 || !detail.recommendations.length) return detail;
   const provider = explainer ?? createOpenAIExplainer({

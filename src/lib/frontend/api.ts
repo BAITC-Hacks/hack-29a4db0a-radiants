@@ -24,7 +24,7 @@ export interface CareerApi {
 }
 export type EmployeeListItem = Pick<Employee, "employee_id" | "full_name" | "role">;
 export class ApiError extends Error {
-  constructor(message: string, public readonly status?: number) { super(message); this.name = "ApiError"; }
+  constructor(message: string, public readonly status?: number, public readonly code?: string) { super(message); this.name = "ApiError"; }
 }
 export class CompletionError extends Error {
   constructor(message: string, public readonly phase: "rejected" | "unknown" | "refresh") {
@@ -51,6 +51,7 @@ function backendMessage(body: unknown): string | undefined {
  */
 export function createCareerApi(options: {
   baseUrl?: string; fetcher?: typeof fetch; timeoutMs?: number;
+  csrfToken?: string; sessionSignal?: AbortSignal; onUnauthorized?: () => void;
 } = {}): CareerApi {
   const root = (options.baseUrl ?? "/api").replace(/\/$/, "");
   const fetcher = options.fetcher ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
@@ -59,13 +60,17 @@ export function createCareerApi(options: {
     const controller = new AbortController();
     let timedOut = false;
     const cancel = () => controller.abort();
-    if (signal?.aborted) controller.abort();
+    if (signal?.aborted || options.sessionSignal?.aborted) controller.abort();
     signal?.addEventListener("abort", cancel, { once: true });
+    options.sessionSignal?.addEventListener("abort", cancel, { once: true });
     const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
     try {
       const response = await fetcher(root + path, {
         ...init, signal: controller.signal, credentials: "same-origin",
-        headers: { Accept: "application/json", ...init.headers },
+        cache: "no-store",
+        headers: { Accept: "application/json",
+          ...(init.method && !["GET", "HEAD"].includes(init.method) && options.csrfToken ? { "X-CSRF-Token": options.csrfToken } : {}),
+          ...init.headers },
       });
       const text = await response.text();
       let body: unknown;
@@ -75,16 +80,20 @@ export function createCareerApi(options: {
           ? "The server did not return JSON. Check that the backend API is available."
           : `Request failed (${response.status}).`, response.status); }
       }
-      if (!response.ok) throw new ApiError(backendMessage(body) ?? `Request failed (${response.status}).`, response.status);
+      if (controller.signal.aborted) throw new DOMException("Request cancelled", "AbortError");
+      if (response.status === 401) options.onUnauthorized?.();
+      if (!response.ok) throw new ApiError(backendMessage(body) ?? `Request failed (${response.status}).`, response.status,
+        object(body) && object(body.error) && typeof body.error.code === "string" ? body.error.code : undefined);
       return object(body) && "data" in body ? body.data : body;
     } catch (error) {
-      if (signal?.aborted) throw new DOMException("Request cancelled", "AbortError");
+      if (signal?.aborted || options.sessionSignal?.aborted) throw new DOMException("Request cancelled", "AbortError");
       if (timedOut) throw new ApiError("The request timed out. Please try again.");
       if (error instanceof ApiError) throw error;
       throw new ApiError("Could not reach the server. Please check your connection and try again.");
     } finally {
       clearTimeout(timeout);
       signal?.removeEventListener("abort", cancel);
+      options.sessionSignal?.removeEventListener("abort", cancel);
     }
   }
   function invalid(): never { throw new ApiError("The server returned an unexpected response. Please retry or contact your team."); }
