@@ -1,0 +1,109 @@
+/* Readable presentation, async states and completion feedback. */
+button:disabled { cursor: not-allowed; opacity: .6; transform: none; }
+.page-heading p, .subline, .select-wrap select, .nav-link, .button { font-size: 13px; }
+.eyebrow, .field-label, .id-label, .path-caption { font-size: 10px; }
+.field-label { line-height: 1.4; }
+.role-pair strong { font-size: 13px; white-space: normal; }
+.role-pair { gap: 14px; }
+.grade-tag, .count-pill, .ai-pill { font-size: 11px; }
+.profile-main h2 { font-size: 19px; }
+.section-header h2 { font-size: 18px; }
+.readiness-copy h3 { font-size: 14px; }
+.readiness-copy p, .readiness-copy small { font-size: 12px; line-height: 1.4; }
+.ring { width: 96px; height: 96px; }
+.ring strong { font-size: 22px; }
+.ring > div span { font-size: 12px; }
+.readiness-progress { width: 100%; height: 7px; border: 0; border-radius: 5px; background: #edf1ef; color: #27886a; }
+.readiness-progress::-webkit-progress-bar { background: #edf1ef; border-radius: 5px; }
+.readiness-progress::-webkit-progress-value { background: #27886a; border-radius: 5px; transition: width .25s ease; }
+.readiness-progress::-moz-progress-bar { background: #27886a; border-radius: 5px; }
+.path-panel { padding-bottom: 31px; }
+.path-node { min-width: 0; flex: 1; }
+.path-node > div { display: flex; flex-direction: column; min-width: 0; }
+.path-node strong { font-size: 13px; }
+.path-node small { font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.path-caption { position: static; grid-column: 2; font-size: 9px; margin-top: 4px; }
+.path-line { flex: .25; }
+.skill-title { font-size: 13px; gap: 8px; }
+.skill-values { font-size: 11px; gap: 12px; line-height: 1.5; }
+.skill-values b { font-size: 12px; }
+.gap-badge, .tiny-critical { font-size: 10px; white-space: nowrap; }
+.skill-track { margin-top: 14px; margin-bottom: 10px; }
+.section-note, .rec-meta, .rec-rank, .impact-label { font-size: 11px; line-height: 1.4; }
+.score { font-size: 16px; }
+.score small { font-size: 10px; }
+.recommendation-card h3 { font-size: 17px; margin-top: 7px; line-height: 1.35; }
+.impact-line { font-size: 13px; gap: 12px; flex-wrap: wrap; }
+.impact-line strong { font-size: 14px; }
+.impact-line strong small { font-size: 11px; }
+.why-heading { font-size: 11px; }
+.why-block li, .why-block > p, .history-signal { font-size: 12px; line-height: 1.5; }
+.why-block ul { gap: 5px; }
+.history-signal { margin-top: 8px; }
+.ai-insight { border-left: 3px solid #79ac99; margin: 14px 0; padding: 0 12px; }
+.ai-insight h4 { font-size: 12px; margin: 0 0 5px; }
+.ai-insight p { margin: 0; font-size: 12px; line-height: 1.5; color: #4e655b; white-space: pre-wrap; }
+.no-recs h3 { font-size: 16px; margin: 14px 0 8px; }
+.no-recs p, .empty-state p { font-size: 13px; max-width: 370px; }
+.loading-state, .error-state { padding: 24px; margin-bottom: 16px; }
+.loading-state { color: #547167; }
+.loading-state p { font-size: 14px; }
+.error-state h2 { font-size: 17px; margin: 0 0 10px; }
+.error-state p { font-size: 13px; line-height: 1.5; }
+.error-state { border-left: 3px solid #bd7967; }
+.skeleton { height: 16px; border-radius: 5px; background: #eaf0ec; margin-top: 14px; max-width: 620px; }
+.skeleton.short { max-width: 370px; }
+.spin { animation: turn 1s linear infinite; }
+@keyframes turn { to { transform: rotate(360deg); } }
+.completion-feedback { border: 1px solid #bedacb; background: #ecf6f0; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
+.completion-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.completion-heading h2 { font-size: 17px; margin: 0; }
+.completion-heading p { margin: 5px 0 12px; font-size: 13px; line-height: 1.5; }
+.completion-readiness { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; font-size: 13px; }
+.completion-readiness strong { font-size: 18px; color: #16684c; }
+.completion-readiness > span { color: #286e54; font-size: 12px; }
+.completion-skills { padding: 0; list-style: none; display: grid; gap: 6px; margin-bottom: 0; }
+.completion-skills li { display: flex; justify-content: space-between; max-width: 470px; gap: 14px; font-size: 13px; }
+.inline-success { background: #eaf5ef; color: #20634c; border-radius: 8px; padding: 13px; font-size: 13px; margin: 14px 0; }
+.metric-grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.metric-label { font-size: 13px; }
+.api-gap-row { grid-template-columns: 1fr auto; gap: 15px; border-bottom: 1px solid #edf1ef; padding-bottom: 12px; }
+.api-gap-row > strong, .gap-count { font-size: 13px; }
+.gap-count small { font-size: 11px; }
+.followup-name strong { font-size: 13px; }
+.followup-name small, .reason-tag { font-size: 11px; }
+.followup-row { padding: 12px 0; }
+.table-wrap th, .table-wrap td { font-size: 12px; line-height: 1.5; padding: 10px; }
+.table-wrap tbody th { border-top: 1px solid #eff2f0; min-width: 230px; }
+.table-wrap tbody th strong, .table-wrap tbody th small { display: block; font-size: 12px; letter-spacing: normal; }
+.table-wrap tbody th strong { color: #43524b; }
+.table-wrap tbody th small { font-weight: 400; }
+.table-note { font-size: 11px; color: #647970; }
+.import-dialog { border: 1px solid #dce7e0; max-height: calc(100dvh - 40px); overflow: auto; color: #1c2927; }
+.import-dialog::backdrop { background: #15241f75; }
+.dialog-copy { font-size: 13px; }
+.dropzone strong { overflow-wrap: anywhere; max-width: 100%; font-size: 14px; }
+.dropzone > span { font-size: 12px; }
+.import-error, .import-warnings { font-size: 13px; line-height: 1.5; }
+.import-progress { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.import-warnings { margin-top: 14px; padding: 12px; background: #faf5eb; border-radius: 8px; }
+.import-warnings ul { padding-left: 20px; margin-bottom: 0; }
+@media (max-width: 620px) {
+  .nav-link, .top-import { font-size: 0; }
+  .page-heading { align-items: stretch; }
+  .section-header { gap: 8px; }
+  .section-header h2 { font-size: 17px; }
+  .role-pair { flex-wrap: wrap; }
+  .role-pair > div { flex: 1; }
+  .skill-title, .skill-values { align-items: flex-start; }
+  .skill-values > span:last-child { white-space: nowrap; }
+  .reason-tag, .reason-tag:first-letter { font-size: 10px; }
+  .hr-gap-row > strong { font-size: 13px; }
+  .completion-readiness { gap: 8px; }
+  .ring { width: 90px; height: 90px; }
+  .readiness-copy small { font-size: 11px; }
+  .select-wrap { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

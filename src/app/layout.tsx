@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "../styles/global.css";
+import "../styles/presentation.css";
 
 export const metadata: Metadata = {
   title: "Career Quest",
