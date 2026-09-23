@@ -139,6 +139,11 @@ export class EmployeeRepository {
     return Boolean(this.db.prepare("SELECT 1 FROM employees WHERE employee_id = ?").get(employeeId));
   }
 
+  setCareerGoal(employeeId: string, goal: Employee["career_goal"]): void {
+    this.db.prepare("UPDATE employees SET career_goal_json = ? WHERE employee_id = ?")
+      .run(goal === null ? null : JSON.stringify(goal), employeeId);
+  }
+
   upsert(employee: Employee): "inserted" | "updated" {
     const existed = this.exists(employee.employee_id);
     this.db

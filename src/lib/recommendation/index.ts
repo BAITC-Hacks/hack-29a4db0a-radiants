@@ -20,6 +20,13 @@ const RECENT_HISTORY_DAYS = 365;
 
 export type RecommendationExclusionCode = "mandatory" | "audience" | "prerequisites" | "unavailable" | "completed" | "in_progress" | "no_gap_reduction";
 export interface RecommendationExclusion { code: RecommendationExclusionCode; message: string }
+export type CompletionExclusionCode = "audience" | "prerequisites" | "unavailable" | "completed" | "invalid_completion_date" | "employee_not_found" | "event_not_found";
+export interface CompletionExclusion { code: CompletionExclusionCode; message: string }
+export interface CompletionEligibility {
+  eligible: boolean;
+  completionDate?: string;
+  reasons: CompletionExclusion[];
+}
 export interface RecommendationDiagnostics {
   status: "available" | "needs_career_goal" | "target_reached" | "no_eligible_events";
   summary: string;
@@ -108,6 +115,57 @@ export function getRecommendations(
   });
 
   return getEmployeeView(dataset, employee.employee_id);
+}
+
+/**
+ * Validate the facts needed to record a completion, independently of recommendation rank.
+ * Mandatory and already in-progress activities can be completed; a target gap is not required.
+ * The caller still owns HTTP errors, persistence and the transaction around this check.
+ */
+export function getCompletionEligibility(
+  dataset: NormalizedDataset,
+  employeeId: string,
+  eventId: string,
+  completedAt?: string,
+): CompletionEligibility {
+  const employee = dataset.employeeById.get(employeeId);
+  if (!employee) return { eligible: false, reasons: [{ code: "employee_not_found", message: `Unknown employee: ${employeeId}.` }] };
+  const event = dataset.eventById.get(eventId);
+  if (!event) return { eligible: false, reasons: [{ code: "event_not_found", message: `Unknown activity: ${eventId}.` }] };
+
+  const target = resolveTarget(employee, dataset) ?? { role: employee.role, grade: employee.grade };
+  const skills = reconstructEffectiveSkills(employee, dataset);
+  const history = dataset.historyByEmployeeId.get(employeeId) ?? [];
+  const futureSessions = event.upcoming_sessions.filter((date) => isCalendarDate(date) && date >= SNAPSHOT_DATE).sort();
+  const reasons: CompletionExclusion[] = [];
+  for (const reason of eligibilityExclusions(event, employee, target, skills, history, futureSessions[0], dataset.skillById)) {
+    if (reason.code !== "mandatory" && reason.code !== "in_progress" && reason.code !== "no_gap_reduction") {
+      reasons.push({ code: reason.code, message: reason.message });
+    }
+  }
+
+  if (completedAt !== undefined) {
+    if (!isCalendarDate(completedAt)) {
+      reasons.push({ code: "invalid_completion_date", message: "Completion date must be a real calendar date in YYYY-MM-DD format." });
+    } else if (completedAt < SNAPSHOT_DATE) {
+      reasons.push({ code: "invalid_completion_date", message: `Completion date must be on or after ${SNAPSHOT_DATE}.` });
+    } else if (event.format !== "self_paced" && !futureSessions.includes(completedAt)) {
+      reasons.push({ code: "invalid_completion_date", message: "A scheduled activity can only be completed on one of its available session dates." });
+    }
+  }
+
+  if (reasons.length > 0) return { eligible: false, reasons };
+  return {
+    eligible: true,
+    completionDate: completedAt ?? (event.format === "self_paced" ? SNAPSHOT_DATE : futureSessions[0]),
+    reasons: [],
+  };
+}
+
+function isCalendarDate(value: string): boolean {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 /** Explain the same eligibility checks used for recommendations without relaxing them. */
