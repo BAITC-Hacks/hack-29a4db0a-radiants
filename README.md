@@ -10,7 +10,7 @@ With Docker and Compose installed:
 docker compose up --build
 ```
 
-Open http://localhost:3000. Healthcheck creates and seeds the database automatically: 200 employees, 40 events, 60 skills, 32 role profiles and 2,743 history records. Restarting or recreating the container retains subsequent changes in the named volume.
+Open http://localhost:3000. Start Docker Desktop first on Windows. Healthcheck creates and seeds the database automatically: 200 employees, 40 events, 60 skills, 32 role profiles and 2,743 history records. Restarting or recreating the container retains subsequent changes in the named volume. Frontend, API and SQLite run in this one service; no separate Node or database startup is required. Set `APP_PORT=3001` in `.env` if port 3000 is occupied.
 
 Stop: `docker compose down`. Explicitly reset demo data: `docker compose down -v` (deletes the volume).
 
@@ -53,7 +53,7 @@ Official JSON files + parsed CSV
 - Backend: `src/server`, `src/app/api`, `src/contracts`, dependencies, application config and Docker.
 - Frontend: `src/components`, `src/styles`, `src/lib/frontend` and application pages.
 
-The frontend API branch at 92dd0fd is included, preserving its cancellation, mutation recovery and decimal progress components. The separate backend domain implementation has been removed. Shared domain types are not redefined; `src/contracts/types.ts` re-exports them. Public API extensions are in `src/contracts/api.ts`.
+The teammate's refined frontend design is included, preserving cancellation, mutation recovery and decimal progress components. Shared domain types are not redefined; `src/contracts/types.ts` re-exports them. Public API extensions are in `src/contracts/api.ts`.
 
 Completion appends one `LOCAL_<uuid>` history record in a transaction, then rebuilds the shared view. It does not increment assessed `employee.skills`. Teaching caps limit gains without lowering existing attained skills. Availability uses the fixed snapshot `2026-10-01`.
 
@@ -92,7 +92,9 @@ The provider has an 8-second deadline. The route starts a 9.5-second budget befo
 
 Set server-only `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in the ignored `.env`. Both `docker compose up --build` and local Next.js development load it. If using `.env.local` instead, pass `docker compose --env-file .env.local up --build`. Recreate the container to apply changed environment values. Env files are excluded from Git and the Docker build context. Do not expose a key through `NEXT_PUBLIC_*` or `VITE_*`. The default model is `gpt-6-astra`, with low reasoning effort for this bounded explanation task.
 
-`npm test` uses mocked transports and skips live checks. `npm run test:ai-live` explicitly makes billed requests against the official synthetic dataset in a temporary SQLite database, and fails if it receives fallback. Use `npm run test:ai-live -- -t E0178` for one request. See [AI verification](docs/AI_VERIFICATION.md). Frontend must fetch the AI endpoint separately and discard stale responses after selection, completion or import; the initial profile must not wait for the model. The frontend currently in this branch renders AI text when supplied, but does not yet fetch that endpoint separately.
+The frontend fetches AI explanations separately while the deterministic plan stays usable. Selection, completion, navigation and import cancel outstanding requests. Late responses are discarded, including same-employee responses with old evidence; only explanation text and source can change. Cards label AI-assisted and rule-based explanations separately. Completed activities and active mandatory obligations remain visible independently of recommendations.
+
+`npm test` uses mocked transports and skips live checks. `npm run test:ai-live` explicitly makes billed requests against the official synthetic dataset in a temporary SQLite database, and fails if it receives fallback. Use `npm run test:ai-live -- -t E0178` for one request. See [AI verification](docs/AI_VERIFICATION.md).
 
 ## Environment
 
@@ -103,7 +105,9 @@ Defaults: `CAREER_QUEST_DB_PATH=.data/career-quest.sqlite`, `CAREER_QUEST_DATA_D
 1. Open E0178 on a clean database: readiness 71.3%.
 2. Complete EV_005: skills refresh, readiness becomes 74.1%, API Design stays at 4.
 3. Reload: the completed history and updated progress remain.
-4. Import an additional profile, optionally with its history in the same request.
+4. Import [jury-employee.json](docs/fixtures/jury-employee.json), then [jury-history.csv](docs/fixtures/jury-history.csv) using **Import another file**. Jury Demo changes from 71.3% to 74.1%; completed and overdue mandatory activity history appears.
 5. Open HR: official population, gaps, all employees without steps, and all activity participation rows are accessible.
 
 Starter data is synthetic. Authentication is outside this MVP: employee/HR views are logically separated but not protected by an authorization layer. Employee listing and catalog endpoints do not expose engagement history.
+
+See [the 3–5 minute demo and startup guide](docs/DEMO.md) and [the frontend API contract](docs/FRONTEND_API.md).

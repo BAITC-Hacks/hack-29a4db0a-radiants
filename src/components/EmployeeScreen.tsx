@@ -1,5 +1,6 @@
 import { LoaderCircle, X } from "lucide-react";
 import type { EmployeeView, Recommendation, SkillGap } from "../types/career";
+import type { ActivityView, EmployeeDetail } from "../contracts/api";
 import type { CompletionError } from "../lib/frontend/api";
 import { NoNextStepState } from "./NoNextStepState";
 import { EmptyState, formatNumber } from "./States";
@@ -7,7 +8,8 @@ import { formatReadiness, formatReadinessDelta, readinessBarValue, readinessDelt
 
 export interface CompletionSnapshot { before: EmployeeView; after: EmployeeView }
 interface Props {
-  view: EmployeeView; completing: boolean; completionDisabled: boolean; completion: CompletionSnapshot | null;
+  view: EmployeeView & Partial<Pick<EmployeeDetail, "completedActivities" | "activeMandatoryObligations">>;
+  completing: boolean; completionDisabled: boolean; completion: CompletionSnapshot | null;
   failure: CompletionError | null; onRefresh: () => void; onComplete: (recommendation: Recommendation) => void;
   onDismissCompletion: () => void;
 }
@@ -53,7 +55,40 @@ export function EmployeeScreen({ view, completing, completionDisabled, completio
             busy={completing} disabled={completionDisabled} onComplete={() => onComplete(recommendation)} />)}</div> : <NoNextStepState view={view} />}
       </section>
     </div>
+    <div className="employee-activity-grid">
+      {view.activeMandatoryObligations && <section className="activity-section" aria-labelledby="mandatory-heading">
+        <div className="section-header"><h2 id="mandatory-heading">Mandatory obligations</h2><p className="section-note">Required activities, separate from career recommendations</p></div>
+        {view.activeMandatoryObligations.length
+          ? <ActivityTable activities={view.activeMandatoryObligations} mandatory />
+          : <EmptyState text="No active mandatory obligations." />}
+      </section>}
+      {view.completedActivities && <section className="activity-section" aria-labelledby="completed-heading">
+        <div className="section-header"><h2 id="completed-heading">Completed activities</h2><p className="section-note">Recorded activity history</p></div>
+        {view.completedActivities.length
+          ? <ActivityTable activities={view.completedActivities} />
+          : <EmptyState text="No completed activities recorded." />}
+      </section>}
+    </div>
   </>;
+}
+
+const activityStatusLabels: Record<ActivityView["status"], string> = {
+  completed: "Completed", in_progress: "In progress", dropped: "Dropped",
+  no_show: "No-show", declined: "Declined", overdue: "Overdue",
+};
+function ActivityTable({ activities, mandatory = false }: { activities: ActivityView[]; mandatory?: boolean }) {
+  return <div className="table-wrap" role="region" aria-label={mandatory ? "Mandatory activity records" : "Completed activity records"} tabIndex={0}>
+    <table className="activity-table">
+      <thead><tr><th scope="col">Activity</th><th scope="col">{mandatory ? "Recorded date" : "Completed date"}</th><th scope="col">Status</th><th scope="col">Completion</th>{mandatory && <th scope="col">Due date</th>}</tr></thead>
+      <tbody>{[...activities].sort((a, b) => b.date.localeCompare(a.date)).map((activity) => <tr key={activity.record_id}>
+        <th scope="row">{activity.eventTitle}<small>{activity.event_id}</small></th>
+        <td><time dateTime={activity.date}>{activity.date}</time></td>
+        <td><span className={activity.status === "overdue" ? "activity-overdue" : undefined}>{activityStatusLabels[activity.status]}</span></td>
+        <td className="number">{formatNumber(activity.completion_pct)}%</td>
+        {mandatory && <td>{activity.due_date ? <time dateTime={activity.due_date}>{activity.due_date}</time> : "Not provided"}</td>}
+      </tr>)}</tbody>
+    </table>
+  </div>;
 }
 
 function SkillRow({ gap }: { gap: SkillGap }) {
@@ -66,6 +101,7 @@ function SkillRow({ gap }: { gap: SkillGap }) {
 function RecommendationCard({ recommendation: rec, rank, view, busy, disabled, onComplete }: {
   recommendation: Recommendation; rank: number; view: EmployeeView; busy: boolean; disabled: boolean; onComplete: () => void;
 }) {
+  const hasAiExplanation = rec.explanationSource === "llm" && Boolean(rec.aiExplanation?.trim());
   return <article className={`recommendation-card ${rank === 1 ? "top-recommendation" : ""}`}>
     <div className="rec-topline"><span>Step {rank}</span><span>Score {formatNumber(rec.score)}</span></div>
     <h3>{rec.title}</h3>
@@ -77,10 +113,10 @@ function RecommendationCard({ recommendation: rec, rank, view, busy, disabled, o
       </div>)}
     </div>}
     <div className="why-block"><h4>Why this step</h4>
-      {rec.reasons.length ? <ul>{rec.reasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul> : rec.deterministicExplanation && <p>{rec.deterministicExplanation}</p>}
+      {rec.reasons.length > 0 && <ul>{rec.reasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
       {rec.historySignal && <p className="history-signal">{rec.historySignal}</p>}
     </div>
-    {rec.aiExplanation?.trim() && <aside className="ai-explanation"><h4>AI-assisted explanation</h4><p>{rec.aiExplanation}</p></aside>}
+    <aside className="recommendation-explanation"><h4>{hasAiExplanation ? "AI-assisted explanation" : "Rule-based explanation"}</h4><p>{hasAiExplanation ? rec.aiExplanation : rec.deterministicExplanation}</p></aside>
     <button className={`button ${rank === 1 ? "button-green" : "button-outline"} complete-button`} disabled={disabled} onClick={onComplete}>
       {busy && <LoaderCircle className="spin" size={15} />}{busy ? "Updating profile…" : "Complete activity"}
     </button>

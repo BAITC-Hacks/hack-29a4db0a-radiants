@@ -1,4 +1,5 @@
 import type { Employee, EmployeeView, Recommendation } from "../../types/career";
+import type { ActivityView, EmployeeDetail } from "../../contracts/api";
 import type { EmployeeListItem, HrSummaryResponse, ImportResult } from "./api";
 
 type ObjectValue = Record<string, unknown>;
@@ -33,9 +34,24 @@ function isRecommendation(value: unknown): value is Recommendation {
     strings(value.reasons) && text(value.historySignal) && optionalText(value.nextSession) &&
     optionalText(value.aiExplanation) && text(value.deterministicExplanation) &&
     ["llm", "fallback"].includes(String(value.explanationSource)) &&
+    (value.explanationSource !== "llm" || (text(value.aiExplanation) && !!value.aiExplanation.trim())) &&
     Array.isArray(value.expectedChanges) && value.expectedChanges.every((change) =>
       object(change) && text(change.skillId) && level(change.before) && level(change.after) &&
       level(change.required) && typeof change.critical === "boolean");
+}
+function isActivityView(value: unknown): value is ActivityView {
+  return object(value) && text(value.record_id) && text(value.employee_id) && text(value.event_id) &&
+    text(value.eventTitle) && text(value.date) && (value.due_date === null || text(value.due_date)) && percent(value.completion_pct) &&
+    ["completed", "in_progress", "dropped", "no_show", "declined", "overdue"].includes(String(value.status)) &&
+    (value.score === null || number(value.score)) &&
+    (value.feedback_rating === null || number(value.feedback_rating)) &&
+    ["self", "manager", "hr"].includes(String(value.assigned_by));
+}
+export function isEmployeeDetail(value: unknown): value is EmployeeDetail {
+  if (!isEmployeeView(value)) return false;
+  const detail = value as unknown as ObjectValue;
+  return Array.isArray(detail.completedActivities) && detail.completedActivities.every(isActivityView) &&
+    Array.isArray(detail.activeMandatoryObligations) && detail.activeMandatoryObligations.every(isActivityView);
 }
 export function isEmployeeView(value: unknown): value is EmployeeView {
   return object(value) && isEmployee(value.employee) && percent(value.readiness) &&

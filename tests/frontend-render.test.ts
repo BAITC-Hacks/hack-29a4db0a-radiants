@@ -7,9 +7,10 @@ import { normalizeDataset } from "../src/lib/data/normalize";
 import { getEmployeeView } from "../src/lib/recommendation";
 import { demoDataset } from "./fixtures/career-dataset";
 import { CompletionError } from "../src/lib/frontend/api";
+import type { ActivityView, EmployeeDetail } from "../src/contracts/api";
 
 const profile = () => getEmployeeView(normalizeDataset(structuredClone(demoDataset)), "EMP-014");
-const screen = (view: ReturnType<typeof profile>) => renderToStaticMarkup(createElement(EmployeeScreen, {
+const screen = (view: ReturnType<typeof profile> & Partial<Pick<EmployeeDetail, "completedActivities" | "activeMandatoryObligations">>) => renderToStaticMarkup(createElement(EmployeeScreen, {
   view, completing: false, completionDisabled: false, completion: null, failure: null,
   onRefresh() {}, onComplete() {}, onDismissCompletion() {},
 }));
@@ -20,6 +21,7 @@ describe("presentation of trusted EmployeeView values", () => {
     view.skillGaps[0]!.projectedLevel = 3.5;
     view.recommendations[0]!.reasons = ["Reason one", "Reason two", "Reason three", "Reason four"];
     view.recommendations[0]!.aiExplanation = "Supplied AI insight";
+    view.recommendations[0]!.explanationSource = "llm";
     const html = screen(view);
     expect(html).toContain("64.2%");
     expect(html).toContain("Current progress");
@@ -36,11 +38,64 @@ describe("presentation of trusted EmployeeView values", () => {
   it("works without AI text and escapes any supplied HTML", () => {
     const view = profile();
     view.recommendations[0]!.aiExplanation = " ";
+    view.recommendations[0]!.explanationSource = "llm";
     view.recommendations[0]!.reasons = ["<script>injected()</script>"];
     const html = screen(view);
     expect(html).not.toContain("AI-assisted explanation");
+    expect(html).toContain("Rule-based explanation");
     expect(html).toContain("&lt;script&gt;");
     expect(html).not.toContain("<script>");
+  });
+  it("does not label stale AI text as trusted when the source is fallback", () => {
+    const view = profile();
+    view.recommendations.forEach((rec) => { rec.explanationSource = "fallback"; });
+    view.recommendations[0]!.aiExplanation = "Untrusted stale AI text";
+    view.recommendations[0]!.deterministicExplanation = "Verified rule-based evidence";
+    const html = screen(view);
+    expect(html).toContain("Rule-based explanation");
+    expect(html).toContain("Verified rule-based evidence");
+    expect(html).not.toContain("AI-assisted explanation");
+    expect(html).not.toContain("Untrusted stale AI text");
+  });
+  it("shows completed history and mandatory obligations from EmployeeDetail in separate tables", () => {
+    const record: ActivityView = {
+      record_id: "REC-OLD", employee_id: "EMP-014", event_id: "EV-RECORDED", eventTitle: "Recorded course",
+      date: "2026-09-01", due_date: null, status: "completed", completion_pct: 100,
+      score: null, feedback_rating: null, assigned_by: "self",
+    };
+    const view: EmployeeDetail = {
+      ...profile(), completedActivities: [record, { ...record, record_id: "REC-NEW", eventTitle: "Latest recorded course", date: "2026-10-01" }],
+      activeMandatoryObligations: [
+        { ...record, record_id: "MANDATORY-OVERDUE", event_id: "EV-REQUIRED", eventTitle: "Required compliance", status: "overdue", completion_pct: 25, due_date: "2026-09-30" },
+        { ...record, record_id: "MANDATORY-ACTIVE", eventTitle: "Required onboarding", status: "in_progress", completion_pct: 50 },
+      ],
+    };
+    const original = structuredClone(view);
+    const html = screen(view);
+    expect(html).toContain("Completed activities");
+    expect(html).toContain("Mandatory obligations");
+    expect(html).toContain("Required activities, separate from career recommendations");
+    expect(html).toContain('aria-label="Mandatory activity records"');
+    expect(html).toContain('aria-label="Completed activity records"');
+    expect(html).toContain("Required compliance");
+    expect(html).toContain("Overdue");
+    expect(html).toContain("In progress");
+    expect(html).toContain("25%");
+    expect(html).toContain("100%");
+    expect(html).toContain('<time dateTime="2026-09-30">2026-09-30</time>');
+    expect(html).toContain("Not provided");
+    const completedTable = html.slice(html.indexOf('aria-label="Completed activity records"'));
+    expect(completedTable.indexOf("Latest recorded course")).toBeLessThan(completedTable.indexOf('scope="row">Recorded course'));
+    expect(view).toEqual(original);
+    expect(html.split("Complete activity").length - 1).toBe(view.recommendations.length);
+  });
+  it("shows history empty states only for supplied empty arrays", () => {
+    const html = screen({ ...profile(), completedActivities: [], activeMandatoryObligations: [] });
+    expect(html).toContain("No completed activities recorded.");
+    expect(html).toContain("No active mandatory obligations.");
+    const legacyHtml = screen(profile());
+    expect(legacyHtml).not.toContain("No completed activities recorded.");
+    expect(legacyHtml).not.toContain("No active mandatory obligations.");
   });
   it("shows a neutral empty state without inventing a catalog or grade reason", () => {
     const view = profile();

@@ -1,81 +1,40 @@
 # Frontend API handoff
 
-## Integration update — feature/backend-docker
+The React interface runs inside Next.js and uses relative `/api/...` requests. SQLite is the source of truth. The optional Vite development entry proxies API requests to the same Next.js server; it is not a second backend.
 
-The frontend branch at `92dd0fd` is now included in the Next.js/SQLite integration. The provisional routes below describe the original proposal. The active transport in `src/lib/frontend/api.ts` now unwraps `{ data }`, maps compact employee cards, posts completion to `/api/employees/:id/activities/:eventId/complete`, extracts `data.view`, and uploads JSON as `employees` or CSV as `history`. HR metrics map server population and completion rate without recalculating them. See `docs/BACKEND_HANDOFF.md` and README for the current HTTP contract. A frontend-to-real-route integration test covers listing, profile, completion and import against temporary SQLite. `src/types/career.ts` and the frontend's recovery/precision logic remain unchanged.
+## Current HTTP contract
 
-## Status
+All successful responses are `{ data: ... }`. Errors are `{ error: { code, message, details } }`. Shared types live in `src/types/career.ts`; server response extensions live in `src/contracts/api.ts`.
 
-The React/Vite frontend now uses HTTP exclusively. No domain engine, dataset, file parser, or local-storage persistence is bundled into the application. Shared `Employee`, `EmployeeView`, and `HrSummary` are imported as types. Domain code and PR #1 tests are unchanged.
+| Endpoint | Data |
+| --- | --- |
+| GET `/api/employees` | `{ items: EmployeeCard[], total }` |
+| GET `/api/employees/:id` | Deterministic `EmployeeDetail` |
+| GET `/api/employees/:id/recommendations` | The same `EmployeeDetail` with optional validated AI explanation text |
+| POST `/api/employees/:id/activities/:eventId/complete` | `{ activity, view: EmployeeDetail, progress: { before, after, delta } }` |
+| POST `/api/import` | `{ employeesInserted, employeesUpdated, historyInserted, historySkipped, employeeIds }` |
+| GET `/api/hr/summary` | Shared HR summary with server-calculated population, completion rate and participation aggregates |
 
-## Progress display contract
+Encode employee/event IDs as URL path segments. Completion sends `{}` for demo date defaults. Import sends the original file as multipart field `employees` for JSON or `history` for CSV. Import JSON first for a new employee, then their CSV history; each upload is a separate atomic request. Official skill/event catalogs are initialized by the server and are not replaced through this UI.
 
-The follow-up audit rechecked the requirements, `docs/PROGRESS_VALIDATION.md`, PR #1's `cd2bc40` update, and current remote branches. The shared view shape and progression formulas remain unchanged.
+## Fast profile, asynchronous explanations
 
-- `employee.skills` is assessed baseline. Completion must append history server-side and return/refetch a recomputed view; the frontend replaces the view without increasing baseline skills.
-- In the actual `calculateSkillGaps` implementation, **`currentLevel` already comes from `effectiveSkills`**; `projectedLevel` is currently initialized to the same value. The task's conditional example of currentLevel being assessed does not apply to this revision. UI labels are **Current progress**, **Projected**, **Required**, rendering each supplied field independently.
-- Recommendation `expectedChanges` are previews. Completion feedback compares actual old/new `effectiveSkills`, even if the result differs from the preview.
-- `src/lib/frontend/readiness.ts` owns readiness labels, delta precision and visual bounds. Numeric labels and accessible progress text use at most one decimal. Delta is normalized to one decimal before choosing positive/negative/zero feedback; zero reports the unchanged readiness without a +0 achievement. Differences are labeled **percentage points** to distinguish an absolute change in readiness from relative percentage growth.
-- Only progress geometry is clamped to 0–100; the returned value and state are unchanged. HTTP response validation continues to reject invalid out-of-range readiness.
-- Rejected completion retains the old profile. Uncertain network/server outcomes still require reloading rather than claiming that no server write occurred.
+Render the deterministic profile or completion response immediately. Request the recommendation endpoint separately. It uses persisted server data, never a browser-supplied dataset. Preserve the deterministic view while it loads or fails.
 
-Follow-up checks: TypeScript, lint, all **52 tests** (including unchanged PR #1 tests) and production build pass. New regressions cover 64/64.2 formatting, 64.2 → 71.5 (+7.3), negative and zero deltas, floating point noise, accessible labels, frozen assessed skills and rejected/pending completion. In the built UI with the temporary fixture server, a rejected request retained 87.5%; a delayed successful request disabled the CTA and retained 87.5% until the response, then showed 100%, +12.5 percentage points, actual skill 3 → 4, and NoNextStepState. No console errors or warnings were captured.
+The AI result may update only explanation fields for the matching employee and current deterministic snapshot. Abort/discard old requests after employee selection, screen change, completion or import. An older result for the same employee must not overwrite a newer completion. `explanationSource: "llm"` with nonempty `aiExplanation` identifies AI text; `fallback` uses the deterministic explanation. The server caps its provider at 8 seconds and the request budget at 9.5 seconds.
 
-**These routes are a proposed integration contract, not an existing server.** At implementation time `main` was `1bf2026`; the published starter adapter branch supplied pure data conversion but no HTTP routes. Backend should implement the routes below or update only `src/lib/frontend/api.ts` to match its routes/envelopes.
+## Progress, history and recovery
 
-## HTTP contract
+- EmployeeDetail extends EmployeeView with `completedActivities` and `activeMandatoryObligations`. Display them separately; mandatory events never enter career recommendations.
+- Render readiness with at most one decimal. Completion feedback uses the actual before/after response and percentage-point delta.
+- Skills and ranking are computed by the server. Never increment assessed `employee.skills` in the browser.
+- Recommendation expectedChanges are previews. Compare effectiveSkills before/after completion for actual progress.
+- On an uncertain completion outcome, reload the profile rather than automatically retrying the POST. Duplicate non-repeatable completion is rejected by the server.
+- Import success with a failed profile refresh retries the read, not the already committed upload.
+- HR renders server aggregates; navigation separation is not real authorization in this hackathon MVP.
 
-Default prefix: `/api`. Successful bodies are JSON unless explicitly listed as empty.
+## Local commands
 
-| Method and path | Request | Response |
-| --- | --- | --- |
-| GET `/employees` | — | `Employee[]` from `src/types/career.ts` |
-| GET `/employees/:employeeId` | URL-encoded ID | `EmployeeView` from the shared types |
-| POST `/activities/complete` | JSON `{ employeeId, eventId }` | Updated `EmployeeView`, `{ success: true }`, or empty 2xx/204 |
-| POST `/import` | Multipart form field `file`; original JSON/CSV file | `{ success?: true, employeeIds?: string[], warnings?: string[], message?: string }` or empty 2xx/204 |
-| GET `/hr/summary` | — | `HrSummary` from `src/lib/analytics/hr-summary.ts`, with optional `metrics` described below |
+Full app: `docker compose up --build`, or `npm ci` followed by `npm run dev` with Node.js 22+. Open port 3000. `APP_PORT` changes the published Docker port if needed.
 
-Completion success without a view triggers a fresh GET. The response must contain the requested employee ID. A failed GET after confirmed completion offers **Reload profile**, which sends only GET. Timeouts, network errors, unexpected responses and 5xx leave completion status uncertain; the UI does not automatically retry POST. Backend must reject failed writes atomically, enforce eligibility and prevent duplicate completion records. Treat 400/401/403/404/409/422 as rejected mutations with no committed change.
-
-Non-2xx errors may return `{ message: string }`, `{ error: string }`, or `{ error: { message: string } }`. Messages are rendered as text. Requests time out after 10 seconds. Profile selection cancels stale GETs; duplicate completion/upload clicks are disabled while pending.
-
-## Backend responsibilities
-
-- Load all official starter files into a normalized `CareerDataset` before exposing profiles. The starter adapter branch can assist; CSV parsing, persistence and routes still belong to the server.
-- Return complete shared shapes. Runtime guards check response structure; they do not calculate or normalize domain values.
-- Compute target, readiness, effective skills, gaps, ordered recommendations, scores, expected changes and deterministic reasons on the server.
-- Complete an activity by appending history, then rebuild `EmployeeView`. Do not also increase assessed skills. Return the committed view or acknowledge success only after the write succeeds.
-- Parse and validate imports server-side. The browser checks filename extension only. Return affected `employeeIds` so an updated existing profile opens reliably; otherwise the UI selects a newly observed ID or retains the current profile.
-- Expose `buildHrSummary` output as supplied, without asking the browser to aggregate employees. All returned rows are accessible.
-- Provide authentication, authorization and durable storage in the backend as required by the deployment. The HR navigation itself is not access control.
-
-## Fields not currently available
-
-The UI adapts to the existing domain types without extending them:
-
-- `HrSummary` has no total employee count, completion percentage or catalog coverage. These cards stay hidden unless the transport supplies optional `metrics: { totalEmployees?: number, completionRate?: number, coverage?: number }`. Rates use 0–100. Backend must define their denominator/meaning before populating them.
-- `EmployeeView` has no detailed no-recommendation reason. Empty recommendations show a generic message; `targetStatus: "needs_career_goal"` adds the explicit goal prompt. Catalog exhaustion, blocked prerequisites and insufficient data need a server reason field before the UI can distinguish them.
-- Expected changes contain skill IDs, not names. Names are resolved from supplied skill gaps, with the ID as a fallback. An optional server skill-name dictionary would improve names for changes outside target requirements.
-- Recommendation status, duration and format are not supplied. No invented availability/status or duration is shown; `nextSession` appears only when present.
-- Optional nonempty `aiExplanation` appears under a small **AI-assisted explanation** label. All deterministic reasons remain visible without it. No browser OpenAI request or API key is involved. A live server AI endpoint/key was not available or verified in this iteration.
-
-## Configuration
-
-For a separate local backend, copy `.env.example` to `.env.local`, set `CAREER_API_TARGET`, then run `npm run dev`. Vite forwards `/api` without changing the path. For production, serve `/api` behind the same origin or configure `VITE_API_BASE_URL` at build time and backend CORS. `CAREER_API_TARGET` only affects the development proxy. Cookies use `same-origin`; cross-origin credentialed authentication requires a separately agreed setup.
-
-With no backend configured, the app intentionally shows a recoverable API error. It does not silently substitute synthetic employees. Test fixtures under `tests/fixtures` are not production data.
-
-## Checks
-
-`npm run typecheck`, `npm run lint`, `npm test`, `npm run build`.
-
-Frontend tests cover transport shapes, opaque uploads, success-only completion refetch, mutation uncertainty, malformed responses, timeout/cancellation, optional AI, empty recommendations, unmodified server totals, decimal readiness and actual before/after changes. PR #1 engine, HR and AI tests remain included. Browser checks against a temporary fixture server validate the UI only; repeat the full flow against the backend once published.
-
-### Results for this iteration
-
-- TypeScript, ESLint, production build and all 37 tests passed (including the unchanged 17 PR #1 tests).
-- Built application, temporary local fixture API: employee selection, readiness/gaps/reasons, completion 87.5% → 100% and System design 3 → 4, no-next-step state, multipart upload and selection of the imported profile, HR counts all passed.
-- Confirmed completion followed by a simulated failed profile GET recovered through **Reload profile**, showing 41.7% → 54.2% and SQL 2 → 3. Request log confirmed one POST per completion, with no repeated mutation during recovery.
-- Optional AI text appeared when supplied and was absent without an error otherwise. A delayed old employee response did not overwrite the newer selection. Loading state and HR error/retry were observed.
-- Responsive checks at 1440, 1366, 1024, 768 and 390 px found no document-level horizontal overflow. No browser console errors/warnings were captured during these checks.
-- Real HTTP backend, official dataset upload/persistence and live OpenAI remain unverified because no server routes were published. The fixture server is outside the repository and is not part of the shipped frontend.
+Checks: `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`. Live OpenAI checks are opt-in and bill normal API usage. See `AI_VERIFICATION.md`, `BACKEND_HANDOFF.md` and `DEMO.md` for the final scenario and verification scope.

@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "snapshot_date": "2026-10-01",
+    "description": "Synthetic jury import example. Import this JSON before jury-history.csv."
+  },
+  "employees": [
+    {
+      "employee_id": "JURY_DEMO_001",
+      "full_name": "Jury Demo",
+      "department": "Jury Demo",
+      "role": "Backend Engineer",
+      "grade": "Middle",
+      "manager_id": null,
+      "hire_date": "2025-12-22",
+      "tenure_months": 9,
+      "work_format": "remote",
+      "preferred_language": "en",
+      "career_goal": null,
+      "skills": {
+        "SK_PYTHON": 3,
+        "SK_SQL": 4,
+        "SK_API_DESIGN": 4,
+        "SK_SYSTEM_DESIGN": 1,
+        "SK_CLOUD": 1,
+        "SK_CONTAINERS": 3,
+        "SK_CICD": 3,
+        "SK_APP_SECURITY": 4,
+        "SK_OBSERVABILITY": 3,
+        "SK_ROADMAPPING": 1,
+        "SK_COMMUNICATION": 3,
+        "SK_PUBLIC_SPEAKING": 1,
+        "SK_WRITTEN_COMMUNICATION": 2,
+        "SK_STAKEHOLDER_MGMT": 1,
+        "SK_LEADERSHIP": 1,
+        "SK_MENTORING": 0,
+        "SK_FEEDBACK": 2,
+        "SK_CONFLICT_RESOLUTION": 3,
+        "SK_TEAMWORK": 4,
+        "SK_EMOTIONAL_INTELLIGENCE": 2,
+        "SK_PROBLEM_SOLVING": 3,
+        "SK_CRITICAL_THINKING": 3,
+        "SK_TIME_MANAGEMENT": 2,
+        "SK_ADAPTABILITY": 3
+      },
+      "last_review_date": "2026-09-01"
+    }
+  ]
+}

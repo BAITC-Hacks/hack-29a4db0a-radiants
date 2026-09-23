@@ -4,10 +4,33 @@ import { normalizeDataset } from "../src/lib/data/normalize";
 import { getEmployeeView } from "../src/lib/recommendation";
 import { demoDataset } from "./fixtures/career-dataset";
 
-const profile = () => getEmployeeView(normalizeDataset(structuredClone(demoDataset)), "EMP-014");
+const profile = () => ({ ...getEmployeeView(normalizeDataset(structuredClone(demoDataset)), "EMP-014"), completedActivities: [], activeMandatoryObligations: [] });
 afterEach(() => vi.useRealTimers());
 
 describe("typed frontend API", () => {
+  it("uses the existing recommendations route and preserves the EmployeeDetail envelope", async () => {
+    const view = profile();
+    view.recommendations[0]!.aiExplanation = "Validated explanation";
+    view.recommendations[0]!.explanationSource = "llm";
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: view }));
+    expect(await createCareerApi({ fetcher }).getRecommendations("EMP-014")).toEqual(view);
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/employees/EMP-014/recommendations");
+  });
+  it("rejects incomplete detail contracts and AI labels without explanation text", async () => {
+    const missingHistory = getEmployeeView(normalizeDataset(structuredClone(demoDataset)), "EMP-014");
+    const missingExplanation = profile();
+    missingExplanation.recommendations[0]!.explanationSource = "llm";
+    for (const body of [missingHistory, missingExplanation]) {
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: body }));
+      await expect(createCareerApi({ fetcher }).getRecommendations("EMP-014")).rejects.toThrow("unexpected response");
+    }
+  });
+  it("rejects recommendation responses for a different employee", async () => {
+    const view = profile();
+    view.employee.employee_id = "another";
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: view }));
+    await expect(createCareerApi({ fetcher }).getRecommendations("EMP-014")).rejects.toThrow("unexpected response");
+  });
   it("uses backend-computed values verbatim and encodes arbitrary employee ids", async () => {
     const view = profile();
     view.employee.employee_id = "hidden/id #1";
@@ -75,7 +98,7 @@ describe("typed frontend API", () => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation((_url, init) => new Promise((_resolve, reject) => {
       init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
     }));
-    const request = createCareerApi({ fetcher }).getEmployees(controller.signal);
+    const request = createCareerApi({ fetcher }).getRecommendations("EMP-014", controller.signal);
     controller.abort();
     await expect(request).rejects.toMatchObject({ name: "AbortError" });
   });

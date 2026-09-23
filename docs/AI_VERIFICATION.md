@@ -18,7 +18,7 @@ The system prompt asks for short explanations grounded in target, history, and s
 - Missing/blank keys fail before network access. Empty recommendation lists bypass AI entirely.
 - HTTP errors (including 401, 429, and 500), refusal, non-completed status, invalid JSON/schema, and insufficient or unknown evidence preserve fallback. There are no automatic retries.
 - Successfully validated explanations add text and set `explanationSource` to `llm`; IDs, order, scores, skill changes, and readiness remain deterministic. A partially valid explanation list can enrich valid recommendations while leaving the others on fallback.
-- Frontend should render `aiExplanation ?? deterministicExplanation`, retain evidence, and honor `explanationSource`.
+- Frontend renders nonempty AI text only when `explanationSource` is `llm`, otherwise deterministic text. Evidence is always retained. Separate requests are canceled on selection, completion, navigation and import; only explanation fields may overlay an exactly matching deterministic snapshot.
 
 ## Real API check
 
@@ -26,7 +26,7 @@ The system prompt asks for short explanations grounded in target, history, and s
 2. Optionally set `OPENAI_MODEL` to the model chosen for the demo.
 3. Run `npm run test:ai-live`. It loads `.env.local`, then `.env` without replacing existing environment values, and performs two real requests for official synthetic employees E0178 and E0058 in temporary SQLite databases. To run only one, use `npm run test:ai-live -- -t E0178`. It checks LLM output, unchanged deterministic fields/history, and elapsed time below 10 seconds per call. API usage is billed normally.
 4. A missing key, API/model access error, timeout, or fallback fails the check rather than producing a misleading success. The test prints only employee/event IDs, elapsed time and explanation text for human review, never keys, headers or complete provider responses.
-5. With `.env`, start with `docker compose up --build`; for `.env.local`, add `--env-file .env.local` before `up`. Verify the recommendations HTTP endpoint directly until the separate frontend fetch is connected. Restarting a container without recreating it does not update its environment.
+5. With `.env`, start with `docker compose up --build`; for `.env.local`, add `--env-file .env.local` before `up`. The browser now requests AI explanations separately and labels valid output as **AI-assisted explanation**. Restarting a container without recreating it does not update its environment.
 
 Ordinary `npm test` skips the live test, even if a key is available. Explicit execution can also be enabled with `RUN_OPENAI_SMOKE=1`. The live test runs in Node and uses Node environment-file support; Node 20.19+ or 22.12+ matches the existing app requirements. `@types/node` is a development-only dependency for typechecking this server test.
 
@@ -38,6 +38,6 @@ Live verification on 2026-09-23 passed using the user-provided server key. `npm 
 
 The combined integration passes 131 offline tests; two real-call cases are skipped in that suite. TypeScript, frontend lint and Docker/Next.js production build pass. Runtime tests use temporary SQLite, official seed data and the actual recommendation route. They cover field/history preservation, fresh results after completion, missing key, provider failure, unknown employee, no target, 8-second transport abort, 9.5-second overall fallback and late results. Profile/completion make zero model calls even with a configured key.
 
-Frontend integration remains a teammate task: request the AI endpoint separately, retain deterministic data while it loads, and discard stale responses after selection, completion or import. The current UI can render supplied AI text but does not yet request it separately. No browser AI success is claimed by these backend checks.
+Frontend integration is implemented. The current combined suite passes 158 offline tests with two live tests skipped, plus TypeScript and frontend lint. Additional tests cover cancellation even when a transport ignores abort, same-employee stale results, deterministic field preservation, malformed detail envelopes and source labeling. The earlier backend checks above do not by themselves establish browser success.
 
 Official API behavior was checked against the [OpenAI Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs), including `text.format`, refusals, and incomplete responses.

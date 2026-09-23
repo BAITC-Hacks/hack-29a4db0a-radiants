@@ -1,0 +1,3 @@
+record_id,employee_id,event_id,date,due_date,status,completion_pct,score,feedback_rating,assigned_by
+JURY_DEMO_SYSTEM_DESIGN,JURY_DEMO_001,EV_005,2026-09-25,,completed,100,90,5,self
+JURY_DEMO_SECURITY_OVERDUE,JURY_DEMO_001,EV_001,2026-09-01,2026-09-15,overdue,40,,,hr

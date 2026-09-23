@@ -59,9 +59,17 @@
 .why-block ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; }
 .why-block li, .why-block p { color: #4b5650; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
 .history-signal { margin-top: 8px; font-size: 13px !important; color: var(--muted) !important; }
-.ai-explanation { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
-.ai-explanation h4 { color: var(--muted); font-size: 12px; font-weight: 400; margin-bottom: 6px; }
-.ai-explanation p { font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.recommendation-explanation { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px; }
+.recommendation-explanation h4 { color: var(--muted); font-size: 12px; font-weight: 400; margin-bottom: 6px; }
+.recommendation-explanation p { font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.employee-activity-grid { display: grid; gap: 28px; margin-top: 32px; }
+.activity-section { min-width: 0; }
+.activity-table { min-width: 600px; background: #fff; }
+.activity-table tbody th { min-width: 220px; }
+.activity-table th small { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--muted); }
+.activity-table td { white-space: nowrap; }
+.activity-table .number { text-align: right; font-variant-numeric: tabular-nums; }
+.activity-overdue { color: var(--amber); font-weight: 500; }
 .complete-button { margin-top: 16px; }
 .no-recs, .empty-state { padding: 20px 0; color: var(--muted); border-top: 1px solid var(--border); }
 .no-recs h3 { font-size: 16px; font-weight: 500; color: var(--text); }

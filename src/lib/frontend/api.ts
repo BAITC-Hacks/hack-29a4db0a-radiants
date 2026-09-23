@@ -1,6 +1,7 @@
-import type { Employee, EmployeeView } from "../../types/career";
+import type { Employee } from "../../types/career";
+import type { EmployeeDetail } from "../../contracts/api";
 import type { HrSummary } from "../analytics/hr-summary";
-import { isEmployeeList, isEmployeeView, isHrSummary, isImportResult } from "./response-validation";
+import { isEmployeeDetail, isEmployeeList, isHrSummary, isImportResult } from "./response-validation";
 
 /** Optional transport fields. Domain HrSummary and EmployeeView remain unchanged. */
 export type HrSummaryResponse = HrSummary & {
@@ -14,8 +15,9 @@ export interface ImportResult {
 }
 export interface CareerApi {
   getEmployees(signal?: AbortSignal): Promise<EmployeeListItem[]>;
-  getEmployeeView(employeeId: string, signal?: AbortSignal): Promise<EmployeeView>;
-  completeActivity(employeeId: string, eventId: string): Promise<EmployeeView>;
+  getEmployeeView(employeeId: string, signal?: AbortSignal): Promise<EmployeeDetail>;
+  getRecommendations(employeeId: string, signal?: AbortSignal): Promise<EmployeeDetail>;
+  completeActivity(employeeId: string, eventId: string): Promise<EmployeeDetail>;
   importData(file: File): Promise<ImportResult>;
   getHrSummary(signal?: AbortSignal): Promise<HrSummaryResponse>;
 }
@@ -87,7 +89,7 @@ export function createCareerApi(options: {
   function invalid(): never { throw new ApiError("The server returned an unexpected response. Please retry or contact your team."); }
   const getEmployeeView: CareerApi["getEmployeeView"] = async (id, signal) => {
     const body = await request(`/employees/${encodeURIComponent(id)}`, {}, signal);
-    if (!isEmployeeView(body) || body.employee.employee_id !== id) return invalid();
+    if (!isEmployeeDetail(body) || body.employee.employee_id !== id) return invalid();
     return body;
   };
   return {
@@ -99,6 +101,11 @@ export function createCareerApi(options: {
       return isEmployeeList(items) ? items : invalid();
     },
     getEmployeeView,
+    async getRecommendations(id, signal) {
+      const body = await request(`/employees/${encodeURIComponent(id)}/recommendations`, {}, signal);
+      if (!isEmployeeDetail(body) || body.employee.employee_id !== id) return invalid();
+      return body;
+    },
     async completeActivity(employeeId, eventId) {
       let body: unknown;
       try {
@@ -110,8 +117,8 @@ export function createCareerApi(options: {
         const rejected = error instanceof ApiError && [400, 401, 403, 404, 409, 422].includes(error.status ?? 0);
         throw new CompletionError(error instanceof Error ? error.message : "Could not complete this activity.", rejected ? "rejected" : "unknown");
       }
-      if (object(body) && isEmployeeView(body.view) && body.view.employee.employee_id === employeeId) return body.view;
-      if (isEmployeeView(body) && body.employee.employee_id === employeeId) return body;
+      if (object(body) && isEmployeeDetail(body.view) && body.view.employee.employee_id === employeeId) return body.view;
+      if (isEmployeeDetail(body) && body.employee.employee_id === employeeId) return body;
       if (body === undefined || (object(body) && body.success === true)) {
         try { return await getEmployeeView(employeeId); }
         catch { throw new CompletionError("Activity completed, but the refreshed profile could not be loaded.", "refresh"); }
