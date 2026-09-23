@@ -1,0 +1,30 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      CAREER_QUEST_DB_PATH: /app/.data/career-quest.sqlite
+      CAREER_QUEST_DATA_DIR: /app/data
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    volumes:
+      - career-quest-db:/app/.data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  career-quest-db:

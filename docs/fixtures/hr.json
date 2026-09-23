@@ -1,0 +1,349 @@
+{
+  "data": {
+    "population": 40,
+    "filters": {
+      "role": "Backend Engineer"
+    },
+    "commonSkillGaps": [
+      {
+        "skillId": "SK_SYSTEM_DESIGN",
+        "skillName": "System Design",
+        "employeesAffected": 30,
+        "totalSeverity": 50,
+        "criticalOccurrences": 22
+      },
+      {
+        "skillId": "SK_CLOUD",
+        "skillName": "Cloud Platforms",
+        "employeesAffected": 28,
+        "totalSeverity": 42,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_MENTORING",
+        "skillName": "Mentoring",
+        "employeesAffected": 27,
+        "totalSeverity": 48,
+        "criticalOccurrences": 8
+      },
+      {
+        "skillId": "SK_STAKEHOLDER_MGMT",
+        "skillName": "Stakeholder Management",
+        "employeesAffected": 25,
+        "totalSeverity": 43,
+        "criticalOccurrences": 1
+      },
+      {
+        "skillId": "SK_CONTAINERS",
+        "skillName": "Containers & Orchestration",
+        "employeesAffected": 25,
+        "totalSeverity": 33,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_OBSERVABILITY",
+        "skillName": "Observability",
+        "employeesAffected": 24,
+        "totalSeverity": 40,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_APP_SECURITY",
+        "skillName": "Application Security",
+        "employeesAffected": 24,
+        "totalSeverity": 33,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_API_DESIGN",
+        "skillName": "API Design",
+        "employeesAffected": 23,
+        "totalSeverity": 38,
+        "criticalOccurrences": 18
+      },
+      {
+        "skillId": "SK_PYTHON",
+        "skillName": "Python",
+        "employeesAffected": 23,
+        "totalSeverity": 32,
+        "criticalOccurrences": 9
+      },
+      {
+        "skillId": "SK_PROBLEM_SOLVING",
+        "skillName": "Problem Solving",
+        "employeesAffected": 23,
+        "totalSeverity": 29,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_CICD",
+        "skillName": "CI/CD",
+        "employeesAffected": 21,
+        "totalSeverity": 31,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_COMMUNICATION",
+        "skillName": "Communication",
+        "employeesAffected": 20,
+        "totalSeverity": 30,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_SQL",
+        "skillName": "SQL",
+        "employeesAffected": 20,
+        "totalSeverity": 30,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_TEAMWORK",
+        "skillName": "Teamwork",
+        "employeesAffected": 20,
+        "totalSeverity": 26,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_PUBLIC_SPEAKING",
+        "skillName": "Public Speaking",
+        "employeesAffected": 19,
+        "totalSeverity": 24,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_LEADERSHIP",
+        "skillName": "Leadership",
+        "employeesAffected": 18,
+        "totalSeverity": 30,
+        "criticalOccurrences": 8
+      },
+      {
+        "skillId": "SK_DATA_VIZ",
+        "skillName": "Data Visualization",
+        "employeesAffected": 7,
+        "totalSeverity": 22,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_BI_TOOLS",
+        "skillName": "BI Tools",
+        "employeesAffected": 7,
+        "totalSeverity": 20,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_STATISTICS",
+        "skillName": "Statistics",
+        "employeesAffected": 7,
+        "totalSeverity": 20,
+        "criticalOccurrences": 4
+      },
+      {
+        "skillId": "SK_AB_TESTING",
+        "skillName": "A/B Testing",
+        "employeesAffected": 5,
+        "totalSeverity": 15,
+        "criticalOccurrences": 2
+      },
+      {
+        "skillId": "SK_DATA_MODELING",
+        "skillName": "Data Modeling",
+        "employeesAffected": 5,
+        "totalSeverity": 14,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_PRODUCT_ANALYTICS",
+        "skillName": "Product Analytics",
+        "employeesAffected": 5,
+        "totalSeverity": 11,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_CRITICAL_THINKING",
+        "skillName": "Critical Thinking",
+        "employeesAffected": 5,
+        "totalSeverity": 9,
+        "criticalOccurrences": 0
+      },
+      {
+        "skillId": "SK_ML_BASICS",
+        "skillName": "Machine Learning Fundamentals",
+        "employeesAffected": 5,
+        "totalSeverity": 9,
+        "criticalOccurrences": 0
+      }
+    ],
+    "employeesWithoutTarget": [
+      {
+        "employeeId": "E0175",
+        "fullName": "Aidos Nurlanov",
+        "role": "Backend Engineer",
+        "grade": "Lead"
+      }
+    ],
+    "employeesWithoutRecommendations": [
+      {
+        "employeeId": "E0175",
+        "fullName": "Aidos Nurlanov",
+        "role": "Backend Engineer",
+        "grade": "Lead"
+      },
+      {
+        "employeeId": "E0023",
+        "fullName": "Zhanna Baimukhanova",
+        "role": "Backend Engineer",
+        "grade": "Junior"
+      }
+    ],
+    "participationByStatus": {
+      "completed": 409,
+      "in_progress": 2,
+      "dropped": 48,
+      "no_show": 35,
+      "declined": 23,
+      "overdue": 12
+    },
+    "assignedBy": {
+      "self": 169,
+      "manager": 93,
+      "hr": 267
+    },
+    "completionRate": 77.3,
+    "activityParticipation": [
+      {
+        "eventId": "EV_003",
+        "title": "Code of Conduct & Workplace Safety",
+        "participants": 78,
+        "completed": 77,
+        "completionRate": 98.7
+      },
+      {
+        "eventId": "EV_002",
+        "title": "Personal Data Protection",
+        "participants": 73,
+        "completed": 69,
+        "completionRate": 94.5
+      },
+      {
+        "eventId": "EV_001",
+        "title": "Information Security Awareness",
+        "participants": 71,
+        "completed": 64,
+        "completionRate": 90.1
+      },
+      {
+        "eventId": "EV_012",
+        "title": "Advanced Python",
+        "participants": 29,
+        "completed": 16,
+        "completionRate": 55.2
+      },
+      {
+        "eventId": "EV_040",
+        "title": "Structured Problem Solving",
+        "participants": 27,
+        "completed": 18,
+        "completionRate": 66.7
+      },
+      {
+        "eventId": "EV_036",
+        "title": "Public Speaking Club",
+        "participants": 25,
+        "completed": 15,
+        "completionRate": 60
+      },
+      {
+        "eventId": "EV_006",
+        "title": "Designing High-Load Systems",
+        "participants": 23,
+        "completed": 16,
+        "completionRate": 69.6
+      },
+      {
+        "eventId": "EV_009",
+        "title": "Cloud Certification Prep",
+        "participants": 23,
+        "completed": 11,
+        "completionRate": 47.8
+      },
+      {
+        "eventId": "EV_005",
+        "title": "System Design Fundamentals",
+        "participants": 22,
+        "completed": 12,
+        "completionRate": 54.5
+      },
+      {
+        "eventId": "EV_037",
+        "title": "Mentor Track",
+        "participants": 22,
+        "completed": 15,
+        "completionRate": 68.2
+      },
+      {
+        "eventId": "EV_011",
+        "title": "Secure Coding Workshop",
+        "participants": 20,
+        "completed": 12,
+        "completionRate": 60
+      },
+      {
+        "eventId": "EV_007",
+        "title": "Architecture Review Circle",
+        "participants": 19,
+        "completed": 11,
+        "completionRate": 57.9
+      },
+      {
+        "eventId": "EV_010",
+        "title": "Kubernetes in Practice",
+        "participants": 19,
+        "completed": 14,
+        "completionRate": 73.7
+      },
+      {
+        "eventId": "EV_004",
+        "title": "New Employee Onboarding",
+        "participants": 17,
+        "completed": 17,
+        "completionRate": 100
+      },
+      {
+        "eventId": "EV_008",
+        "title": "Business Writing & Documentation",
+        "participants": 17,
+        "completed": 13,
+        "completionRate": 76.5
+      },
+      {
+        "eventId": "EV_019",
+        "title": "API & Performance Testing Workshop",
+        "participants": 13,
+        "completed": 8,
+        "completionRate": 61.5
+      },
+      {
+        "eventId": "EV_038",
+        "title": "Leadership Foundations",
+        "participants": 12,
+        "completed": 8,
+        "completionRate": 66.7
+      },
+      {
+        "eventId": "EV_039",
+        "title": "Time & Priority Management",
+        "participants": 12,
+        "completed": 8,
+        "completionRate": 66.7
+      },
+      {
+        "eventId": "EV_025",
+        "title": "Dimensional Data Modeling",
+        "participants": 7,
+        "completed": 5,
+        "completionRate": 71.4
+      }
+    ]
+  }
+}

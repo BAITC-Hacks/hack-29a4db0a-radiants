@@ -1,0 +1,169 @@
+{
+  "data": {
+    "employeeId": "E0001",
+    "target": {
+      "role": "Backend Engineer",
+      "grade": "Middle",
+      "source": "career_goal"
+    },
+    "recommendations": [
+      {
+        "event": {
+          "event_id": "EV_005",
+          "title": "System Design Fundamentals",
+          "description": "Core building blocks of distributed systems: caching, queues, databases, APIs.",
+          "type": "course",
+          "format": "online",
+          "duration_hours": 16,
+          "mandatory": false,
+          "target_roles": [
+            "Backend Engineer",
+            "Frontend Engineer",
+            "QA Engineer"
+          ],
+          "target_grades": [
+            "Junior",
+            "Middle"
+          ],
+          "develops_skills": [
+            {
+              "skill_id": "SK_SYSTEM_DESIGN",
+              "gain": 1,
+              "max_level": 3
+            },
+            {
+              "skill_id": "SK_API_DESIGN",
+              "gain": 1,
+              "max_level": 3
+            }
+          ],
+          "prerequisites": {},
+          "upcoming_sessions": [
+            "2026-11-23",
+            "2026-12-25"
+          ]
+        },
+        "score": 65,
+        "evidence": {
+          "target": {
+            "role": "Backend Engineer",
+            "grade": "Middle",
+            "source": "career_goal"
+          },
+          "factors": [
+            "Backend Engineer Middle requires API Design level 3; current effective level is 2.",
+            "System Design Fundamentals raises API Design to 3 and reduces the target gap by 1.",
+            "No negative recent participation pattern was found for similar activities.",
+            "The next available session is 2026-11-23."
+          ],
+          "historySignals": [
+            "No negative recent participation pattern was found for similar activities."
+          ],
+          "skillImpacts": [
+            {
+              "skillId": "SK_SYSTEM_DESIGN",
+              "skillName": "System Design",
+              "before": 1,
+              "after": 2,
+              "required": 2,
+              "gapReduction": 1,
+              "critical": false
+            },
+            {
+              "skillId": "SK_API_DESIGN",
+              "skillName": "API Design",
+              "before": 2,
+              "after": 3,
+              "required": 3,
+              "gapReduction": 1,
+              "critical": true
+            }
+          ]
+        },
+        "availability": {
+          "kind": "scheduled",
+          "nextSession": "2026-11-23"
+        },
+        "explanation": "Backend Engineer Middle requires API Design level 3; current effective level is 2. System Design Fundamentals raises API Design to 3 and reduces the target gap by 1. No negative recent participation pattern was found for similar activities. The next available session is 2026-11-23."
+      },
+      {
+        "event": {
+          "event_id": "EV_036",
+          "title": "Public Speaking Club",
+          "description": "Recurring club where members give short talks and get feedback. Can be attended repeatedly.",
+          "type": "meetup",
+          "format": "offline",
+          "duration_hours": 2,
+          "mandatory": false,
+          "target_roles": [
+            "Backend Engineer",
+            "Frontend Engineer",
+            "Data Analyst",
+            "QA Engineer",
+            "Product Manager",
+            "HR Business Partner",
+            "Sales Manager",
+            "Customer Support Specialist"
+          ],
+          "target_grades": [
+            "Junior",
+            "Middle",
+            "Senior",
+            "Lead"
+          ],
+          "develops_skills": [
+            {
+              "skill_id": "SK_PUBLIC_SPEAKING",
+              "gain": 1,
+              "max_level": 4
+            }
+          ],
+          "prerequisites": {},
+          "upcoming_sessions": [
+            "2026-10-08",
+            "2026-10-22",
+            "2026-11-05",
+            "2026-11-19",
+            "2026-12-03",
+            "2026-12-17"
+          ]
+        },
+        "score": 20,
+        "evidence": {
+          "target": {
+            "role": "Backend Engineer",
+            "grade": "Middle",
+            "source": "career_goal"
+          },
+          "factors": [
+            "Backend Engineer Middle requires Public Speaking level 1; current effective level is 0.",
+            "Public Speaking Club raises Public Speaking to 1 and reduces the target gap by 1.",
+            "No negative recent participation pattern was found for similar activities.",
+            "The next available session is 2026-10-08."
+          ],
+          "historySignals": [
+            "No negative recent participation pattern was found for similar activities."
+          ],
+          "skillImpacts": [
+            {
+              "skillId": "SK_PUBLIC_SPEAKING",
+              "skillName": "Public Speaking",
+              "before": 0,
+              "after": 1,
+              "required": 1,
+              "gapReduction": 1,
+              "critical": false
+            }
+          ]
+        },
+        "availability": {
+          "kind": "scheduled",
+          "nextSession": "2026-10-08"
+        },
+        "explanation": "Backend Engineer Middle requires Public Speaking level 1; current effective level is 0. Public Speaking Club raises Public Speaking to 1 and reduces the target gap by 1. No negative recent participation pattern was found for similar activities. The next available session is 2026-10-08."
+      }
+    ],
+    "emptyReason": null,
+    "source": "deterministic"
+  }
+}

@@ -1,0 +1,292 @@
+{
+  "data": {
+    "employee": {
+      "employee_id": "E0001",
+      "full_name": "Marat Yessenov",
+      "department": "Backend Development",
+      "role": "Backend Engineer",
+      "grade": "Junior",
+      "manager_id": "E0050",
+      "hire_date": "2026-04-28",
+      "tenure_months": 5,
+      "work_format": "office",
+      "preferred_language": "kk",
+      "career_goal": {
+        "target_role": "Backend Engineer",
+        "target_grade": "Middle"
+      },
+      "skills": {
+        "SK_PYTHON": 3,
+        "SK_SQL": 2,
+        "SK_API_DESIGN": 2,
+        "SK_SYSTEM_DESIGN": 1,
+        "SK_CLOUD": 1,
+        "SK_CONTAINERS": 0,
+        "SK_CICD": 1,
+        "SK_APP_SECURITY": 0,
+        "SK_OBSERVABILITY": 0,
+        "SK_COMMUNICATION": 2,
+        "SK_PUBLIC_SPEAKING": 0,
+        "SK_WRITTEN_COMMUNICATION": 3,
+        "SK_STAKEHOLDER_MGMT": 1,
+        "SK_LEADERSHIP": 1,
+        "SK_MENTORING": 0,
+        "SK_FEEDBACK": 2,
+        "SK_CONFLICT_RESOLUTION": 3,
+        "SK_TEAMWORK": 2,
+        "SK_EMOTIONAL_INTELLIGENCE": 2,
+        "SK_PROBLEM_SOLVING": 2,
+        "SK_CRITICAL_THINKING": 3,
+        "SK_TIME_MANAGEMENT": 2,
+        "SK_ADAPTABILITY": 2
+      },
+      "last_review_date": "2026-09-11"
+    },
+    "target": {
+      "role": "Backend Engineer",
+      "grade": "Middle",
+      "source": "career_goal"
+    },
+    "targetStatus": "ready",
+    "effectiveSkills": {
+      "SK_PYTHON": 3,
+      "SK_SQL": 2,
+      "SK_API_DESIGN": 2,
+      "SK_SYSTEM_DESIGN": 1,
+      "SK_CLOUD": 1,
+      "SK_CONTAINERS": 0,
+      "SK_CICD": 1,
+      "SK_APP_SECURITY": 1,
+      "SK_OBSERVABILITY": 0,
+      "SK_COMMUNICATION": 2,
+      "SK_PUBLIC_SPEAKING": 0,
+      "SK_WRITTEN_COMMUNICATION": 3,
+      "SK_STAKEHOLDER_MGMT": 1,
+      "SK_LEADERSHIP": 1,
+      "SK_MENTORING": 0,
+      "SK_FEEDBACK": 2,
+      "SK_CONFLICT_RESOLUTION": 3,
+      "SK_TEAMWORK": 2,
+      "SK_EMOTIONAL_INTELLIGENCE": 2,
+      "SK_PROBLEM_SOLVING": 2,
+      "SK_CRITICAL_THINKING": 3,
+      "SK_TIME_MANAGEMENT": 2,
+      "SK_ADAPTABILITY": 2
+    },
+    "readiness": 59,
+    "skillGaps": [
+      {
+        "skillId": "SK_API_DESIGN",
+        "name": "API Design",
+        "currentLevel": 2,
+        "requiredLevel": 3,
+        "gap": 1,
+        "critical": true
+      },
+      {
+        "skillId": "SK_CONTAINERS",
+        "name": "Containers & Orchestration",
+        "currentLevel": 0,
+        "requiredLevel": 2,
+        "gap": 2,
+        "critical": false
+      },
+      {
+        "skillId": "SK_OBSERVABILITY",
+        "name": "Observability",
+        "currentLevel": 0,
+        "requiredLevel": 2,
+        "gap": 2,
+        "critical": false
+      },
+      {
+        "skillId": "SK_APP_SECURITY",
+        "name": "Application Security",
+        "currentLevel": 1,
+        "requiredLevel": 2,
+        "gap": 1,
+        "critical": false
+      },
+      {
+        "skillId": "SK_CICD",
+        "name": "CI/CD",
+        "currentLevel": 1,
+        "requiredLevel": 2,
+        "gap": 1,
+        "critical": false
+      },
+      {
+        "skillId": "SK_CLOUD",
+        "name": "Cloud Platforms",
+        "currentLevel": 1,
+        "requiredLevel": 2,
+        "gap": 1,
+        "critical": false
+      },
+      {
+        "skillId": "SK_COMMUNICATION",
+        "name": "Communication",
+        "currentLevel": 2,
+        "requiredLevel": 3,
+        "gap": 1,
+        "critical": false
+      },
+      {
+        "skillId": "SK_MENTORING",
+        "name": "Mentoring",
+        "currentLevel": 0,
+        "requiredLevel": 1,
+        "gap": 1,
+        "critical": false
+      },
+      {
+        "skillId": "SK_PROBLEM_SOLVING",
+        "name": "Problem Solving",
+        "currentLevel": 2,
+        "requiredLevel": 3,
+        "gap": 1,
+        "critical": false
+      },
+      {
+        "skillId": "SK_PUBLIC_SPEAKING",
+        "name": "Public Speaking",
+        "currentLevel": 0,
+        "requiredLevel": 1,
+        "gap": 1,
+        "critical": false
+      },
+      {
+        "skillId": "SK_SQL",
+        "name": "SQL",
+        "currentLevel": 2,
+        "requiredLevel": 3,
+        "gap": 1,
+        "critical": false
+      },
+      {
+        "skillId": "SK_SYSTEM_DESIGN",
+        "name": "System Design",
+        "currentLevel": 1,
+        "requiredLevel": 2,
+        "gap": 1,
+        "critical": false
+      },
+      {
+        "skillId": "SK_TEAMWORK",
+        "name": "Teamwork",
+        "currentLevel": 2,
+        "requiredLevel": 3,
+        "gap": 1,
+        "critical": false
+      }
+    ],
+    "completedActivities": [
+      {
+        "record_id": "R002173",
+        "employee_id": "E0001",
+        "event_id": "EV_001",
+        "date": "2026-05-01",
+        "due_date": "2026-05-31",
+        "status": "completed",
+        "completion_pct": 100,
+        "score": 88,
+        "feedback_rating": null,
+        "assigned_by": "hr",
+        "eventTitle": "Information Security Awareness",
+        "eventType": "compliance",
+        "eventFormat": "self_paced"
+      },
+      {
+        "record_id": "R002174",
+        "employee_id": "E0001",
+        "event_id": "EV_002",
+        "date": "2026-05-01",
+        "due_date": "2026-05-31",
+        "status": "completed",
+        "completion_pct": 100,
+        "score": 93,
+        "feedback_rating": null,
+        "assigned_by": "hr",
+        "eventTitle": "Personal Data Protection",
+        "eventType": "compliance",
+        "eventFormat": "self_paced"
+      },
+      {
+        "record_id": "R002175",
+        "employee_id": "E0001",
+        "event_id": "EV_003",
+        "date": "2026-05-01",
+        "due_date": "2026-05-31",
+        "status": "completed",
+        "completion_pct": 100,
+        "score": 70,
+        "feedback_rating": null,
+        "assigned_by": "hr",
+        "eventTitle": "Code of Conduct & Workplace Safety",
+        "eventType": "compliance",
+        "eventFormat": "self_paced"
+      },
+      {
+        "record_id": "R002192",
+        "employee_id": "E0001",
+        "event_id": "EV_004",
+        "date": "2026-05-12",
+        "due_date": "2026-05-28",
+        "status": "completed",
+        "completion_pct": 100,
+        "score": null,
+        "feedback_rating": 5,
+        "assigned_by": "hr",
+        "eventTitle": "New Employee Onboarding",
+        "eventType": "onboarding",
+        "eventFormat": "offline"
+      },
+      {
+        "record_id": "R002624",
+        "employee_id": "E0001",
+        "event_id": "EV_040",
+        "date": "2026-08-17",
+        "due_date": null,
+        "status": "completed",
+        "completion_pct": 100,
+        "score": null,
+        "feedback_rating": null,
+        "assigned_by": "self",
+        "eventTitle": "Structured Problem Solving",
+        "eventType": "workshop",
+        "eventFormat": "offline"
+      },
+      {
+        "record_id": "R002626",
+        "employee_id": "E0001",
+        "event_id": "EV_008",
+        "date": "2026-08-18",
+        "due_date": null,
+        "status": "completed",
+        "completion_pct": 100,
+        "score": null,
+        "feedback_rating": 3,
+        "assigned_by": "self",
+        "eventTitle": "Business Writing & Documentation",
+        "eventType": "workshop",
+        "eventFormat": "online"
+      },
+      {
+        "record_id": "R002727",
+        "employee_id": "E0001",
+        "event_id": "EV_011",
+        "date": "2026-09-25",
+        "due_date": null,
+        "status": "completed",
+        "completion_pct": 100,
+        "score": null,
+        "feedback_rating": 5,
+        "assigned_by": "self",
+        "eventTitle": "Secure Coding Workshop",
+        "eventType": "workshop",
+        "eventFormat": "offline"
+      }
+    ],
+    "activeMandatoryObligations": []
+  }
+}
