@@ -1,0 +1,67 @@
+{
+  "employees": [
+    {
+      "employee_id": "JURY_CRITICAL",
+      "full_name": "Jury Critical Gap",
+      "department": "Backend Development",
+      "role": "Backend Engineer",
+      "grade": "Middle",
+      "manager_id": null,
+      "hire_date": "2023-10-01",
+      "tenure_months": 36,
+      "work_format": "hybrid",
+      "preferred_language": "en",
+      "career_goal": null,
+      "last_review_date": "2026-06-01",
+      "skills": {
+        "SK_PYTHON": 4, "SK_SQL": 4, "SK_API_DESIGN": 3, "SK_SYSTEM_DESIGN": 2,
+        "SK_CLOUD": 3, "SK_CONTAINERS": 3, "SK_CICD": 3, "SK_APP_SECURITY": 3,
+        "SK_OBSERVABILITY": 3, "SK_COMMUNICATION": 3, "SK_TEAMWORK": 3,
+        "SK_PROBLEM_SOLVING": 4, "SK_MENTORING": 3, "SK_LEADERSHIP": 2,
+        "SK_STAKEHOLDER_MGMT": 2, "SK_PUBLIC_SPEAKING": 0
+      }
+    },
+    {
+      "employee_id": "JURY_HISTORY",
+      "full_name": "Jury History Reconstruction",
+      "department": "Backend Development",
+      "role": "Backend Engineer",
+      "grade": "Middle",
+      "manager_id": null,
+      "hire_date": "2023-10-01",
+      "tenure_months": 36,
+      "work_format": "remote",
+      "preferred_language": "en",
+      "career_goal": null,
+      "last_review_date": "2026-08-01",
+      "skills": {
+        "SK_SQL": 4, "SK_API_DESIGN": 4, "SK_SYSTEM_DESIGN": 1,
+        "SK_CLOUD": 3, "SK_CONTAINERS": 3, "SK_CICD": 3, "SK_APP_SECURITY": 3,
+        "SK_OBSERVABILITY": 3, "SK_COMMUNICATION": 3, "SK_TEAMWORK": 3,
+        "SK_PROBLEM_SOLVING": 4, "SK_LEADERSHIP": 2, "SK_STAKEHOLDER_MGMT": 2,
+        "SK_PUBLIC_SPEAKING": 2
+      }
+    },
+    {
+      "employee_id": "JURY_LEAD",
+      "full_name": "Jury Lead Without Goal",
+      "department": "Backend Development",
+      "role": "Backend Engineer",
+      "grade": "Lead",
+      "manager_id": null,
+      "hire_date": "2021-10-01",
+      "tenure_months": 60,
+      "work_format": "office",
+      "preferred_language": "en",
+      "career_goal": null,
+      "last_review_date": "2026-08-01",
+      "skills": {
+        "SK_PYTHON": 4, "SK_SQL": 4, "SK_API_DESIGN": 4, "SK_SYSTEM_DESIGN": 4,
+        "SK_CLOUD": 4, "SK_CONTAINERS": 3, "SK_CICD": 3, "SK_APP_SECURITY": 4,
+        "SK_OBSERVABILITY": 4, "SK_COMMUNICATION": 4, "SK_TEAMWORK": 4,
+        "SK_PROBLEM_SOLVING": 4, "SK_MENTORING": 3, "SK_LEADERSHIP": 4,
+        "SK_STAKEHOLDER_MGMT": 4, "SK_PUBLIC_SPEAKING": 1
+      }
+    }
+  ]
+}
