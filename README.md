@@ -47,6 +47,23 @@ Use **Import data** to add `employees.json`, `activity_history.csv`, or a comple
 
 The recommendation engine uses the fixed snapshot date **2026-10-01**, reconstructs effective skills from post-review completions, excludes mandatory/ineligible events, simulates skill effects, and cites target requirements and relevant participation history.
 
+### Official dataset adapter for Backend
+
+`adaptStarterDataset` in `src/lib/data/starter-dataset.ts` converts decoded official JSON wrappers and already-parsed CSV rows into a validated `CareerDataset`. It performs no file I/O and does not merge demo entries. See [the adapter handoff](docs/STARTER_DATASET_ADAPTER.md) for the input contract, validation rules, and full-dataset results. The browser import dialog still needs to be wired to this adapter or a server importer.
+
+```ts
+import { adaptStarterDataset } from "./src/lib/data/starter-dataset";
+import { normalizeDataset } from "./src/lib/data/normalize";
+
+const data = adaptStarterDataset({
+  employeesFile, // JSON.parse(employees.json text)
+  eventsFile,    // JSON.parse(events.json text)
+  skillsFile,    // JSON.parse(skills.json text), including role_profiles
+  historyRows,   // objects returned by a CSV parser with headers
+});
+const normalized = normalizeDataset(data);
+```
+
 ## Demo path
 
 1. Open Amina Sadykova (Backend Engineer, Middle → Senior) or select another profile.
