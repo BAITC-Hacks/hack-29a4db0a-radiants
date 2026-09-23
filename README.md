@@ -1,55 +1,286 @@
 # Career Quest
 
-Career Quest is the HackAlem AI / Halyk Bank employee development navigator. The existing React interface now runs inside Next.js and reads the official catalog through the API. SQLite persists completions and imports; the shared AI/Data engine from PR #1 computes all employee and HR views.
+**Навигатор развития сотрудников для кейса Halyk Bank на HackAlem AI.**
 
-## Run
+Career Quest помогает сотруднику понять, каких навыков не хватает для следующей роли или грейда и какое обучение поможет их развить. Приложение связывает профиль, требования должности и историю участия с конкретными рекомендациями. HR получает обзор дефицитов навыков и может добавлять сотрудников без изменения кода.
 
-With Docker and Compose installed:
+Подбор мероприятий и расчёт прогресса выполняются по воспроизводимым правилам. OpenAI дополняет выбранные рекомендации объяснениями. Без API-ключа профиль, рекомендации, импорт и завершение обучения продолжают работать.
+
+## Что реализовано
+
+| Для сотрудника | Для HR |
+| --- | --- |
+| Личный профиль, текущая роль, грейд и карьерная цель | Просмотр профилей сотрудников |
+| Текущие навыки, требования цели и критические дефициты | Фильтры по роли, грейду и подразделению со сбросом |
+| До трёх вариантов развития с причинами и ожидаемыми изменениями навыков | Обзор дефицитов навыков и сотрудников без следующего шага |
+| Длительность, формат и ближайшая дата занятия из каталога | Статистика участия и завершения активностей |
+| Завершение рекомендованной активности с пересчётом профиля | Импорт JSON-профилей и CSV-истории |
+| История со статусами, датами и инициаторами; отдельный блок обязательного обучения | Создание личного доступа для существующего или импортированного сотрудника |
+
+Интерфейс на русском языке, с адаптацией для узкого экрана и локальным шрифтом Manrope. Названия из датасета и объяснения могут оставаться на исходном языке. Рекомендации добровольны; публичных рейтингов сотрудников нет. HR не может завершать обучение за сотрудника.
+
+## Быстрый запуск
+
+### Через Docker — основной способ
+
+Нужны Git и Docker с Compose. На Windows сначала запустите Docker Desktop. Для закрытого репозитория необходим доступ команды в GitHub.
 
 ```bash
+git clone https://github.com/BAITC-Hacks/hack-29a4db0a-radiants.git
+cd hack-29a4db0a-radiants
 docker compose up --build
 ```
 
-Open http://localhost:3000. Start Docker Desktop first on Windows. Healthcheck creates and seeds the database automatically: 200 employees, 40 events, 60 skills, 32 role profiles and 2,743 history records. Restarting or recreating the container retains subsequent changes in the named volume. Frontend, API and SQLite run in this one service; no separate Node or database startup is required. Set `APP_PORT=3001` in `.env` if port 3000 is occupied.
+Откройте [http://localhost:3000](http://localhost:3000). Frontend, API и SQLite работают в одном сервисе; отдельно устанавливать Node.js или запускать СУБД не требуется.
 
-Stop: `docker compose down`. Explicitly reset demo data: `docker compose down -v` (deletes the volume).
+Первый запуск автоматически создаёт базу и загружает стартовые данные. Готовность можно посмотреть командой `docker compose ps` и по адресу [/api/health](http://localhost:3000/api/health).
 
-### Sign in and privacy
+```bash
+# Запуск в фоне
+docker compose up --build -d
 
-The first healthcheck generates local accounts `hr-admin`, `employee` (E0178), and `employee2` (E0058), with different random passwords. The operator retrieves them locally:
+# Логи приложения
+docker compose logs --tail=100 app
+
+# Остановка с сохранением данных
+docker compose down
+```
+
+Данные, аккаунты и история сохраняются в именованном volume `career-quest-db` даже после пересоздания контейнера. `docker compose down -v` удаляет этот volume вместе с данными; для обычной остановки эта опция не нужна.
+
+### Вход: имя и фамилия + пароль admin
+
+Для демонстрации сотрудник вводит **только имя и фамилию**, пароль — **`admin`**. Примеры:
+
+| Имя и фамилия | Пароль |
+| --- | --- |
+| `Yerlan Kaliyev` | `admin` |
+| `Ksenia Pavlova` | `admin` |
+
+На новом запуске включите этот режим: создайте `.env` в корне проекта на основе [.env.example](.env.example) и установите:
+
+```dotenv
+DEMO_EMPLOYEE_LOGIN=true
+```
+
+Примените настройку командой `docker compose up --build -d`.
+
+**ID вводить не нужно.** Если имя совпадает у нескольких сотрудников, появятся карточки с подразделением, должностью и грейдом. Выберите нужный профиль. Импортированные сотрудники также доступны по имени. Регистр и лишние пробелы в имени нормализуются.
+
+Общий пароль предназначен для демонстрации и не подтверждает личность сотрудника: по имени можно открыть чужой синтетический профиль. Приложение явно обозначает этот режим. HR входит как `hr-admin` со своим индивидуальным паролем; `admin` не даёт права HR.
+
+Для возвращения к личному входу установите `DEMO_EMPLOYEE_LOGIN=false` и пересоздайте контейнер. Демо-сессии перестанут допускаться к API; индивидуальные аккаунты сохранятся.
+
+### Доступ HR и личные аккаунты
+
+Для HR используйте логин `hr-admin` и его отдельный пароль. Начальные личные пароли генерируются случайно; оператор получает их локально:
 
 ```bash
 docker compose exec app cat /app/.data/initial-access.json
 ```
 
-For `npm run dev`, read `.data/initial-access.json` after the first page/API request. Credentials are never returned by an HTTP endpoint. Keep this file private; distribute each employee only their own credentials. Existing volumes are migrated without resetting employee data.
+Файл не отдаётся через HTTP и не включён в Git. Передавайте каждому сотруднику только его данные входа; при демонстрации не выводите весь файл на общий экран. Существующий volume сохраняет ранее созданные аккаунты и пароли. В конфигурации по умолчанию демо-режим выключен и используются личные аккаунты.
 
-Employee sessions can read only their own profile/history and complete their own activities. HR can browse profiles, view analytics, import data and create employee accounts; HR cannot mark activities complete on someone's behalf. Private APIs enforce these rules even for manually crafted requests. Sessions expire after 8 hours; logout revokes them. There is no public employee leaderboard or peer profile sharing.
+## Как работает решение
 
-Compose binds to `127.0.0.1` by default. For deployment behind an internal HTTPS proxy, configure `APP_BIND_ADDRESS` and the exact browser-facing `APP_ORIGIN` (also enables Secure cookies). `AI_EXPLANATIONS_ENABLED=false` disables external AI requests. See [backend privacy and auth contract](docs/BACKEND_PRIVACY.md) and [the frontend implementation plan](docs/FRONTEND_PRIVACY_PLAN.md).
+1. Сотрудник входит и получает свой профиль с историей обучения.
+2. Сервер восстанавливает текущие навыки, определяет цель и сравнивает навыки с требованиями роли.
+3. Из каталога выбираются до трёх подходящих добровольных мероприятий. Каждое сопровождается причинами, влиянием на навыки и учётом истории участия.
+4. Отдельный запрос получает AI-объяснения. Пока он выполняется или недоступен, рассчитанный план уже можно использовать.
+5. Сотрудник отмечает допустимую рекомендацию завершённой. Сервер сохраняет историю и пересчитывает навыки, соответствие цели и следующие рекомендации.
+6. После отдельного входа HR видит обновлённые данные команды и при необходимости импортирует новые профили и историю.
 
-HR can open **Доступ сотрудников** to view accounts and create access for an existing profile. The form confirms the employee binding, accepts a 12–128-character password and clears it after the server response. Transfer credentials privately; they cannot be viewed later. Successful JSON import also offers **Создать доступ** with the imported profile selected. After an uncertain creation, the UI reads the account list before allowing another attempt.
+### Правила подбора
 
-The UI is in Russian, with Career Quest branding and locally hosted Manrope. Recommendation explanations, including AI and deterministic fallback text, use plain Russian: purpose, expected skill change and relevant participation history. Official employee/course/technology names remain as supplied by the catalog. The AI provider rejects obviously non-Russian prose and uses the Russian fallback; this heuristic is not a full language or factual verifier. Returning to the page revalidates the session; logout is synchronized across tabs without transmitting credentials. See [current frontend delivery and validation](docs/FRONTEND_PRIVATE_UI.md).
+- **Текущие навыки:** исходная оценка плюс завершённые активности строго после `last_review_date`. Отсутствующий навык считается равным 0. Оценённые `employee.skills` не перезаписываются после каждого завершения.
+- **Эффект занятия:** `max(current, min(current + gain, max_level))`. Потолок курса ограничивает прирост, но не понижает уже достигнутый уровень.
+- **Цель:** заданная `career_goal`, иначе следующий грейд в текущей роли. У Lead без цели навыки и история видны, а следующий грейд не придумывается.
+- **Допуск:** проверяются роль и грейд, предварительные навыки, доступность, завершённость и участие в процессе. Обязательные занятия исключены из рекомендаций. Повторное прохождение разрешено только для `EV_036`.
+- **Ранжирование:** закрытие уровня критического дефицита даёт 40 баллов, обычного — 10. История за предыдущие 365 дней корректирует результат с учётом похожих тем, типа, формата, пропусков, отказов и оценок. Это явные эвристики, а не обученная модель мотивации.
+- **Пустой результат:** интерфейс показывает серверную причину и доступную диагностику исключений, например отсутствие цели, достижение требований или отсутствие подходящих занятий.
 
-### Optional shared employee demo login
+Все правила доступности используют дату снимка датасета **2026-10-01**. Реальный срок действия сессии рассчитывается по текущему времени. Эти даты используются для разных задач.
 
-`DEMO_EMPLOYEE_LOGIN=false` is the default. For a demonstration with synthetic data, set `DEMO_EMPLOYEE_LOGIN=true` in the ignored `.env`, then recreate the container with `docker compose up --build`. Employees sign in with their full name exactly as listed in the dataset and password **admin**. If several employees share that name, the login screen shows profile cards with department, role and grade; select the matching card to finish signing in. No employee ID needs to be entered. Unicode names and spaces are accepted. Imported employee profiles work on login without a separate account-provisioning step.
+### Что означает процент соответствия цели
 
-The login page and authenticated app show **Демо-режим: общий доступ к профилям сотрудников. Личные данные в этом режиме не защищены индивидуальным паролем.** Anyone with the shared password can access a named employee's demo profile, so this mode does not provide employee privacy. HR continues to use `hr-admin` with its individual generated password; `admin` does not grant HR access. Individual account passwords remain unchanged. Demo identity rows are labeled separately in HR access management and do not block creation of a personal account.
+`readiness` показывает, какая доля требований к навыкам выполнена:
 
-To restore individual authentication, set `DEMO_EMPLOYEE_LOGIN=false` and recreate the container. The shared login stops working and sessions created through it are rejected. Existing individual credentials continue to work. Use the Next.js/Compose entry point for this demo mode; its login hint reads the server flag at runtime.
+```text
+100 × сумма(вес × min(текущий уровень / требуемый уровень, 1)) / сумма(весов)
+```
 
-Local development requires Node.js 22+:
+Вес критического навыка — 2, остальных — 1. Нулевое требование считается выполненным; при пустом списке требований результат равен 100%. Сервер округляет результат до одного знака после запятой. Без цели сервер возвращает 0 и отдельный статус отсутствия цели.
+
+Это показатель соответствия навыков, не вероятность или обещание повышения. «Вариант 1/2/3» — альтернативы для текущего состояния, а не рассчитанная последовательность курсов. Ожидаемый эффект занятия отделён в интерфейсе от подтверждённых навыков.
+
+## AI и внешние сервисы
+
+Используется серверный **OpenAI Responses API**. Модель по умолчанию в коде и Compose — `gpt-6-astra`; её можно переопределить через `OPENAI_MODEL`.
+
+Модель получает целевую роль/грейд и уже выбранные рекомендации с фактами о навыках и истории. ФИО, данные аккаунта, cookie и полная история сотрудника в этот запрос не включаются. Модель формулирует объяснение; список мероприятий, порядок, баллы и прогресс определяет код.
+
+Сервер проверяет структуру ответа, допустимые и уникальные `eventId`, длину текста и ссылки на факты о цели, истории и реально улучшаемом навыке. Только принятый непустой ответ получает `explanationSource: "llm"`; иначе сохраняется объяснение по правилам (`fallback`). Проверка ссылок на факты не гарантирует истинность каждого предложения модели.
+
+Ожидание провайдера ограничено 8 секундами, общий бюджет AI-обработки — 9,5 секунды. Ошибки, отказ модели, отсутствие ключа или таймаут не блокируют основной сценарий. Просроченные ответы не заменяют данные после смены профиля, импорта, завершения активности или выхода.
+
+Для подключения заполните серверный `OPENAI_API_KEY` в игнорируемом `.env`, затем пересоздайте контейнер. Ключ не следует помещать в `NEXT_PUBLIC_*`, `VITE_*` или Git. `AI_EXPLANATIONS_ENABLED=false` отключает внешние AI-запросы. Автоматической отправки email, интеграции с календарём или корпоративной системой обучения в MVP нет.
+
+## Технологии и архитектура
+
+| Компонент | Технологии |
+| --- | --- |
+| Интерфейс | React 19, TypeScript, CSS, Lucide, локальный Manrope |
+| Приложение и API | Next.js 16, Node.js 22+ |
+| Хранение | SQLite, `better-sqlite3`, транзакции и миграции |
+| Валидация и импорт | Zod, `csv-parse` |
+| Объяснения | OpenAI Responses API через серверный HTTP-запрос |
+| Проверки | Vitest, TypeScript, ESLint |
+| Упаковка | Docker, Docker Compose |
+
+```mermaid
+flowchart LR
+    Data[JSON и CSV] --> Import[Валидация и импорт]
+    Import --> DB[(SQLite)]
+    UI[React: сотрудник и HR] <-->|Сессия и CSRF| API[Next.js API]
+    API <--> DB
+    API --> Engine[Навыки, цель, допуск и ранжирование]
+    DB --> Engine
+    Engine --> API
+    Engine --> Evidence[Факты выбранных рекомендаций]
+    Evidence --> AI[OpenAI: объяснения]
+    AI --> Validation[Проверка ответа или fallback]
+    Validation --> API
+```
+
+Завершение активности проверяется и сохраняется в одной транзакции с пересчётом профиля. Обращение к AI выполняется отдельно от записи в базу. Общие доменные типы используются на всех слоях.
+
+```text
+src/app/                  Next.js: страницы и API-маршруты
+src/components/           Вход, профиль, рекомендации, HR, импорт, аккаунты
+src/hooks/                Загрузка и отмена запросов
+src/lib/frontend/         Транспорт API и жизненный цикл сессии
+src/lib/recommendation/   Навыки, readiness, рекомендации, правила completion
+src/lib/analytics/        HR-аналитика
+src/lib/ai/               OpenAI и проверка объяснений
+src/lib/data/             Адаптация и нормализация датасета
+src/server/               Авторизация, SQLite, репозитории и сервисы
+src/contracts/            Контракты API и валидация
+src/types/                Доменные типы
+data/                     Стартовый датасет
+tests/                    Модульные и интеграционные проверки
+docs/                     Контракты, сценарии и отчёты
+```
+
+## Данные и импорт
+
+В репозитории находится синтетический датасет кейса:
+
+| Файл | Содержимое |
+| --- | --- |
+| [employees.json](data/employees.json) | 200 сотрудников |
+| [skills.json](data/skills.json) | 60 навыков и 32 профиля требований: 8 ролей × 4 грейда |
+| [events.json](data/events.json) | 40 мероприятий |
+| [activity_history.csv](data/activity_history.csv) | 2 743 записи истории |
+
+Это начальные количества для новой базы. Импорт и завершение занятий меняют их. Источник текущего состояния после запуска — SQLite; изменения сохраняются между перезапусками.
+
+HR может загрузить JSON с одним сотрудником, массивом сотрудников или объектом `{ "employees": [...] }`, затем CSV истории. Полные примеры: [jury-employee.json](docs/fixtures/jury-employee.json) и [jury-history.csv](docs/fixtures/jury-history.csv). Произвольные корректные профили обрабатываются тем же алгоритмом, без привязки к заранее заданным ID.
+
+Существующие профили обновляются, новые добавляются. Повторные `record_id` истории пропускаются. Ошибка валидации откатывает весь запрос и возвращает файл, строку и поле. UI загружает по одному файлу; `POST /api/import` также принимает оба файла вместе в multipart-полях `employees` и `history`. Лимит импорта — 10 MiB. Изменение каталога навыков и мероприятий через этот endpoint не предусмотрено.
+
+После JSON-импорта действие **«Создать доступ»** открывает форму с выбранным сотрудником. HR подтверждает привязку, задаёт логин и пароль, затем передаёт их сотруднику приватно. Логин: 3–80 символов из `a-z`, `A-Z`, `0-9`, `_`, `.`, `-`; пароль: 12–128 символов. Пароль очищается после ответа и не показывается в списке аккаунтов. CSV можно импортировать до или после создания доступа.
+
+## Как проверить решение: сценарий для жюри
+
+### Профиль → рекомендация → результат
+
+На новой базе с исходными данными:
+
+1. Включите демо-режим по инструкции выше. Введите имя и фамилию **Yerlan Kaliyev** и пароль **`admin`**. ID сотрудника не требуется.
+2. Откройте цель **Backend Engineer → Senior**, навыки и историю. Для исходного профиля Yerlan Kaliyev соответствие цели — **71,3%**.
+3. Найдите **System Design Fundamentals (`EV_005`)**. Покажите причину рекомендации, критический дефицит, историю и ожидаемый эффект. Метка источника объяснения позволяет отличить AI от расчёта по правилам.
+4. Нажмите **«Отметить завершённым»**. Ожидаемый результат на чистой базе: System Design **1 → 2**, API Design остаётся **4**, соответствие цели **71,3% → 74,1%**. Обновляются история и варианты рекомендаций.
+5. Обновите страницу: сохранённый результат должен остаться. На базе с уже пройденным `EV_005` начальные значения будут другими; повторное завершение неповторяемого занятия сервер отклонит.
+
+### HR → импорт → личный доступ
+
+1. Выйдите из аккаунта сотрудника и отдельно войдите как `hr-admin` со своим паролем.
+2. Импортируйте [профиль Jury Demo](docs/fixtures/jury-employee.json), затем [его историю](docs/fixtures/jury-history.csv) через **«Загрузить ещё файл»**.
+3. Нажмите **«Создать доступ»** после JSON-импорта или откройте **«Доступ сотрудников»**. Выберите Jury Demo и создайте личный аккаунт. Сохраните пароль для приватной передачи.
+4. Выйдите из HR и войдите созданным сотрудником. Ему доступны собственный профиль, рекомендации и завершение рекомендованной активности; элементов HR нет.
+5. Снова войдите как HR и откройте **«Обзор команды»**. Проверьте фильтры, дефициты навыков, сотрудников без следующего шага и участие в обучении.
+
+Дополнительные кейсы для жюри: [три профиля](docs/jury/employees.json) и [история](docs/jury/activity_history.csv). Они показывают критический дефицит против самого низкого навыка, восстановление навыков по истории и Lead без карьерной цели. Подробный сценарий — в [JURY_DEMO.md](docs/JURY_DEMO.md).
+
+## Настройки
+
+`.env` необязателен для стандартного запуска. Доступные настройки перечислены в [.env.example](.env.example); в Git файл с секретами не попадает.
+
+| Переменная | Значение по умолчанию | Назначение |
+| --- | --- | --- |
+| `APP_PORT` | `3000` | Порт приложения в Compose |
+| `APP_BIND_ADDRESS` | `127.0.0.1` | Адрес привязки порта на хосте |
+| `APP_ORIGIN` | `http://localhost:3000` | Точный адрес браузера для проверки Origin; Compose учитывает порт, если переменная не задана явно |
+| `DEMO_EMPLOYEE_LOGIN` | `false` | Общий демо-вход по имени с паролем `admin` |
+| `AI_EXPLANATIONS_ENABLED` | `true` | Разрешение внешних запросов объяснений |
+| `OPENAI_API_KEY` | Не задан | Серверный ключ; без него используются объяснения по правилам |
+| `OPENAI_MODEL` | `gpt-6-astra` | Модель объяснений |
+| `CAREER_QUEST_DB_PATH` | `.data/career-quest.sqlite` | Путь базы при локальном запуске |
+| `CAREER_QUEST_DATA_DIR` | `data` | Каталог стартовых файлов при локальном запуске |
+
+Compose задаёт пути `/app/.data/career-quest.sqlite` и `/app/data`. Если порт занят и вы скопировали `.env.example`, измените **обе** настройки:
+
+```dotenv
+APP_PORT=3001
+APP_ORIGIN=http://localhost:3001
+```
+
+После этого пересоздайте контейнер и откройте `http://localhost:3001`. `localhost` и `127.0.0.1` считаются разными Origin. Для `.env.local` в Docker используйте `docker compose --env-file .env.local up --build`.
+
+### Локальная разработка без Docker
+
+Нужен Node.js **22+**:
 
 ```bash
 npm ci
 npm run dev
 ```
 
-The native SQLite dependency may require platform C++ build tools if a prebuilt binary is unavailable. Docker includes the required build tools.
+Откройте `http://localhost:3000`. После первого запроса стартовые пароли находятся в локальном `.data/initial-access.json`. Зависимости SQLite могут потребовать C++ build tools, если для платформы нет готового бинарного пакета.
 
-## Validation
+Для production-сборки: `npm run build`, затем `npm start`. Вспомогательные `dev:demo` / `build:demo` запускают Vite-frontend с прокси `/api` к Next.js на порту 3000; это не отдельный полный backend. Для Vite нужен запущенный Next.js и `APP_ORIGIN`, совпадающий с адресом Vite, например `http://localhost:5173`.
+
+## API и разграничение доступа
+
+Успех возвращается как `{ "data": ... }`, ошибка — `{ "error": { "code", "message", "details" } }`. Полные типы находятся в [src/contracts](src/contracts) и [src/types/career.ts](src/types/career.ts).
+
+| Метод и маршрут | Назначение и доступ |
+| --- | --- |
+| `GET /api/health` | Публичная готовность сервера и количества записей |
+| `POST /api/auth/login` | Вход; сессия или выбор одноимённого демо-профиля |
+| `GET /api/auth/session` | Проверка текущей сессии |
+| `POST /api/auth/logout` | Отзыв сессии и удаление cookie |
+| `GET /api/catalog` | Каталог навыков, ролей и мероприятий после входа |
+| `GET /api/employees` | Сотруднику — собственная карточка, HR — список |
+| `GET /api/employees/:id` | Профиль, навыки, история и диагностика |
+| `GET /api/employees/:id/recommendations` | Тот же профиль с отдельным запросом AI-объяснений |
+| `POST /api/employees/:id/activities/:eventId/complete` | Завершение допустимой активности только самим сотрудником |
+| `PATCH /api/employees/:id/career-goal` | Изменение своей цели; backend готов, форма в UI ещё не подключена |
+| `GET /api/hr/summary` | Аналитика, только HR |
+| `GET /api/hr/accounts`, `POST /api/hr/accounts` | Список аккаунтов и создание доступа, только HR |
+| `POST /api/import` | Импорт профилей и истории, только HR |
+
+Сотрудник читает только свой профиль, историю и рекомендации. HR в текущем MVP видит все профили. Фильтры HR — `role`, `grade`, `department`, применяются совместно; список сотрудников дополнительно поддерживает `search`.
+
+Сессия действует 8 часов. Используются HttpOnly/SameSite=Strict cookie, проверка Origin и CSRF для защищённых изменений; при HTTPS в `APP_ORIGIN` cookie получает Secure. Сессионные данные frontend находятся в памяти, без `localStorage`. Выход и истечение сессии убирают защищённый интерфейс и отменяют запросы; выход синхронизируется между вкладками.
+
+Completion принимает `{}` для стандартного сценария. Сервер проверяет допуск внутри транзакции: неподходящее занятие возвращает `422 EVENT_NOT_ELIGIBLE`, повторное неповторяемое завершение — `409`. Для обязательного занятия нужно сохранённое активное назначение HR/руководителя. UI блокирует повторное нажатие; после неопределённого результата требуется обновить профиль, а не автоматически повторять запись.
+
+Контракты и подробные ошибки: [авторизация](docs/BACKEND_PRIVACY.md), [completion и карьерная цель](docs/FRONTEND_COMPLETION_GOAL_HANDOFF.md), [создание аккаунтов](docs/FRONTEND_ACCOUNTS_HANDOFF.md).
+
+## Проверки и сохранённые результаты
+
+После `npm ci`:
 
 ```bash
 npm test
@@ -58,104 +289,42 @@ npm run lint
 npm run build
 ```
 
-The teammate's recommendation, AI mock, HR, import and adapter tests are preserved. Backend integration tests use temporary SQLite files. They verify transactions, import rollback, HTTP errors, persistence and the E0178 regression (71.3 → 74.1 readiness with no assessed-skill mutation).
+В репозитории есть проверки рекомендаций, истории, ограничений completion, импорта с откатом, авторизации, frontend-состояний и защиты от устаревших AI-ответов. Интеграционные проверки используют временные SQLite-базы. `lint` охватывает перечисленные в `package.json` frontend-каталоги. Обычный `npm test` использует подменённые AI-транспорты и по умолчанию пропускает live-проверки.
 
-The previous Vite entry is retained for frontend development: `npm run dev:demo` or `npm run build:demo`. Despite the historical script name, it now uses the same API and proxies /api to the Next.js server on port 3000. Set backend `APP_ORIGIN=http://localhost:5173` for Vite development (or the actual Vite preview origin); otherwise protected POSTs correctly reject its different Origin. Next.js/Compose is the complete application startup.
+Отдельно можно запустить настоящий OpenAI для двух синтетических профилей; команда требует ключ и выполняет платные запросы:
 
-## Architecture and ownership
-
-```text
-Official JSON files + parsed CSV
-  -> adaptStarterDataset (PR #4)
-  -> transactional SQLite seed
-  -> repositories
-  -> normalizeDataset
-  -> getEmployeeView / buildHrSummary (PR #1)
-  -> Next.js API
-  -> React product UI
+```bash
+npm run test:ai-live
 ```
 
-- AI/Data: `src/types/career.ts`, `src/lib/recommendation`, `src/lib/data`, `src/lib/analytics`, `src/lib/ai`.
-- Backend: `src/server`, `src/app/api`, `src/contracts`, dependencies, application config and Docker.
-- Frontend: `src/components`, `src/styles`, `src/lib/frontend` and application pages.
+Сохранённые отчёты привязаны к указанным в них ревизиям и не означают, что каждый последующий коммит прошёл тот же прогон:
 
-The teammate's refined frontend design is included, preserving cancellation, mutation recovery and decimal progress components. Shared domain types are not redefined; `src/contracts/types.ts` re-exports them. Public API extensions are in `src/contracts/api.ts`.
+- [Frontend и Docker](docs/FRONTEND_PRIVATE_UI.md) — сценарии личного доступа, проверка экранов и границы проверки нового демо-входа.
+- [Completion policy](docs/COMPLETION_POLICY_HANDOFF.md) — правила завершения и доказательства пересчёта.
+- [Настоящие AI-объяснения](docs/LIVE_AI_PROOF.md) — скриншоты после входа, SHA сборки и сохранённый вывод live-проверок.
+- [Авторизация и приватность](docs/PRIVACY_VALIDATION.md) — проверки ролей и сессий.
 
-Completion appends one `LOCAL_<uuid>` history record in a transaction, then rebuilds the shared view. It does not increment assessed `employee.skills`. Teaching caps limit gains without lowering existing attained skills. Availability uses the fixed snapshot `2026-10-01`.
+## Ограничения текущей версии
 
-AI/Data completion-policy handoff: [pure eligibility guard and single-event preview](docs/COMPLETION_POLICY_HANDOFF.md). The server calls this guard inside the same write transaction as history insertion, profile recalculation, and audit. The original direct-HTTP regression is retained as a required gate. The preview replays a virtual history record through the existing engine and does not change the public API or UI.
+- Редактор карьерной цели ещё не подключён к UI, хотя соответствующий API готов. Без цели система показывает состояние и навыки, но не предлагает фиктивный следующий грейд.
+- Кнопка завершения есть на карточках рекомендаций. Таблицы истории и обязательного обучения пока доступны для просмотра.
+- Дата бизнес-логики фиксирована на `2026-10-01`. Отметка прохождения моделирует обновление истории; реальная LMS не подтверждает обучение. Записи на занятия и календарной интеграции нет.
+- Варианты рекомендаций оцениваются отдельно. Прогноз срока повышения и последовательный учебный маршрут не рассчитываются; влияние продукта на вовлечённость не измерено.
+- AI-проверки ограничивают допустимые данные ответа, но не доказывают полную фактическую точность текста. Доступность модели зависит от ключа, сети и прав API-проекта.
+- Общий демо-пароль снимает индивидуальную защиту профилей. Для личных данных предназначен отдельный режим персональных аккаунтов.
+- Корпоративные SSO/MFA, восстановление пароля, управление жизненным циклом аккаунтов и права HR по подразделениям не реализованы. Публичного обмена профилями коллег и согласий на него нет.
+- Docker по умолчанию доступен только локально. Для внутреннего размещения оператор должен настроить HTTPS, точный `APP_ORIGIN`, сетевой доступ и хранение данных; сам контейнер не создаёт защищённый корпоративный контур.
 
-See [backend handoff](docs/BACKEND_HANDOFF.md), [starter adapter](docs/STARTER_DATASET_ADAPTER.md), [domain progress validation](docs/PROGRESS_VALIDATION.md), and [earlier frontend review](docs/FRONTEND_INTEGRATION_REVIEW.md). The earlier review describes the pre-API revision.
+## Развёрнутая версия и материалы
 
-## API
+Локальный адрес после запуска — [http://localhost:3000](http://localhost:3000). Подтверждённый публичный URL в репозитории не указан; для воспроизведения используйте Docker-инструкцию выше.
 
-Every success is `{ data: ... }`; errors are `{ error: { code, message, details } }`.
+- [Требования кейса](docs/REQUIREMENTS.md)
+- [Схема и адаптация стартового датасета](docs/STARTER_DATASET_ADAPTER.md)
+- [Сценарий для жюри](docs/JURY_DEMO.md)
+- [Материалы реального AI](docs/LIVE_AI_PROOF.md)
+- [Запись репетиции и текст выступления](docs/FINAL_REHEARSAL.md) — описание записи; сам видеофайл передаётся командой отдельно и не включён в Git.
 
-| Endpoint | data |
-| --- | --- |
-| GET /api/health | status, schemaVersion, counts |
-| POST /api/auth/login | AuthSession and HttpOnly cookie, or demo `employee_selection` choices for a shared full name |
-| GET /api/auth/session | AuthSession (user, expiresAt, csrfToken) |
-| POST /api/auth/logout | signedOut; revokes session and clears cookie |
-| GET /api/hr/accounts | HR-only account list without passwords |
-| POST /api/hr/accounts | HR creates an employee account |
-| GET /api/catalog | events, skills, roleProfiles; no employee history |
-| GET /api/employees | items: EmployeeCard[], total |
-| GET /api/employees/:id | EmployeeView + activityHistory, completedActivities, activeMandatoryObligations, recommendationDiagnostics |
-| GET /api/employees/:id/recommendations | Same shared employee view |
-| POST /api/employees/:id/activities/:eventId/complete | activity, view, progress: { before, after, delta } |
-| PATCH /api/employees/:id/career-goal | Recomputed EmployeeDetail; employee changes only their own career_goal |
-| POST /api/import | employeesInserted, employeesUpdated, historyInserted, historySkipped |
-| GET /api/hr/summary | Shared HrSummary + population, statuses, assignedBy, completionRate, totalGapSeverity, employeesWithoutTarget |
+### Язык объяснений
 
-Employee filters: `search`, `role`, `grade`, `department`. HR filters: `role`, `grade`, `department`. Matching filters combine with AND.
-
-All endpoints except health/login require a session. All POSTs and PATCHes require the matching `Origin`; authenticated mutations additionally require `X-CSRF-Token` from AuthSession. Success/error envelopes stay unchanged. 401 means sign in, 403 means forbidden role/CSRF/origin; 429 limits repeated failed logins. JSON bodies are limited to 64 KiB and multipart import to 10 MiB (413 on excess).
-
-Completion body: `{ completedAt?: "YYYY-MM-DD", score?: 0..100, feedbackRating?: 1..5 }`. Send `{}` for defaults. Self-paced completion defaults to the snapshot date; scheduled completion uses the next session. Inside one transaction, the domain engine checks audience, effective-skill prerequisites, availability and the selected date before history insertion and recomputation. A blocked event returns 422 `EVENT_NOT_ELIGIBLE` without changing history or progress. Non-repeatable duplicate completion returns 409; EV_036 can repeat. An active stored assignment by HR/manager is required for mandatory completion. Self-paced and active participation complete on the snapshot day; new scheduled activities use a listed future session. Completion is independent of recommendation rank.
-
-Career-goal body: `{ career_goal: { target_role, target_grade } | null }`, with no extra properties. The employee may update only their own goal; the role/grade pair must exist in the catalog. Assessed skills, current position and permissions cannot be changed here. See [completion and goal contract](docs/FRONTEND_COMPLETION_GOAL_HANDOFF.md) and [HR account creation after import](docs/FRONTEND_ACCOUNTS_HANDOFF.md) for frontend examples and exact errors.
-
-Import uses multipart/form-data with `employees` (JSON) and/or `history` (CSV), as uploaded files or text fields. JSON accepts one employee, an array or the official `{ meta, employees }` wrapper. The endpoint accepts both files together; the teammate dialog currently uploads one file at a time. Existing employees update, new employees insert and duplicate record IDs skip. All input and the combined dataset are validated by the shared adapter. A failed row rolls back the entire request. Catalog replacement is not exposed through this incremental-import endpoint.
-
-Error codes: 400 invalid JSON/multipart or empty import; 422 validation/reference errors; 404 missing employee/event; 409 duplicate completion. Import details include file, row, field and reason.
-
-## Recommendations and AI status
-
-The shared engine returns up to three eligible voluntary recommendations with reasons, expectedChanges (before/after/required), historySignal and deterministicExplanation. It considers target gaps, critical requirements, audience, prerequisites, availability and participation history. A Lead without a career goal has `targetStatus: "needs_career_goal"`, readiness 0 and no recommendations. Empty recommendation lists are valid.
-
-Readiness is the weighted mean of `min(current / required, 1)`: critical requirements weigh 2, others weigh 1, then multiply by 100 and round to one decimal. Zero-level requirements are fulfilled. This is a development indicator, not a promotion probability. Recommendations are alternative next steps evaluated against the current profile, not a precomputed sequential course plan.
-
-Ranking awards 40 points per reduced critical gap level and 10 per other reduced gap level. History uses the previous 365 days at the fixed snapshot. Matching type/format plus a shared developed skill gives a strong signal: each no-show/drop/decline costs 10, or 5 for declining an external assignment. Same-type/format records on unrelated topics cost only 2 (1 for external declines), capped at 6; total negative adjustment is capped at 30. Feedback adds 5 for a mean of at least 4, subtracts 5 for at most 2, and applies only to the related-topic group. These are transparent heuristic weights, not learned or empirically calibrated preferences. Sparse history is reported as insufficient evidence. Attendance is not a judgment of employee performance.
-
-The profile and completion routes return deterministic data immediately. `GET /api/employees/:id/recommendations` reconstructs that same profile from SQLite and enriches only its selected recommendations with OpenAI explanations. The response remains `{ data: EmployeeDetail }`, including completed activities. No client-supplied dataset or Vite middleware is involved; AI requests run outside database transactions.
-
-The provider has an 8-second deadline. The route starts a 9.5-second budget before resolving its parameters, leaving 0.5 seconds for serialization/transport toward the under-10-second target. Time spent reconstructing the profile reduces the available provider budget. Missing keys, network failures, refusals and invalid evidence leave `explanationSource: "fallback"`; valid text sets it to `"llm"`. Event IDs, ordering, scores and skills never come from the model. References must include target, history and an actually reduced skill gap. These checks do not prove every natural-language sentence true; factual evidence remains available independently of AI text.
-
-Set server-only `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in the ignored `.env`. Both `docker compose up --build` and local Next.js development load it. If using `.env.local` instead, pass `docker compose --env-file .env.local up --build`. Recreate the container to apply changed environment values. Env files are excluded from Git and the Docker build context. Do not expose a key through `NEXT_PUBLIC_*` or `VITE_*`. The default model is `gpt-6-astra`, with low reasoning effort for this bounded explanation task.
-
-The frontend fetches AI explanations separately while the deterministic plan stays usable. Selection, completion, navigation and import cancel outstanding requests. Late responses are discarded, including same-employee responses with old evidence; only explanation text and source can change. Cards label AI-assisted and rule-based explanations separately. Completed activities and active mandatory obligations remain visible independently of recommendations.
-
-`npm test` uses mocked transports and skips live checks. `npm run test:ai-live` explicitly makes billed requests against the official synthetic dataset in a temporary SQLite database, and fails if it receives fallback. Use `npm run test:ai-live -- -t E0178` for one request. See [AI verification](docs/AI_VERIFICATION.md).
-
-## Environment
-
-Defaults: `CAREER_QUEST_DB_PATH=.data/career-quest.sqlite`, `CAREER_QUEST_DATA_DIR=data`. Compose supplies absolute /app paths. The .env.example file contains optional local overrides. Secrets and SQLite files are excluded from Git.
-
-## Demo
-
-1. Sign in as `employee`, linked to E0178. On a clean database: readiness 71.3%.
-2. Complete EV_005: skills refresh, readiness becomes 74.1%, API Design stays at 4.
-3. Reload: the completed history and updated progress remain.
-4. Sign out, sign in as `hr-admin`, then import [jury-employee.json](docs/fixtures/jury-employee.json), then [jury-history.csv](docs/fixtures/jury-history.csv) using **Загрузить ещё файл**. Jury Demo changes from 71.3% to 74.1%; completed and overdue mandatory activity history appears.
-5. Use **Создать доступ** after JSON import, or **Доступ сотрудников**, select Jury Demo and create its personal employee account. Confirm the binding and privately retain the password before submitting. Account creation and CSV import may be done in either order after JSON import.
-6. Sign out and enter that employee account to complete a voluntary recommendation. Its profile, history and progress refresh; other employees and HR controls are unavailable.
-7. Sign back in as HR and open **Обзор команды**: population, gaps, employees without steps and activity participation reflect the changes.
-
-See [jury rehearsal](docs/JURY_DEMO.md) for the three importable evaluation profiles, adversarial checks and a three-minute demonstration. [Release checklist](docs/RELEASE_CHECKLIST.md) separates verified behavior from the remaining live-AI and frontend gates.
-
-Starter data is synthetic. With shared demo login disabled, server sessions and role checks protect employee/HR access. The optional shared demo login removes employee identity assurance and must not be used for private employee data. Employee listing and catalog endpoints do not expose engagement history. Corporate SSO, account recovery, consent-based peer sharing and an organizational retention policy remain deployment work; this local account system is the hackathon implementation.
-
-See [the 3–5 minute demo and startup guide](docs/DEMO.md), [the frontend API contract](docs/FRONTEND_API.md), [previous validation results](docs/FINAL_VALIDATION.md), and [privacy integration validation](docs/PRIVACY_VALIDATION.md).
-
-Authenticated real-AI screenshots for E0058, the deployed build SHA and the saved successful live-test output are in [LIVE_AI_PROOF.md](docs/LIVE_AI_PROOF.md).
+Объяснения ИИ и резервные объяснения пишутся простым русским языком: зачем нужно занятие, какой ожидается рост навыка и что известно из истории участия. Названия занятий и технологий сохраняются из каталога. Если ответ ИИ явно не на русском, сервер показывает русское резервное объяснение. Проверка языка является эвристикой и не подтверждает достоверность всех утверждений.
