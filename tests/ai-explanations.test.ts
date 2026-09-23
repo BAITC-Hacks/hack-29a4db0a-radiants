@@ -41,11 +41,12 @@ const view: EmployeeView = {
 describe("AI recommendation explanations", () => {
   afterEach(() => vi.useRealTimers());
   it("rejects unknown events and explanations with fewer than three valid evidence refs", () => {
-    const allowed = new Map([["EV_001", ["target", "history", "availability", "skill:SK_SYSTEM_DESIGN"]]]);
+    const refs = ["target", "history", "availability", "skill:SK_SYSTEM_DESIGN"];
+    const allowed = new Map([["EV_001", refs], ["EV_TOO_LITTLE", refs]]);
     const accepted = validateAiExplanations(
       [
         { eventId: "EV_UNKNOWN", explanation: "Invented", evidenceRefs: ["target", "history", "availability"] },
-        { eventId: "EV_001", explanation: "Too little evidence", evidenceRefs: ["target", "history"] },
+        { eventId: "EV_TOO_LITTLE", explanation: "Too little evidence", evidenceRefs: ["target", "history"] },
         {
           eventId: "EV_001",
           explanation: "Grounded explanation",
@@ -210,6 +211,34 @@ describe("AI recommendation explanations", () => {
     ]) {
       expect(await withPayload({ status: "completed", output_text: JSON.stringify({ recommendations: [item] }) })).toEqual(view);
     }
+  });
+
+  it.each([
+    ["target", "history", "availability"],
+    ["target", "availability", "skill:SK_SYSTEM_DESIGN"],
+    ["history", "availability", "skill:SK_SYSTEM_DESIGN"],
+  ])("requires target, history and a skill gap, not any three labels (%j)", async (...refs) => {
+    expect(await withPayload({ status: "completed", output_text: JSON.stringify({
+      recommendations: [{ eventId: "EV_001", explanation: "Missing a required factor", evidenceRefs: refs }],
+    }) })).toEqual(view);
+  });
+
+  it("does not allow an irrelevant or unchanged skill to count as gap evidence", async () => {
+    const explain = vi.fn<Parameters<typeof applyAiExplanations>[1]["explain"]>()
+      .mockResolvedValue([{ eventId: "EV_001", explanation: "Unrelated", evidenceRefs: ["target", "history", "skill:OTHER"] }]);
+    const input = { ...view, recommendations: [{ ...recommendation, expectedChanges: [
+      ...recommendation.expectedChanges,
+      { skillId: "OTHER", before: 4, after: 4, required: 2, critical: false },
+    ] }] };
+    expect(await applyAiExplanations(input, { explain })).toEqual(input);
+    expect(explain.mock.calls[0]?.[0].recommendations[0]?.allowedEvidenceRefs).not.toContain("skill:OTHER");
+  });
+
+  it("rejects ambiguous duplicate event explanations", async () => {
+    const item = JSON.parse(validText()).recommendations[0];
+    expect(await withPayload({ status: "completed", output_text: JSON.stringify({
+      recommendations: [item, { ...item, explanation: "Conflicting explanation" }],
+    }) })).toEqual(view);
   });
 });
 
