@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeDataset } from "../src/lib/data/normalize";
 import {
+  calculateReadiness,
   getEmployeeView,
   reconstructEffectiveSkills,
   SNAPSHOT_DATE,
@@ -134,6 +135,91 @@ describe("recommendation engine", () => {
     expect(view.recommendations[0]?.expectedChanges[0]?.critical).toBe(true);
     expect(view.readiness).toBeGreaterThanOrEqual(0);
     expect(view.readiness).toBeLessThanOrEqual(100);
+  });
+
+  it("preserves E0178's above-cap API Design in both preview and completion", () => {
+    const event = makeEvent("EV_005", {
+      develops_skills: [
+        { skill_id: "SK_SYSTEM_DESIGN", gain: 1, max_level: 3 },
+        { skill_id: "SK_API_DESIGN", gain: 1, max_level: 3 },
+      ],
+    });
+    const source = makeDataset([event], [], {
+      employee_id: "E0178",
+      skills: { SK_SYSTEM_DESIGN: 1, SK_API_DESIGN: 4 },
+    }, [{
+      ...profile,
+      required_skills: { SK_SYSTEM_DESIGN: 4, SK_API_DESIGN: 4 },
+      critical_skills: ["SK_SYSTEM_DESIGN", "SK_API_DESIGN"],
+    }]);
+    const before = getEmployeeView(normalizeDataset(source), "E0178");
+    expect(before.recommendations[0]?.expectedChanges).toContainEqual({
+      skillId: "SK_API_DESIGN", before: 4, after: 4, required: 4, critical: true,
+    });
+    const after = getEmployeeView(normalizeDataset({
+      ...source,
+      history: [{ ...makeRecord("EV_005", "completed", SNAPSHOT_DATE), employee_id: "E0178" }],
+    }), "E0178");
+    expect(after.effectiveSkills).toEqual({ SK_SYSTEM_DESIGN: 2, SK_API_DESIGN: 4 });
+    expect(before.readiness).toBe(62.5);
+    expect(after.readiness).toBe(75);
+    expect(after.recommendations).toEqual([]);
+  });
+
+  it("counts partial progress with double weight for critical requirements", () => {
+    const event = makeEvent("EV_PARTIAL");
+    const source = makeDataset([event]);
+    const before = getEmployeeView(normalizeDataset(source), employee.employee_id);
+    const after = getEmployeeView(normalizeDataset({
+      ...source, history: [makeRecord(event.event_id, "completed", SNAPSHOT_DATE)],
+    }), employee.employee_id);
+    expect(before.readiness).toBe(31.3);
+    expect(after.readiness).toBe(43.8);
+    expect(after.skillGaps.find((gap) => gap.skillId === "SK_SYSTEM_DESIGN")?.gap).toBe(1);
+  });
+
+  it("caps preview and completed gains from below and gives no credit beyond requirements", () => {
+    const event = makeEvent("EV_CAPPED", {
+      develops_skills: [{ skill_id: "SK_SYSTEM_DESIGN", gain: 4, max_level: 3 }],
+    });
+    const source = makeDataset([event]);
+    const before = getEmployeeView(normalizeDataset(source), employee.employee_id);
+    expect(before.recommendations[0]?.expectedChanges[0]?.after).toBe(3);
+    const after = getEmployeeView(normalizeDataset({
+      ...source, history: [makeRecord(event.event_id, "completed", SNAPSHOT_DATE)],
+    }), employee.employee_id);
+    expect(after.effectiveSkills.SK_SYSTEM_DESIGN).toBe(3);
+    const complete = getEmployeeView(normalizeDataset(makeDataset([], [], {
+      skills: { SK_SYSTEM_DESIGN: 5, SK_PUBLIC_SPEAKING: 5, SK_PYTHON: 5 },
+    })), employee.employee_id);
+    expect(complete.readiness).toBe(100);
+  });
+
+  it("treats zero-level and empty requirements as fully satisfied", () => {
+    expect(calculateReadiness([])).toBe(100);
+    const view = getEmployeeView(normalizeDataset(makeDataset([], [], { skills: {} }, [{
+      ...profile, required_skills: { SK_SYSTEM_DESIGN: 0 },
+    }])), employee.employee_id);
+    expect(view.readiness).toBe(100);
+  });
+
+  it("prioritizes System Design when Public Speaking is lowest and similar sessions were missed", () => {
+    const critical = makeEvent("EV_CRITICAL");
+    const speaking = makeEvent("EV_SPEAKING", {
+      type: "workshop",
+      develops_skills: [{ skill_id: "SK_PUBLIC_SPEAKING", gain: 2, max_level: 5 }],
+    });
+    const missed = makeEvent("EV_MISSED", { ...speaking, event_id: "EV_MISSED", mandatory: true });
+    const history = [
+      makeRecord(missed.event_id, "no_show", "2026-07-01"),
+      makeRecord(missed.event_id, "dropped", "2026-08-01"),
+      makeRecord(missed.event_id, "declined", "2026-09-01"),
+    ];
+    const view = getEmployeeView(normalizeDataset(makeDataset([speaking, critical, missed], history)), employee.employee_id);
+    expect(view.recommendations.map((item) => [item.eventId, item.score])).toEqual([
+      ["EV_CRITICAL", 40], ["EV_SPEAKING", -10],
+    ]);
+    expect(view.recommendations[1]?.historySignal).toContain("3 recent attendance signal");
   });
 
   it("excludes mandatory, completed, in-progress, prerequisite-blocked, and unavailable events", () => {

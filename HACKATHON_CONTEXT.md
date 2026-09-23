@@ -73,8 +73,10 @@ The roles are Backend Engineer, Customer Support Specialist, Data Analyst, Front
 effective_skills = assessed employee.skills
 for every completed activity after last_review_date:
   for each event skill effect:
-    level = min(level + gain, max_level)
+    level = max(level, min(level + gain, max_level))
 ```
+
+Team implementation policy: `max_level` caps activity-driven growth without lowering an already attained level. Readiness is the weighted mean of partial requirement fulfillment (`min(current / required, 1)`), with critical skills weighted 2 and others 1, expressed as a percentage rounded to one decimal. See README for completion integration and zero-requirement behavior.
 
 `role_profiles.required_skills` supplies target minima; `critical_skills` must receive extra importance. The default target is the next grade in the current role unless a valid `career_goal` changes the target. A Lead without a usable goal needs an explicit fallback state rather than a fabricated next grade.
 

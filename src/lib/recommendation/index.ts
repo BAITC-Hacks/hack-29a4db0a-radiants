@@ -136,7 +136,7 @@ export function reconstructEffectiveSkills(
 
     for (const effect of event.develops_skills) {
       const currentLevel = effectiveSkills[effect.skill_id] ?? 0;
-      effectiveSkills[effect.skill_id] = toSkillLevel(Math.min(currentLevel + effect.gain, effect.max_level));
+      effectiveSkills[effect.skill_id] = applySkillGain(currentLevel, effect.gain, effect.max_level);
     }
   }
 
@@ -170,11 +170,11 @@ export function calculateReadiness(skillGaps: SkillGap[]): number {
     return 100;
   }
 
-  const satisfiedWeight = skillGaps.reduce(
-    (sum, gap) => sum + (gap.gap === 0 ? (gap.critical ? 2 : 1) : 0),
-    0,
-  );
-  return Math.round((satisfiedWeight / totalWeight) * 100);
+  const satisfiedWeight = skillGaps.reduce((sum, gap) => {
+    const fulfillment = gap.requiredLevel === 0 ? 1 : Math.min(gap.currentLevel / gap.requiredLevel, 1);
+    return sum + fulfillment * (gap.critical ? 2 : 1);
+  }, 0);
+  return Math.round((satisfiedWeight / totalWeight) * 1000) / 10;
 }
 
 function toCandidate(
@@ -278,7 +278,7 @@ function simulateEvent(
   let totalGapLevelsClosed = 0;
   const expectedChanges = event.develops_skills.map((effect) => {
     const before = effectiveSkills[effect.skill_id] ?? 0;
-    const after = Math.min(before + effect.gain, effect.max_level);
+    const after = applySkillGain(before, effect.gain, effect.max_level);
     const required = profile.required_skills[effect.skill_id] ?? 0;
     const critical = profile.critical_skills.includes(effect.skill_id);
     const closed = Math.max(0, Math.min(after, required) - Math.min(before, required));
@@ -371,6 +371,8 @@ function sessionSortValue(session: string | undefined): string {
   return session ?? "9999-12-31";
 }
 
-function toSkillLevel(level: number): SkillLevel {
+function applySkillGain(current: SkillLevel, gain: number, maxLevel: SkillLevel): SkillLevel {
+  // An activity's teaching cap limits growth, not an already attained skill level.
+  const level = Math.max(current, Math.min(current + gain, maxLevel));
   return Math.max(0, Math.min(5, Math.round(level))) as SkillLevel;
 }
