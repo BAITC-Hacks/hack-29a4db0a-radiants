@@ -6,6 +6,7 @@ import { closeDatabase, databaseCounts, getDatabase } from "@/server/db/database
 import { AI_REQUEST_BUDGET_MS, completeActivity, getEmployeeProjection, getRecommendations } from "@/server/services/career-quest";
 import { GET as recommendationsRoute } from "@/app/api/employees/[employeeId]/recommendations/route";
 import type { RecommendationExplainer } from "@/lib/ai/explanations";
+import type { EmployeeView, Recommendation } from "@/types/career";
 import { GET as profileRoute } from "@/app/api/employees/[employeeId]/route";
 import { authHeaders, testIdentity, type TestIdentity } from "./helpers/auth";
 
@@ -28,9 +29,14 @@ afterEach(() => {
   fs.rmSync(directory, { recursive: true, force: true });
 });
 
+function groundedText(rec: Pick<Recommendation, "expectedChanges" | "historySignal">, target: EmployeeView["target"]) {
+  const change = rec.expectedChanges.find((item) => Math.min(item.after, item.required) > Math.min(item.before, item.required))!;
+  return `${target!.role} ${target!.grade}: ${change.skillId} ${change.before} -> ${change.after}, required ${change.required}. ${rec.historySignal}`;
+}
+
 const grounded: RecommendationExplainer = {
-  explain: async ({ recommendations }) => recommendations.map((rec) => ({
-    eventId: rec.eventId, explanation: "Model explanation for " + rec.eventId,
+  explain: async ({ recommendations, target }) => recommendations.map((rec) => ({
+    eventId: rec.eventId, explanation: groundedText(rec, target),
     evidenceRefs: ["target", "history", rec.allowedEvidenceRefs.find((ref) => ref.startsWith("skill:"))!],
   })),
 };
@@ -41,7 +47,7 @@ describe("AI on the persisted official dataset", () => {
     const after = await getRecommendations("E0178", getDatabase(), grounded);
     expect(after.completedActivities.length).toBeGreaterThan(0);
     expect(after).toEqual({ ...before, recommendations: before.recommendations.map((rec) => ({
-      ...rec, aiExplanation: "Model explanation for " + rec.eventId, explanationSource: "llm",
+      ...rec, aiExplanation: groundedText(rec, before.target), explanationSource: "llm",
     })) });
     expect(databaseCounts().activityHistory).toBe(2743);
   });

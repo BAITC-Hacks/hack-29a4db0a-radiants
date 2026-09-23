@@ -1,0 +1,12 @@
+
+> career-quest@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.1 C:/Users/foxal.DESKTOP-N1GCIEU/.codex/worktrees/final-product-review/выв
+
+
+ Test Files  20 passed | 2 skipped (22)
+      Tests  260 passed | 5 skipped (265)
+   Start at  17:14:05
+   Duration  29.15s (tests 95%, import 4%, transform 1%)

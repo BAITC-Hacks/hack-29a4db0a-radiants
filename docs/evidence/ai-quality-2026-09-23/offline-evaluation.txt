@@ -1,0 +1,16 @@
+
+> career-quest@0.1.0 test
+> vitest run tests/ai-evaluation.test.ts --reporter=verbose
+
+
+ RUN  v5.0.1 C:/Users/foxal.DESKTOP-N1GCIEU/.codex/worktrees/final-product-review/выв
+
+stdout | tests/ai-evaluation.test.ts > evaluates explanation boundaries for every official profile without paid calls
+{"mode":"offline-contract-evaluation-not-live-ai","profiles":200,"batches":173,"explained":438,"languages":["en","kk","ru"]}
+
+ ✓ tests/ai-evaluation.test.ts > evaluates explanation boundaries for every official profile without paid calls 146ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  17:14:45
+   Duration  402ms (tests 55%, transform 32%, import 11%, worker 2%)

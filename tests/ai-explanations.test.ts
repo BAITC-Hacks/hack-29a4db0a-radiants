@@ -14,6 +14,8 @@ const recommendation: Recommendation = {
   explanationSource: "fallback",
 };
 
+const groundedText = "For Backend Engineer Senior, SK_SYSTEM_DESIGN grows 2 -> 3 toward required 4 (critical). There is no recent negative participation signal.";
+
 const view: EmployeeView = {
   employee: {
     employee_id: "E_TEST",
@@ -64,7 +66,7 @@ describe("AI recommendation explanations", () => {
       explain: async () => [
         {
           eventId: "EV_001",
-          explanation: "Builds a critical promotion skill.",
+          explanation: groundedText,
           evidenceRefs: ["target", "history", "skill:SK_SYSTEM_DESIGN"],
         },
       ],
@@ -133,7 +135,7 @@ describe("AI recommendation explanations", () => {
       { type: "message", content: [{ type: "output_text", text: validText() }] },
     ] });
     expect(result).toEqual({ ...view, recommendations: [{
-      ...recommendation, aiExplanation: "Grounded explanation", explanationSource: "llm",
+      ...recommendation, aiExplanation: groundedText, explanationSource: "llm",
     }] });
     expect(view.recommendations[0]?.explanationSource).toBe("fallback");
   });
@@ -243,7 +245,7 @@ describe("AI recommendation explanations", () => {
 });
 
 function validText(): string {
-  return JSON.stringify({ recommendations: [{ eventId: "EV_001", explanation: "Grounded explanation", evidenceRefs: ["target", "history", "skill:SK_SYSTEM_DESIGN"] }] });
+  return JSON.stringify({ recommendations: [{ eventId: "EV_001", explanation: groundedText, evidenceRefs: ["target", "history", "skill:SK_SYSTEM_DESIGN"] }] });
 }
 
 async function withPayload(payload: unknown): Promise<EmployeeView> {

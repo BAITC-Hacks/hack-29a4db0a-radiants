@@ -148,3 +148,5 @@ Starter data is synthetic. With shared demo login disabled, server sessions and 
 See [the 3–5 minute demo and startup guide](docs/DEMO.md), [the frontend API contract](docs/FRONTEND_API.md), [previous validation results](docs/FINAL_VALIDATION.md), and [privacy integration validation](docs/PRIVACY_VALIDATION.md).
 
 Authenticated real-AI screenshots for E0058, the deployed build SHA and the saved successful live-test output are in [LIVE_AI_PROOF.md](docs/LIVE_AI_PROOF.md).
+
+The latest [AI quality handoff](docs/AI_QUALITY_HANDOFF.md) adds detached minimal evidence, RU/KZ/EN prompts, event-specific schema constraints, visible-fact checks and clean fallback on refresh. Offline verification passes; the new prompt/schema still needs Backend's live gate before merge. The earlier screenshots prove the earlier runtime only. No API/DTO or ranking changes are required.
