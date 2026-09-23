@@ -125,7 +125,7 @@ export function getRecommendationDiagnostics(dataset: NormalizedDataset, employe
     exclusionCounts: { mandatory: 0, audience: 0, prerequisites: 0, unavailable: 0, completed: 0, in_progress: 0, no_gap_reduction: 0 },
     blockedEvents: [],
     readinessExplanation: {
-      formula: "Readiness = 100 × sum(weight × min(current level / required level, 1)) / sum(weight), rounded to one decimal. Critical skills have weight 2; other skills have weight 1. A zero requirement counts as fulfilled; no requirements means 100%. Without a career target, readiness is 0%.",
+      formula: "Мы сравниваем ваши навыки с требованиями выбранной цели. Например, уровень 2 при требуемом 4 — это 50% по этому навыку. Навык на нужном уровне или выше считается выполненным. В общем проценте критические навыки учитываются вдвое сильнее остальных. Это ориентир для развития, а не решение о повышении.",
       criticalWeight: 2,
       standardWeight: 1,
       precision: 1,

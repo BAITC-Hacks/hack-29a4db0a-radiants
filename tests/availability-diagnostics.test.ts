@@ -95,6 +95,9 @@ describe("recommendation availability diagnostics", () => {
     expect(diagnostics.blockedEvents.map((item) => item.eventId)).not.toContain("MANDATORY");
     expect(JSON.stringify(raw)).toBe(before);
     expect(diagnostics.readinessExplanation).toMatchObject({ criticalWeight: 2, standardWeight: 1, precision: 1 });
+    expect(diagnostics.readinessExplanation.formula).toContain("Мы сравниваем ваши навыки");
+    expect(diagnostics.readinessExplanation.formula).toContain("вдвое сильнее");
+    expect(diagnostics.readinessExplanation.formula).not.toMatch(/Readiness|sum\(|weight/);
   });
 
   it("diagnostic eligibility agrees with the real recommendation pool for all starter employees", () => {
