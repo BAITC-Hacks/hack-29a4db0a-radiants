@@ -1,7 +1,7 @@
 import type { Employee } from "../../types/career";
-import type { EmployeeDetail } from "../../contracts/api";
+import type { CatalogResult, EmployeeDetail } from "../../contracts/api";
 import type { HrSummary } from "../analytics/hr-summary";
-import { isEmployeeDetail, isEmployeeList, isHrSummary, isImportResult } from "./response-validation";
+import { isCatalog, isEmployeeDetail, isEmployeeList, isHrSummary, isImportResult } from "./response-validation";
 
 /** Optional transport fields. Domain HrSummary and EmployeeView remain unchanged. */
 export type HrSummaryResponse = HrSummary & {
@@ -14,6 +14,7 @@ export interface ImportResult {
   message?: string;
 }
 export interface CareerApi {
+  getCatalog(signal?: AbortSignal): Promise<CatalogResult>;
   getEmployees(signal?: AbortSignal): Promise<EmployeeListItem[]>;
   getEmployeeView(employeeId: string, signal?: AbortSignal): Promise<EmployeeDetail>;
   getRecommendations(employeeId: string, signal?: AbortSignal): Promise<EmployeeDetail>;
@@ -93,6 +94,10 @@ export function createCareerApi(options: {
     return body;
   };
   return {
+    async getCatalog(signal) {
+      const body = await request("/catalog", {}, signal);
+      return isCatalog(body) ? body : invalid();
+    },
     async getEmployees(signal) {
       const body = await request("/employees", {}, signal);
       const items = object(body) && Array.isArray(body.items) ? body.items.map((item: unknown) =>

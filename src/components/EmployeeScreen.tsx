@@ -9,13 +9,18 @@ import { formatReadiness, formatReadinessDelta, readinessBarValue, readinessDelt
 export interface CompletionSnapshot { before: EmployeeView; after: EmployeeView }
 interface Props {
   view: EmployeeView & Partial<Pick<EmployeeDetail, "completedActivities" | "activeMandatoryObligations">>;
+  skillNames?: Readonly<Record<string, string>>;
   completing: boolean; completionDisabled: boolean; completion: CompletionSnapshot | null;
   failure: CompletionError | null; onRefresh: () => void; onComplete: (recommendation: Recommendation) => void;
   onDismissCompletion: () => void;
 }
-export function EmployeeScreen({ view, completing, completionDisabled, completion, failure, onRefresh, onComplete, onDismissCompletion }: Props) {
+export function EmployeeScreen({ view, skillNames = {}, completing, completionDisabled, completion, failure, onRefresh, onComplete, onDismissCompletion }: Props) {
+  const requirementIds = new Set(view.skillGaps.map((gap) => gap.skillId));
+  const otherSkills = Object.entries(view.effectiveSkills)
+    .filter(([id]) => !view.target || !requirementIds.has(id))
+    .sort(([a], [b]) => (skillNames[a] ?? a).localeCompare(skillNames[b] ?? b));
   return <>
-    {completion && <CompletionFeedback snapshot={completion} onDismiss={onDismissCompletion} />}
+    {completion && <CompletionFeedback snapshot={completion} skillNames={skillNames} onDismiss={onDismissCompletion} />}
     {failure && <section className="panel error-state" role="alert">
       <h2>{failure.phase === "refresh" ? "Activity completed. Profile refresh needed." : failure.phase === "rejected" ? "Could not complete this activity." : "Could not confirm this activity."}</h2>
       <p>{failure.message}</p>
@@ -42,16 +47,24 @@ export function EmployeeScreen({ view, completing, completionDisabled, completio
     </section>
     <div className="content-grid">
       <section className="skills-panel" aria-labelledby="skills-heading">
-        <div className="section-header"><h2 id="skills-heading">Skills and gaps</h2><p className="section-note">Progress against target requirements</p></div>
+        <div className="section-header"><h2 id="skills-heading">{view.target ? "Skills and gaps" : "Current skills"}</h2><p className="section-note">{view.target ? "Progress against target requirements" : "Current effective skill levels"}</p></div>
         {view.skillGaps.length ? <div className="table-wrap" role="region" aria-label="Skill requirements" tabIndex={0}><table className="skills-table">
           <thead><tr><th scope="col">Skill</th><th scope="col">Current progress</th><th scope="col">Projected</th><th scope="col">Required</th><th scope="col">Gap</th></tr></thead>
           <tbody>{view.skillGaps.map((gap) => <SkillRow key={gap.skillId} gap={gap} />)}</tbody>
-        </table></div> : <EmptyState text="No skill requirements were provided for this target." />}
+        </table></div> : view.target ? <EmptyState text="No skill requirements were provided for this target." /> : null}
+        {otherSkills.length > 0 ? <>
+          {view.target && <div className="section-header"><h3>Other current skills</h3><p className="section-note">Skills outside the target requirements</p></div>}
+          <div className="table-wrap" role="region" aria-label="Current skill levels" tabIndex={0}>
+            <table className="skills-table"><thead><tr><th scope="col">Skill</th><th scope="col">Current level</th></tr></thead>
+              <tbody>{otherSkills.map(([id, currentLevel]) => <tr key={id}><th scope="row">{skillNames[id] ?? id}</th><td>{currentLevel}</td></tr>)}</tbody>
+            </table>
+          </div>
+        </> : !view.target ? <EmptyState text="No current skill levels were provided." /> : null}
       </section>
       <section className="recommendations-panel" aria-busy={completing} aria-labelledby="recommendations-heading">
         <div className="section-header"><h2 id="recommendations-heading">Recommended next steps</h2><p className="section-note">Expected changes and reasons for each activity</p></div>
         {view.recommendations.length ? <div className="recommendation-list">{view.recommendations.map((recommendation, index) =>
-          <RecommendationCard key={recommendation.eventId} recommendation={recommendation} rank={index + 1} view={view}
+          <RecommendationCard key={recommendation.eventId} recommendation={recommendation} rank={index + 1} view={view} skillNames={skillNames}
             busy={completing} disabled={completionDisabled} onComplete={() => onComplete(recommendation)} />)}</div> : <NoNextStepState view={view} />}
       </section>
     </div>
@@ -98,8 +111,8 @@ function SkillRow({ gap }: { gap: SkillGap }) {
     <td className={gap.gap ? "gap-open" : "gap-met"}>{gap.gap}</td>
   </tr>;
 }
-function RecommendationCard({ recommendation: rec, rank, view, busy, disabled, onComplete }: {
-  recommendation: Recommendation; rank: number; view: EmployeeView; busy: boolean; disabled: boolean; onComplete: () => void;
+function RecommendationCard({ recommendation: rec, rank, view, skillNames, busy, disabled, onComplete }: {
+  recommendation: Recommendation; rank: number; view: EmployeeView; skillNames: Readonly<Record<string, string>>; busy: boolean; disabled: boolean; onComplete: () => void;
 }) {
   const hasAiExplanation = rec.explanationSource === "llm" && Boolean(rec.aiExplanation?.trim());
   return <article className={`recommendation-card ${rank === 1 ? "top-recommendation" : ""}`}>
@@ -108,8 +121,8 @@ function RecommendationCard({ recommendation: rec, rank, view, busy, disabled, o
     {rec.nextSession && <p className="rec-meta">Next session: {rec.nextSession}</p>}
     {rec.expectedChanges.length > 0 && <div className="impact-box"><h4>Expected skill changes</h4>
       {rec.expectedChanges.map((change) => <div className="impact-line" key={change.skillId}>
-        <span>{skillName(view, change.skillId)}{change.critical && <span className="critical-label inline">Critical</span>}</span>
-        <strong>{change.before} <span aria-label="to">→</span> {change.after}<small> / {change.required} required</small></strong>
+        <span>{skillName(view, change.skillId, undefined, skillNames)}{change.critical && <span className="critical-label inline">Critical</span>}</span>
+        <strong>{change.before} <span aria-label="to">→</span> {change.after}<small>{change.required === 0 ? " · Not required by target" : ` / ${change.required} required`}</small></strong>
       </div>)}
     </div>}
     <div className="why-block"><h4>Why this step</h4>
@@ -122,7 +135,7 @@ function RecommendationCard({ recommendation: rec, rank, view, busy, disabled, o
     </button>
   </article>;
 }
-export function CompletionFeedback({ snapshot: { before, after }, onDismiss }: { snapshot: CompletionSnapshot; onDismiss: () => void }) {
+export function CompletionFeedback({ snapshot: { before, after }, skillNames = {}, onDismiss }: { snapshot: CompletionSnapshot; skillNames?: Readonly<Record<string, string>>; onDismiss: () => void }) {
   const delta = readinessDelta(before.readiness, after.readiness);
   const ids = [...new Set([...Object.keys(before.effectiveSkills), ...Object.keys(after.effectiveSkills)])];
   const changes = ids.filter((id) => before.effectiveSkills[id] !== after.effectiveSkills[id]);
@@ -132,9 +145,9 @@ export function CompletionFeedback({ snapshot: { before, after }, onDismiss }: {
       <button className="icon-button" aria-label="Dismiss progress update" onClick={onDismiss}><X size={16} /></button>
     </div>
     {delta !== 0 && <div className="completion-readiness">Readiness <strong>{formatReadiness(before.readiness)} → {formatReadiness(after.readiness)}</strong><span>{formatReadinessDelta(delta)}</span></div>}
-    {changes.length > 0 && <ul className="completion-skills">{changes.map((id) => <li key={id}><span>{skillName(after, id, before)}</span><strong>{before.effectiveSkills[id] ?? "Not reported"} → {after.effectiveSkills[id] ?? "Not reported"}</strong></li>)}</ul>}
+    {changes.length > 0 && <ul className="completion-skills">{changes.map((id) => <li key={id}><span>{skillName(after, id, before, skillNames)}</span><strong>{before.effectiveSkills[id] ?? "Not reported"} → {after.effectiveSkills[id] ?? "Not reported"}</strong></li>)}</ul>}
   </section>;
 }
-function skillName(view: EmployeeView, id: string, previous?: EmployeeView) {
-  return view.skillGaps.find((gap) => gap.skillId === id)?.name ?? previous?.skillGaps.find((gap) => gap.skillId === id)?.name ?? id;
+function skillName(view: EmployeeView, id: string, previous?: EmployeeView, skillNames: Readonly<Record<string, string>> = {}) {
+  return view.skillGaps.find((gap) => gap.skillId === id)?.name ?? previous?.skillGaps.find((gap) => gap.skillId === id)?.name ?? skillNames[id] ?? id;
 }

@@ -8,6 +8,7 @@ All successful responses are `{ data: ... }`. Errors are `{ error: { code, messa
 
 | Endpoint | Data |
 | --- | --- |
+| GET `/api/catalog` | Shared `CatalogResult`: events, skills, role profiles; no employee history |
 | GET `/api/employees` | `{ items: EmployeeCard[], total }` |
 | GET `/api/employees/:id` | Deterministic `EmployeeDetail` |
 | GET `/api/employees/:id/recommendations` | The same `EmployeeDetail` with optional validated AI explanation text |
@@ -28,6 +29,7 @@ The AI result may update only explanation fields for the matching employee and c
 - EmployeeDetail extends EmployeeView with `completedActivities` and `activeMandatoryObligations`. Display them separately; mandatory events never enter career recommendations.
 - Render readiness with at most one decimal. Completion feedback uses the actual before/after response and percentage-point delta.
 - Skills and ranking are computed by the server. Never increment assessed `employee.skills` in the browser.
+- Catalog loading supplies skill names without blocking the profile. A missing target still displays all supplied effectiveSkills; skills outside target requirements have a separate table. IDs remain visible if the catalog is unavailable.
 - Recommendation expectedChanges are previews. Compare effectiveSkills before/after completion for actual progress.
 - On an uncertain completion outcome, reload the profile rather than automatically retrying the POST. Duplicate non-repeatable completion is rejected by the server.
 - Import success with a failed profile refresh retries the read, not the already committed upload.

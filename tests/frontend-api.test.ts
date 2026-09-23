@@ -8,6 +8,21 @@ const profile = () => ({ ...getEmployeeView(normalizeDataset(structuredClone(dem
 afterEach(() => vi.useRealTimers());
 
 describe("typed frontend API", () => {
+  it("loads the shared catalog through the existing endpoint", async () => {
+    const { skills, events, roleProfiles } = demoDataset;
+    const catalog = { skills, events, roleProfiles };
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ data: catalog }));
+    expect(await createCareerApi({ fetcher }).getCatalog()).toEqual(catalog);
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/catalog");
+  });
+  it("rejects malformed catalog names while profile requests remain independent", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ data: { skills: [{ skill_id: "SK", name: 5 }], events: [], roleProfiles: [] } }))
+      .mockResolvedValueOnce(Response.json({ data: profile() }));
+    const api = createCareerApi({ fetcher });
+    await expect(api.getCatalog()).rejects.toThrow("unexpected response");
+    expect(await api.getEmployeeView("EMP-014")).toEqual(profile());
+  });
   it("uses the existing recommendations route and preserves the EmployeeDetail envelope", async () => {
     const view = profile();
     view.recommendations[0]!.aiExplanation = "Validated explanation";

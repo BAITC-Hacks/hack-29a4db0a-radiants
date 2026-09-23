@@ -3,10 +3,10 @@
 ## Data and startup
 
 The supplied dataset is synthetic. Use the Backend demo laptop and one tested Next.js/SQLite build.
-Run `docker compose --env-file .env.local up --build` with a server key, or `docker compose up --build` without one for fallback.
+Run `docker compose up --build`. A server key in ignored `.env` enables AI; an absent key uses deterministic fallback. If the team uses `.env.local` instead, add `--env-file .env.local` after `docker compose`.
 Never post the key or resolved Compose environment. Keep the repository private.
 
-Use a fresh, separately named Compose project/volume for a clean rehearsal, and free port 3000 by stopping the previous app without deleting its volume. For example, `docker compose -p career-quest-jury-01 --env-file .env.local up --build`. Use a new project name for each clean rehearsal. Clearing localStorage does not reset SQLite.
+Use a fresh, separately named Compose project/volume for a clean rehearsal. For example, set `APP_PORT=3001` in the shell or ignored `.env`, then run `docker compose -p career-quest-jury-01 up --build` and open port 3001. The existing demo can continue on port 3000 with its own volume. Use a new project name for each clean rehearsal. Clearing localStorage does not reset SQLite.
 
 Check `GET /api/health`: 200 employees, 40 events, 60 skills, 32 role profiles, 2743 activityHistory rows.
 

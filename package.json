@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:ai-live": "vitest run tests/openai-live.test.ts",
     "test:watch": "vitest",
-    "lint": "eslint src/components src/lib/frontend src/main.tsx tests/frontend-import.test.ts --max-warnings=0",
+    "lint": "eslint src/components src/hooks src/lib/frontend src/main.tsx tests/frontend-*.test.ts --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "dev:demo": "vite --host 0.0.0.0",
     "build:demo": "vite build",

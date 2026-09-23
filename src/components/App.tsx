@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, FileUp } from "lucide-react";
 import type { Recommendation } from "../types/career";
 import type { EmployeeDetail } from "../contracts/api";
@@ -26,9 +26,12 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
   selected.current = employeeId;
 
   const listLoader = useCallback((signal: AbortSignal) => api.getEmployees(signal), [api]);
+  const catalogLoader = useCallback((signal: AbortSignal) => api.getCatalog(signal), [api]);
   const viewLoader = useCallback((signal: AbortSignal) => api.getEmployeeView(employeeId, signal), [api, employeeId]);
   const hrLoader = useCallback((signal: AbortSignal) => api.getHrSummary(signal), [api]);
   const employees = useApiResource("employees", listLoader);
+  const catalog = useApiResource("catalog", catalogLoader);
+  const skillNames = useMemo(() => Object.fromEntries(catalog.data?.skills.map((skill) => [skill.skill_id, skill.name]) ?? []), [catalog.data]);
   const profile = useApiResource(employeeId, viewLoader, !!employeeId && screen === "employee");
   const hr = useApiResource("hr", hrLoader, screen === "hr");
   const ai = useAiRecommendations(api, profile.data, screen === "employee" && !importOpen &&
@@ -143,7 +146,7 @@ export default function App({ api = defaultApi }: { api?: CareerApi }) {
         !employees.data?.length ? <EmptyState text="No employee profiles are available. Import a profile to get started." /> :
         profile.error ? <ErrorState title="Could not load employee profile and recommendations." detail={profile.error} onRetry={profile.reload} /> :
         profile.loading || !profile.data ? <LoadingState text="Analyzing your development profile…" /> :
-        <EmployeeScreen view={ai.view ?? profile.data} completion={currentCompletion} onDismissCompletion={() => setCompletion(null)}
+        <EmployeeScreen view={ai.view ?? profile.data} skillNames={skillNames} completion={currentCompletion} onDismissCompletion={() => setCompletion(null)}
           completing={pending === employeeId} completionDisabled={pending !== null || !!currentFailure && currentFailure.error.phase !== "rejected"}
           failure={currentFailure?.error ?? null} onRefresh={() => void refreshAfterCompletion()}
           onComplete={(recommendation) => void complete(recommendation)} />}

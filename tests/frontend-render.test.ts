@@ -10,11 +10,70 @@ import { CompletionError } from "../src/lib/frontend/api";
 import type { ActivityView, EmployeeDetail } from "../src/contracts/api";
 
 const profile = () => getEmployeeView(normalizeDataset(structuredClone(demoDataset)), "EMP-014");
-const screen = (view: ReturnType<typeof profile> & Partial<Pick<EmployeeDetail, "completedActivities" | "activeMandatoryObligations">>) => renderToStaticMarkup(createElement(EmployeeScreen, {
-  view, completing: false, completionDisabled: false, completion: null, failure: null,
+const screen = (view: ReturnType<typeof profile> & Partial<Pick<EmployeeDetail, "completedActivities" | "activeMandatoryObligations">>, skillNames?: Record<string, string>) => renderToStaticMarkup(createElement(EmployeeScreen, {
+  view, skillNames, completing: false, completionDisabled: false, completion: null, failure: null,
   onRefresh() {}, onComplete() {}, onDismissCompletion() {},
 }));
 describe("presentation of trusted EmployeeView values", () => {
+  it("labels gains with a zero target requirement without inventing a requirement", () => {
+    const view = profile();
+    const change = view.recommendations[0]!.expectedChanges[0]!;
+    change.required = 0;
+    change.before = 1;
+    change.after = 2;
+    const html = screen(view);
+    expect(html).toContain('1 <span aria-label="to">→</span> 2');
+    expect(html).toContain("Not required by target");
+    expect(html).not.toContain(" /  required");
+    expect(html).not.toContain("null required");
+    expect(html).not.toContain(" / 0 required");
+    change.required = 3;
+    expect(screen(view)).toContain(" / 3 required");
+  });
+  it("shows every reported effective skill for an employee without a target", () => {
+    const view = profile();
+    view.target = null;
+    view.targetStatus = "needs_career_goal";
+    view.skillGaps = [];
+    view.recommendations = [];
+    view.readiness = 0;
+    view.effectiveSkills = { SK_KNOWN: 4, SK_ZERO: 0, SK_UNKNOWN: 2 };
+    const original = structuredClone(view);
+    const html = screen(view, { SK_KNOWN: "Catalog skill", SK_ZERO: "Zero-level skill" });
+    expect(html).toContain("Current effective skill levels");
+    expect(html).toContain('scope="row">Catalog skill</th><td>4</td>');
+    expect(html).toContain('scope="row">Zero-level skill</th><td>0</td>');
+    expect(html).toContain('scope="row">SK_UNKNOWN</th><td>2</td>');
+    expect(html).toContain("Career goal needed");
+    expect(html).not.toContain("No current skill levels were provided");
+    expect(view).toEqual(original);
+  });
+  it("shows skills outside target requirements without duplicating requirement rows", () => {
+    const view = profile();
+    view.effectiveSkills.EXTRA_SKILL = 4;
+    const html = screen(view, { EXTRA_SKILL: "Additional skill" });
+    expect(html).toContain("Other current skills");
+    expect(html).toContain('scope="row">Additional skill</th><td>4</td>');
+    const currentTable = html.slice(html.indexOf('aria-label="Current skill levels"'));
+    const rows = currentTable.slice(0, currentTable.indexOf("</table>"));
+    view.skillGaps.forEach((gap) => { expect(rows).not.toContain(gap.name); });
+  });
+  it("renders skill IDs immediately when the optional catalog is loading or unavailable", () => {
+    const view = profile();
+    view.effectiveSkills.EXTRA_SKILL = 3;
+    const html = screen(view);
+    expect(html).toContain('scope="row">EXTRA_SKILL</th><td>3</td>');
+    expect(html).toContain("Recommended next steps");
+  });
+  it("shows an explicit empty state for a no-target profile with no reported skills", () => {
+    const view = profile();
+    view.target = null;
+    view.targetStatus = "needs_career_goal";
+    view.skillGaps = [];
+    view.recommendations = [];
+    view.effectiveSkills = {};
+    expect(screen(view)).toContain("No current skill levels were provided.");
+  });
   it("shows all supplied reasons, projected levels, expected impacts and optional AI insight", () => {
     const view = profile();
     view.readiness = 64.2;

@@ -1,5 +1,5 @@
 import type { Employee, EmployeeView, Recommendation } from "../../types/career";
-import type { ActivityView, EmployeeDetail } from "../../contracts/api";
+import type { ActivityView, CatalogResult, EmployeeDetail } from "../../contracts/api";
 import type { EmployeeListItem, HrSummaryResponse, ImportResult } from "./api";
 
 type ObjectValue = Record<string, unknown>;
@@ -13,6 +13,22 @@ const grade = (value: unknown) => ["Junior", "Middle", "Senior", "Lead"].include
 const skillMap = (value: unknown) => object(value) && Object.values(value).every((n) => level(n) && Number.isInteger(n));
 const percent = (value: unknown) => number(value) && value >= 0 && value <= 100;
 const count = (value: unknown) => number(value) && value >= 0 && Number.isInteger(value);
+
+export function isCatalog(value: unknown): value is CatalogResult {
+  return object(value) && Array.isArray(value.skills) && value.skills.every((skill) =>
+    object(skill) && text(skill.skill_id) && !!skill.skill_id && text(skill.name) && !!skill.name &&
+    ["hard", "soft"].includes(String(skill.type)) && text(skill.category) && text(skill.description)) &&
+    new Set(value.skills.map((skill) => skill.skill_id)).size === value.skills.length &&
+    Array.isArray(value.roleProfiles) && value.roleProfiles.every((profile) =>
+      object(profile) && text(profile.role) && grade(profile.grade) && skillMap(profile.required_skills) && strings(profile.critical_skills)) &&
+    Array.isArray(value.events) && value.events.every((event) =>
+      object(event) && text(event.event_id) && text(event.title) && text(event.description) &&
+      ["compliance", "onboarding", "course", "workshop", "mentoring", "certification", "meetup"].includes(String(event.type)) &&
+      ["online", "offline", "self_paced"].includes(String(event.format)) && number(event.duration_hours) && typeof event.mandatory === "boolean" &&
+      strings(event.target_roles) && Array.isArray(event.target_grades) && event.target_grades.every(grade) &&
+      skillMap(event.prerequisites) && strings(event.upcoming_sessions) && Array.isArray(event.develops_skills) &&
+      event.develops_skills.every((effect) => object(effect) && text(effect.skill_id) && number(effect.gain) && level(effect.max_level)));
+}
 
 /** Shape checks only: no normalization, eligibility, ranking, or progress formulas. */
 function isEmployee(value: unknown): value is Employee {
