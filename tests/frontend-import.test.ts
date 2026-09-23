@@ -6,7 +6,7 @@ describe("frontend import transport (normalization belongs to the backend)", () 
     const file = new File(["not JSON — backend must validate it"], "employees.json", { type: "application/json" });
     const read = vi.spyOn(file, "text").mockRejectedValue(new Error("The UI must not read files"));
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: "Malformed employee JSON" }), { status: 422 }));
-    await expect(createCareerApi({ fetcher }).importData(file)).rejects.toThrow("Malformed employee JSON");
+    await expect(createCareerApi({ fetcher }).importData(file)).rejects.toMatchObject({ status: 422 });
     expect(read).not.toHaveBeenCalled();
     expect(fetcher).toHaveBeenCalledTimes(1);
     const [url, init] = fetcher.mock.calls[0]!;
@@ -28,7 +28,7 @@ describe("frontend import transport (normalization belongs to the backend)", () 
   });
   it("rejects unsupported extensions without sending a request", async () => {
     const fetcher = vi.fn<typeof fetch>();
-    await expect(createCareerApi({ fetcher }).importData(new File(["text"], "profile.exe"))).rejects.toThrow("JSON or CSV");
+    await expect(createCareerApi({ fetcher }).importData(new File(["text"], "profile.exe"))).rejects.toThrow("JSON или CSV");
     expect(fetcher).not.toHaveBeenCalled();
   });
 });

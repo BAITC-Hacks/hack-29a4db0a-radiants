@@ -36,6 +36,7 @@ export interface CompleteActivityResult {
   view: EmployeeDetail;
   progress: { before: number; after: number; delta: number };
 }
+export interface CareerGoalUpdate { career_goal: Employee["career_goal"] }
 export interface HrFilters { role?: string; grade?: Employee["grade"]; department?: string }
 export interface HrSummaryResult extends HrSummary {
   population: number;

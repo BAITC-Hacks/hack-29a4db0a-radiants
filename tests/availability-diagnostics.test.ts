@@ -150,7 +150,9 @@ describe("recommendation availability diagnostics", () => {
     }
     expect([...statuses].sort()).toEqual(["completed", "declined", "dropped", "in_progress", "no_show", "overdue"]);
     expect(JSON.stringify(dataset)).toBe(before);
-  });
+  // This full-catalog regression reloads SQLite for all 200 profiles. Allow slow
+  // demo laptops/containers without relaxing any API or live-AI latency checks.
+  }, 20_000);
 
   it("disables all model work when external AI is explicitly prohibited", async () => {
     vi.stubEnv("AI_EXPLANATIONS_ENABLED", "false");

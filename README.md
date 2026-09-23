@@ -28,11 +28,15 @@ Employee sessions can read only their own profile/history and complete their own
 
 Compose binds to `127.0.0.1` by default. For deployment behind an internal HTTPS proxy, configure `APP_BIND_ADDRESS` and the exact browser-facing `APP_ORIGIN` (also enables Secure cookies). `AI_EXPLANATIONS_ENABLED=false` disables external AI requests. See [backend privacy and auth contract](docs/BACKEND_PRIVACY.md) and [the frontend implementation plan](docs/FRONTEND_PRIVACY_PLAN.md).
 
+HR can open **Доступ сотрудников** to view accounts and create access for an existing profile. The form confirms the employee binding, accepts a 12–128-character password and clears it after the server response. Transfer credentials privately; they cannot be viewed later. Successful JSON import also offers **Создать доступ** with the imported profile selected. After an uncertain creation, the UI reads the account list before allowing another attempt.
+
+The UI is in Russian, with Career Quest branding and locally hosted Manrope. Data-provided employee/course names and explanations retain their original language. Returning to the page revalidates the session; logout is synchronized across tabs without transmitting credentials. See [current frontend delivery and validation](docs/FRONTEND_PRIVATE_UI.md).
+
 ### Optional shared employee demo login
 
 `DEMO_EMPLOYEE_LOGIN=false` is the default. For a demonstration with synthetic data, set `DEMO_EMPLOYEE_LOGIN=true` in the ignored `.env`, then recreate the container with `docker compose up --build`. Employees can sign in with their full name exactly as listed in the dataset and password **admin**. For names shared by more than one profile, append the employee ID: `Ksenia Pavlova (E0058)`. Unicode names and spaces are accepted. Imported employee profiles work on login without a separate account-provisioning step.
 
-The login page and authenticated app show **Demo mode — shared employee access, not private authentication.** Anyone with the shared password can access a named employee's demo profile, so this mode does not provide employee privacy. HR continues to use `hr-admin` with its individual generated password; `admin` does not grant HR access. Individual account passwords remain unchanged.
+The login page and authenticated app show **Демо-режим: общий доступ к профилям сотрудников. Личные данные в этом режиме не защищены индивидуальным паролем.** Anyone with the shared password can access a named employee's demo profile, so this mode does not provide employee privacy. HR continues to use `hr-admin` with its individual generated password; `admin` does not grant HR access. Individual account passwords remain unchanged. Demo identity rows are labeled separately in HR access management and do not block creation of a personal account.
 
 To restore individual authentication, set `DEMO_EMPLOYEE_LOGIN=false` and recreate the container. The shared login stops working and sessions created through it are rejected. Existing individual credentials continue to work. Use the Next.js/Compose entry point for this demo mode; its login hint reads the server flag at runtime.
 
@@ -79,6 +83,8 @@ The teammate's refined frontend design is included, preserving cancellation, mut
 
 Completion appends one `LOCAL_<uuid>` history record in a transaction, then rebuilds the shared view. It does not increment assessed `employee.skills`. Teaching caps limit gains without lowering existing attained skills. Availability uses the fixed snapshot `2026-10-01`.
 
+AI/Data completion-policy handoff: [pure eligibility guard and single-event preview](docs/COMPLETION_POLICY_HANDOFF.md). The server calls this guard inside the same write transaction as history insertion, profile recalculation, and audit. The original direct-HTTP regression is retained as a required gate. The preview replays a virtual history record through the existing engine and does not change the public API or UI.
+
 See [backend handoff](docs/BACKEND_HANDOFF.md), [starter adapter](docs/STARTER_DATASET_ADAPTER.md), [domain progress validation](docs/PROGRESS_VALIDATION.md), and [earlier frontend review](docs/FRONTEND_INTEGRATION_REVIEW.md). The earlier review describes the pre-API revision.
 
 ## API
@@ -98,14 +104,17 @@ Every success is `{ data: ... }`; errors are `{ error: { code, message, details 
 | GET /api/employees/:id | EmployeeView + activityHistory, completedActivities, activeMandatoryObligations, recommendationDiagnostics |
 | GET /api/employees/:id/recommendations | Same shared employee view |
 | POST /api/employees/:id/activities/:eventId/complete | activity, view, progress: { before, after, delta } |
+| PATCH /api/employees/:id/career-goal | Recomputed EmployeeDetail; employee changes only their own career_goal |
 | POST /api/import | employeesInserted, employeesUpdated, historyInserted, historySkipped |
 | GET /api/hr/summary | Shared HrSummary + population, statuses, assignedBy, completionRate, totalGapSeverity, employeesWithoutTarget |
 
 Employee filters: `search`, `role`, `grade`, `department`. HR filters: `role`, `grade`, `department`. Matching filters combine with AND.
 
-All endpoints except health/login require a session. All POSTs require the matching `Origin`; authenticated POSTs additionally require `X-CSRF-Token` from AuthSession. Success/error envelopes stay unchanged. 401 means sign in, 403 means forbidden role/CSRF/origin; 429 limits repeated failed logins. JSON bodies are limited to 64 KiB and multipart import to 10 MiB (413 on excess).
+All endpoints except health/login require a session. All POSTs and PATCHes require the matching `Origin`; authenticated mutations additionally require `X-CSRF-Token` from AuthSession. Success/error envelopes stay unchanged. 401 means sign in, 403 means forbidden role/CSRF/origin; 429 limits repeated failed logins. JSON bodies are limited to 64 KiB and multipart import to 10 MiB (413 on excess).
 
-Completion body: `{ completedAt?: "YYYY-MM-DD", score?: 0..100, feedbackRating?: 1..5 }`. Send `{}` for defaults. Self-paced completion defaults to the snapshot date; scheduled completion uses the next session. Non-repeatable duplicate completion returns 409; EV_036 can repeat.
+Completion body: `{ completedAt?: "YYYY-MM-DD", score?: 0..100, feedbackRating?: 1..5 }`. Send `{}` for defaults. Self-paced completion defaults to the snapshot date; scheduled completion uses the next session. Inside one transaction, the domain engine checks audience, effective-skill prerequisites, availability and the selected date before history insertion and recomputation. A blocked event returns 422 `EVENT_NOT_ELIGIBLE` without changing history or progress. Non-repeatable duplicate completion returns 409; EV_036 can repeat. An active stored assignment by HR/manager is required for mandatory completion. Self-paced and active participation complete on the snapshot day; new scheduled activities use a listed future session. Completion is independent of recommendation rank.
+
+Career-goal body: `{ career_goal: { target_role, target_grade } | null }`, with no extra properties. The employee may update only their own goal; the role/grade pair must exist in the catalog. Assessed skills, current position and permissions cannot be changed here. See [completion and goal contract](docs/FRONTEND_COMPLETION_GOAL_HANDOFF.md) and [HR account creation after import](docs/FRONTEND_ACCOUNTS_HANDOFF.md) for frontend examples and exact errors.
 
 Import uses multipart/form-data with `employees` (JSON) and/or `history` (CSV), as uploaded files or text fields. JSON accepts one employee, an array or the official `{ meta, employees }` wrapper. The endpoint accepts both files together; the teammate dialog currently uploads one file at a time. Existing employees update, new employees insert and duplicate record IDs skip. All input and the combined dataset are validated by the shared adapter. A failed row rolls back the entire request. Catalog replacement is not exposed through this incremental-import endpoint.
 
@@ -138,8 +147,10 @@ Defaults: `CAREER_QUEST_DB_PATH=.data/career-quest.sqlite`, `CAREER_QUEST_DATA_D
 1. Sign in as `employee`, linked to E0178. On a clean database: readiness 71.3%.
 2. Complete EV_005: skills refresh, readiness becomes 74.1%, API Design stays at 4.
 3. Reload: the completed history and updated progress remain.
-4. Sign out, sign in as `hr-admin`, then import [jury-employee.json](docs/fixtures/jury-employee.json), then [jury-history.csv](docs/fixtures/jury-history.csv) using **Import another file**. Jury Demo changes from 71.3% to 74.1%; completed and overdue mandatory activity history appears.
-5. Open HR: official population, gaps, all employees without steps, and all activity participation rows are accessible.
+4. Sign out, sign in as `hr-admin`, then import [jury-employee.json](docs/fixtures/jury-employee.json), then [jury-history.csv](docs/fixtures/jury-history.csv) using **Загрузить ещё файл**. Jury Demo changes from 71.3% to 74.1%; completed and overdue mandatory activity history appears.
+5. Use **Создать доступ** after JSON import, or **Доступ сотрудников**, select Jury Demo and create its personal employee account. Confirm the binding and privately retain the password before submitting. Account creation and CSV import may be done in either order after JSON import.
+6. Sign out and enter that employee account to complete a voluntary recommendation. Its profile, history and progress refresh; other employees and HR controls are unavailable.
+7. Sign back in as HR and open **Обзор команды**: population, gaps, employees without steps and activity participation reflect the changes.
 
 See [jury rehearsal](docs/JURY_DEMO.md) for the three importable evaluation profiles, adversarial checks and a three-minute demonstration. [Release checklist](docs/RELEASE_CHECKLIST.md) separates verified behavior from the remaining live-AI and frontend gates.
 

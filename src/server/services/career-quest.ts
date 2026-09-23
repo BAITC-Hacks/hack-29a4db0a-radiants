@@ -1,13 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
-import type { CatalogResult, CompleteActivityResult, EmployeeCard, EmployeeDetail, HrSummaryResult } from "@/contracts/api";
-import { SNAPSHOT_DATE, REPEATABLE_EVENT_ID, type ActivityRecord } from "@/contracts/types";
+import type { CareerGoalUpdate, CatalogResult, CompleteActivityResult, EmployeeCard, EmployeeDetail, HrSummaryResult } from "@/contracts/api";
+import { REPEATABLE_EVENT_ID, type ActivityRecord } from "@/contracts/types";
+import { careerGoalUpdateSchema } from "@/contracts/schemas";
 import { getEmployeeView, getRecommendationDiagnostics } from "@/lib/recommendation";
+import { checkActivityCompletion } from "@/lib/recommendation/completion";
 import { normalizeDataset, type NormalizedDataset } from "@/lib/data/normalize";
 import { buildHrSummary } from "@/lib/analytics/hr-summary";
 import { applyAiExplanations, type RecommendationExplainer } from "@/lib/ai/explanations";
 import { createOpenAIExplainer } from "@/lib/ai/openai-explainer";
 import { AppError } from "@/server/errors";
+import { audit } from "@/server/auth";
 import { getDatabase } from "@/server/db/database";
 import { ActivityRepository, EmployeeRepository, EventRepository, SkillRepository, loadDomainDataset, type EmployeeFilters } from "@/server/repositories";
 
@@ -107,26 +110,60 @@ export async function completeActivity(
   eventId: string,
   values: { completedAt?: string; score?: number | null; feedbackRating?: number | null },
   db: Database.Database = getDatabase(),
+  actorUserId?: string,
 ): Promise<CompleteActivityResult> {
-  // The lock covers existence/duplicate checks, insertion and the recomputed view.
+  // Eligibility is evaluated against the same locked snapshot as the write and view.
   return db.transaction(() => {
-    const before = getEmployeeProjection(employeeId, db);
-    const event = new EventRepository(db).getById(eventId);
+    const dataset = normalized(db);
+    const before = employeeDetail(dataset, employeeId);
+    const event = dataset.eventById.get(eventId);
     if (!event) throw new AppError(404, "EVENT_NOT_FOUND", "Event " + eventId + " was not found");
     const activities = new ActivityRepository(db);
     if (eventId !== REPEATABLE_EVENT_ID && activities.hasCompleted(employeeId, eventId)) {
       throw new AppError(409, "EVENT_ALREADY_COMPLETED", "This event cannot be completed more than once");
     }
-    const date = values.completedAt ?? (event.format === "self_paced" ? SNAPSHOT_DATE : [...event.upcoming_sessions].filter((session) => session >= SNAPSHOT_DATE).sort()[0]);
-    if (!date) throw new AppError(422, "EVENT_NOT_AVAILABLE", "A completion date is required because this event has no future session");
+    const eligibility = checkActivityCompletion(dataset, employeeId, eventId, values);
+    if (!eligibility.allowed) {
+      throw new AppError(422, "EVENT_NOT_ELIGIBLE", "This activity cannot be completed: " + eligibility.reasons.map((reason) => reason.message).join(" "),
+        eligibility.reasons.flatMap((reason) => [
+          { field: reason.code === "invalid_completion_date" ? "completedAt" : "eventId", message: `${reason.code}: ${reason.message}` },
+          ...(reason.missingSkills ?? []).map((skill) => ({ field: `skills.${skill.skillId}`, message: `Current level ${skill.current}; required level ${skill.required}` })),
+        ]));
+    }
+    const continuing = dataset.history.find((record) => record.record_id === eligibility.continuingRecordId);
     const activity: ActivityRecord = {
       record_id: "LOCAL_" + randomUUID(), employee_id: employeeId, event_id: eventId,
-      date, due_date: null, status: "completed", completion_pct: 100,
-      score: values.score ?? null, feedback_rating: values.feedbackRating ?? null, assigned_by: "self",
+      date: eligibility.completedAt, due_date: continuing?.due_date ?? null, status: "completed", completion_pct: 100,
+      score: values.score ?? null, feedback_rating: values.feedbackRating ?? null,
+      assigned_by: continuing?.assigned_by ?? "self",
     };
     activities.insert(activity);
     // Assessed employee.skills is never changed: history is the sole source of this gain.
     const view = getEmployeeProjection(employeeId, db);
+    if (actorUserId) audit(actorUserId, "activity.completed", activity.record_id, db);
     return { activity, view, progress: { before: before.readiness, after: view.readiness, delta: Math.round((view.readiness - before.readiness) * 10) / 10 } };
+  }).immediate();
+}
+
+export function updateCareerGoal(
+  employeeId: string,
+  values: CareerGoalUpdate,
+  db: Database.Database = getDatabase(),
+  actorUserId?: string,
+): EmployeeDetail {
+  return db.transaction(() => {
+    const { career_goal: goal } = careerGoalUpdateSchema.parse(values);
+    const employees = new EmployeeRepository(db);
+    if (!employees.exists(employeeId)) throw new AppError(404, "EMPLOYEE_NOT_FOUND", "Employee " + employeeId + " was not found");
+    if (goal && !new SkillRepository(db).listRoleProfiles().some((profile) =>
+      profile.role === goal.target_role && profile.grade === goal.target_grade)) {
+      throw new AppError(422, "INVALID_CAREER_TARGET", "Choose a role and grade present in the role profiles catalog",
+        [{ field: "career_goal", message: "The requested role/grade pair does not exist" }]);
+    }
+    // This statement cannot touch assessed skills, present position, or accounts.
+    employees.setCareerGoal(employeeId, goal);
+    const view = getEmployeeProjection(employeeId, db);
+    if (actorUserId) audit(actorUserId, "career_goal.updated", employeeId, db);
+    return view;
   }).immediate();
 }

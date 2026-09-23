@@ -16,32 +16,53 @@ afterEach(() => vi.useRealTimers());
 describe("session-aware frontend privacy", () => {
   it("does not render protected content before session resolution", () => {
     const html = renderToStaticMarkup(createElement(AuthBoundary));
-    expect(html).toContain("Checking your session");
-    expect(html).not.toContain("Development plan");
-    expect(html).not.toContain("HR dashboard");
+    expect(html).toContain("Проверяем вход");
+    expect(html).not.toContain("Моё развитие");
+    expect(html).not.toContain("Обзор команды");
   });
   it("renders a private login form with no embedded credentials or role selector", () => {
     const html = renderToStaticMarkup(createElement(LoginForm, { onSignedIn() {} }));
     expect(html).toContain('type="password"');
     expect(html).toContain('autoComplete="current-password"');
     expect(html).not.toContain("test-csrf-token");
-    expect(html).not.toContain("Select employee");
-    expect(html).not.toContain("HR dashboard");
+    expect(html).not.toContain('id="employee-select"');
+    expect(html).not.toContain("Обзор команды");
+    expect(html).toContain("Вход в аккаунт");
+    expect(html).not.toContain("README");
+    expect(html).not.toContain("Демо-режим");
+    expect(html).not.toContain("<strong>admin</strong>");
+    expect(html).toMatch(/minLength="3"/i);
+    expect(html).toMatch(/maxLength="80"/i);
+    expect(html).toContain('pattern="');
+  });
+  it("shows shared demo credentials and full-name validation only with an explicitly enabled flag", () => {
+    const disabled = renderToStaticMarkup(createElement(LoginForm, { demoLoginEnabled: false, onSignedIn() {} }));
+    expect(disabled).not.toContain("Демо-режим");
+    expect(disabled).not.toContain("<strong>admin</strong>");
+    const enabled = renderToStaticMarkup(createElement(LoginForm, { demoLoginEnabled: true, onSignedIn() {} }));
+    expect(enabled).toContain("Демо-режим: общий доступ");
+    expect(enabled).toContain("<strong>admin</strong>");
+    expect(enabled).toContain("Полное имя или логин");
+    expect(enabled).toContain("Ksenia Pavlova (E0058)");
+    expect(enabled).toMatch(/minLength="1"/i);
+    expect(enabled).toMatch(/maxLength="200"/i);
+    expect(enabled).not.toContain('pattern="');
+    expect(enabled).not.toContain("доступны вам и HR с правами доступа");
   });
   it("hides employee selection, HR and import for employee accounts", () => {
     const html = renderToStaticMarkup(createElement(App, { api: createCareerApi(), session: session(), onSignOut() {} }));
-    expect(html).toContain("Sign out");
-    expect(html).toContain("activities are voluntary");
-    expect(html).not.toContain("HR dashboard");
-    expect(html).not.toContain('aria-label="Import data"');
-    expect(html).not.toContain('aria-label="Select employee"');
+    expect(html).toContain("Выйти");
+    expect(html).toContain("добровольные шаги развития");
+    expect(html).not.toContain("Обзор команды");
+    expect(html).not.toContain("Загрузить данные");
+    expect(html).not.toContain('id="employee-select"');
   });
   it("shows HR navigation, employee selection and import only in HR view", () => {
     const html = renderToStaticMarkup(createElement(App, { api: createCareerApi(), session: session("hr"), onSignOut() {} }));
-    expect(html).toContain("HR dashboard");
-    expect(html).toContain('aria-label="Import data"');
-    expect(html).toContain('aria-label="Select employee"');
-    expect(html).toContain("completion is recorded by the employee");
+    expect(html).toContain("Обзор команды");
+    expect(html).toContain("Загрузить данные");
+    expect(html).toContain('id="employee-select"');
+    expect(html).toContain("Занятия отмечает завершёнными сам сотрудник в своём аккаунте.");
   });
   it("validates the role-to-profile binding and CSRF token from server sessions", () => {
     expect(isAuthSession(session())).toBe(true);
@@ -72,7 +93,7 @@ describe("session-aware frontend privacy", () => {
     }));
     const api = createAuthApi(fetcher, { timeoutMs: 50 });
     const pending = operation === "session" ? api.getSession() : operation === "login" ? api.login("account", "private-password") : api.logout("csrf");
-    const result = expect(pending).rejects.toThrow("timed out");
+    const result = expect(pending).rejects.toThrow("Сервер не ответил вовремя");
     await vi.advanceTimersByTimeAsync(51);
     await result;
     expect(fetcher.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
