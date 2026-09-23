@@ -1,4 +1,4 @@
-import type { AuthSession } from "../../contracts/auth";
+import type { AuthLoginResult, AuthSession, DemoLoginSelection } from "../../contracts/auth";
 import { ApiError, apiErrorMessage } from "./api";
 
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object";
@@ -9,6 +9,14 @@ export function isAuthSession(value: unknown): value is AuthSession {
     (user.role === "employee" ? typeof user.employeeId === "string" && user.employeeId.length > 0 : user.role === "hr" && user.employeeId === null) &&
     typeof value.expiresAt === "string" && Number.isFinite(Date.parse(value.expiresAt)) &&
     typeof value.csrfToken === "string" && value.csrfToken.length > 0;
+}
+
+function isDemoLoginSelection(value: unknown): value is DemoLoginSelection {
+  return object(value) && value.kind === "employee_selection" && Array.isArray(value.choices) && value.choices.length > 1 &&
+    value.choices.every((choice: unknown) => object(choice) &&
+      typeof choice.employeeId === "string" && choice.employeeId.length > 0 &&
+      typeof choice.fullName === "string" && choice.fullName.length > 0 &&
+      typeof choice.department === "string" && typeof choice.role === "string" && typeof choice.grade === "string");
 }
 
 export function createAuthApi(fetcher: typeof fetch = (...args) => fetch(...args), options: { timeoutMs?: number } = {}) {
@@ -59,10 +67,12 @@ export function createAuthApi(fetcher: typeof fetch = (...args) => fetch(...args
   }
   return {
     async getSession(signal?: AbortSignal): Promise<AuthSession> { return sessionResult(await request("session", {}, signal)); },
-    async login(username: string, password: string, signal?: AbortSignal): Promise<AuthSession> {
-      return sessionResult(await request("login", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }),
-      }, signal));
+    async login(username: string, password: string, signal?: AbortSignal, employeeId?: string): Promise<AuthLoginResult> {
+      const result = await request("login", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password, ...(employeeId ? { employeeId } : {}) }),
+      }, signal);
+      if (isDemoLoginSelection(result)) return { kind: "employee_selection", choices: result.choices.map(({ employeeId, fullName, department, role, grade }) => ({ employeeId, fullName, department, role, grade })) };
+      return sessionResult(result);
     },
     async logout(csrfToken: string, signal?: AbortSignal): Promise<void> {
       await request("logout", { method: "POST", headers: { "X-CSRF-Token": csrfToken } }, signal);

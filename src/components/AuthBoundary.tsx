@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import type { AuthSession } from "../contracts/auth";
+import type { AuthSession, DemoLoginSelection } from "../contracts/auth";
 import { AuthLifecycle, bindAuthPageEvents, createAuthApi } from "../lib/frontend/auth-api";
 import { ApiError, createCareerApi } from "../lib/frontend/api";
 import App from "./App";
@@ -80,21 +80,33 @@ export function LoginForm({ notice = "", demoLoginEnabled = false, onSignedIn }:
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [selection, setSelection] = useState<DemoLoginSelection | null>(null);
   const usernameInput = useRef<HTMLInputElement>(null);
+  const selectionHeading = useRef<HTMLHeadingElement>(null);
   const errorMessage = useRef<HTMLParagraphElement>(null);
   const request = useRef<AbortController | null>(null);
   useEffect(() => { usernameInput.current?.focus(); return () => request.current?.abort(); }, []);
   useEffect(() => { if (error) errorMessage.current?.focus(); }, [error]);
+  useEffect(() => { if (selection) selectionHeading.current?.focus(); else usernameInput.current?.focus(); }, [selection]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    await signIn(password);
+  }
+  async function signIn(submittedPassword: string, employeeId?: string) {
     if (request.current) return;
     const controller = new AbortController();
     request.current = controller;
     setPending(true);
     setError("");
     try {
-      const session = await auth.login(username.trim(), password, controller.signal);
-      if (!controller.signal.aborted) { setPassword(""); onSignedIn(session); }
+      const result = await auth.login(username.trim(), submittedPassword, controller.signal, employeeId);
+      if (!controller.signal.aborted) {
+        setPassword("");
+        if ("kind" in result) {
+          if (!demoLoginEnabled) throw new ApiError("Не удалось подтвердить вход. Попробуйте ещё раз.");
+          setSelection(result);
+        } else onSignedIn(result);
+      }
     } catch (reason) {
       if (!controller.signal.aborted) setError(reason instanceof ApiError ? reason.message : "Не удалось войти. Проверьте подключение и попробуйте ещё раз.");
     } finally {
@@ -104,19 +116,28 @@ export function LoginForm({ notice = "", demoLoginEnabled = false, onSignedIn }:
   }
   return <main className="auth-shell"><section className="auth-card" aria-labelledby="login-heading">
     <p className="brand">Career Quest</p><h1 id="login-heading">Вход в аккаунт</h1>
-    {demoLoginEnabled ? <><DemoAccessNotice /><p className="section-note" id="login-privacy">Для входа сотрудника введите полное имя из списка и пароль <strong>admin</strong>. Если имена совпадают, добавьте ID сотрудника: Ksenia Pavlova (E0058). HR входит с логином <strong>hr-admin</strong> и своим индивидуальным паролем.</p></>
+    {demoLoginEnabled ? <><DemoAccessNotice /><p className="section-note" id="login-privacy">Введите имя и фамилию из данных. Пароль для демо: <strong>admin</strong>.</p></>
       : <p className="section-note" id="login-privacy">Ваш профиль и история обучения доступны вам и HR с правами доступа.</p>}
     {notice && <p role="status" className="inline-success">{notice}</p>}
-    <form onSubmit={(event) => void submit(event)} aria-busy={pending} aria-describedby="login-privacy">
-      <label htmlFor="login-username">{demoLoginEnabled ? "Полное имя или логин" : "Логин"}</label>
-      <input ref={usernameInput} id="login-username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} required minLength={demoLoginEnabled ? 1 : 3} maxLength={demoLoginEnabled ? 200 : 80} pattern={demoLoginEnabled ? undefined : "[a-zA-Z0-9_.\\-]+"} value={username} onChange={(event) => setUsername(event.target.value)} disabled={pending} />
+    {selection ? <section className="login-choices" aria-busy={pending} aria-labelledby="login-choice-heading">
+      <h2 id="login-choice-heading" ref={selectionHeading} tabIndex={-1}>Выберите свой профиль</h2>
+      <p className="section-note">Несколько сотрудников указаны как {selection.choices[0]!.fullName}. Уточните подразделение и должность.</p>
+      <div className="login-choice-list">{selection.choices.map((choice, index) => <button key={choice.employeeId} className="login-choice" disabled={pending}
+        onClick={() => void signIn("admin", choice.employeeId)} aria-label={`${choice.department}, ${choice.role}, ${choice.grade}, профиль ${index + 1}`}>
+        <strong>{choice.department || "Подразделение не указано"}</strong><span>{choice.role} · {choice.grade}</span>
+      </button>)}</div>
+      {pending && <p role="status" className="section-note">Входим…</p>}
+      <button className="text-button" disabled={pending} onClick={() => { setSelection(null); setError(""); }}>Изменить имя</button>
+    </section> : <form onSubmit={(event) => void submit(event)} aria-busy={pending} aria-describedby="login-privacy">
+      <label htmlFor="login-username">{demoLoginEnabled ? "Имя и фамилия" : "Логин"}</label>
+      <input ref={usernameInput} id="login-username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder={demoLoginEnabled ? "Например, Ksenia Pavlova" : undefined} required minLength={demoLoginEnabled ? 1 : 3} maxLength={demoLoginEnabled ? 200 : 80} pattern={demoLoginEnabled ? undefined : "[a-zA-Z0-9_.\\-]+"} value={username} onChange={(event) => setUsername(event.target.value)} disabled={pending} />
       <label htmlFor="login-password">Пароль</label>
       <input id="login-password" name="password" type="password" autoComplete="current-password" required maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} disabled={pending} />
-      {error && <p ref={errorMessage} role="alert" tabIndex={-1} className="import-error">{error}</p>}
       <button className="button button-green" disabled={pending}>{pending ? "Входим…" : "Войти"}</button>
-    </form>
+    </form>}
+    {error && <p ref={errorMessage} role="alert" tabIndex={-1} className="import-error">{error}</p>}
     <p className="section-note auth-caption">{demoLoginEnabled
-      ? "Демо-вход доступен и для загруженных профилей. Пароли индивидуальных аккаунтов и HR остаются прежними."
+      ? "Для HR: введите hr-admin в поле имени и свой отдельный пароль."
       : "Чтобы получить доступ, обратитесь к HR."}</p>
   </section></main>;
 }

@@ -1,6 +1,6 @@
 # Private frontend delivery — 2026-09-23
 
-Started from team `main` at `1e0bab4`, integrated the updated `main` at `1666aeb`; branch `feat/private-frontend`. This implements the frontend handoff without replacing the authenticated App with the earlier public frontend. This frontend change does not alter backend routes, canonical contracts, database migrations, dependencies or Docker configuration relative to the integrated main.
+The original frontend handoff started from team `main` at `1e0bab4`, integrated `main` at `1666aeb`, and used branch `feat/private-frontend`. It retained the authenticated App and existing backend routes. The later demo-name selection flow extends the login request/response contract as described in [backend privacy](BACKEND_PRIVACY.md).
 
 ## Delivered
 
@@ -15,6 +15,7 @@ Started from team `main` at `1e0bab4`, integrated the updated `main` at `1666aeb
 - Recommendations are **Вариант 1/2/3**, explicitly presented as alternatives. Cards include catalog duration/format and the backend-selected next session, or a truthful no-fixed-date state for self-paced events. Backend diagnostics, excluded-event reasons, score and readiness formula are available in disclosure controls. AI source labels require both `explanationSource === "llm"` and nonempty AI text. The existing deterministic snapshot comparison and request cancellation are preserved.
 - HR role/grade/department filters use the existing server query contract. Reset clears all filters, empty populations have an explicit message, and all returned rows remain accessible in scrollable tables. Employee accounts have no HR controls.
 - The optional shared demo login introduced by main is preserved, remains disabled by default, and has Russian notices only when the server explicitly enables it. The private flow described here uses individual authentication. Demo identities do not prevent HR from creating a personal employee account.
+- Demo login accepts the employee's full name and password **admin**. Shared names lead to profile cards showing department, role and grade. Selecting a card finishes login; the user never types an employee ID. The internal ID returned with a card is used only in the follow-up login request.
 
 ## Session lifecycle
 
@@ -23,6 +24,8 @@ Started from team `main` at `1e0bab4`, integrated the updated `main` at `1666aeb
 Logout immediately removes protected content. Failed logout stays locked with an honest retry. Retry first obtains the server's current CSRF token. Expiry also clears failed logout state. Auth calls have bounded cancellation, including response-body delays. BroadcastChannel carries only a logout event, random operation ID and timestamp; peers recheck canonical server state. No credentials, profile payloads, browser storage or client-readable session cookies are used.
 
 ## Verification
+
+The results below concern the earlier delivery unless explicitly listed under the current full-name login change. Its automated suite and duplicate-name card flow have not yet been exercised.
 
 - Production `next build`: pass, including TypeScript.
 - ESLint with `--max-warnings=0`: pass.
@@ -33,15 +36,22 @@ Logout immediately removes protected content. Failed logout stays locked with an
 - Two browser tabs: logout in one removed protected profiles and showed login in both. The native file chooser retained selection and the import dialog. The narrow account form and its horizontally scrollable account table were reviewed.
 - Final browser review at **1280 × 850** and **390 × 844**: HR account states and duplicate prevention; all three filters; matching population 1, empty population 0 and reset to 201; all 60 skill-gap, 27 follow-up and 40 participation rows in their scrollable tables. New employee login has no HR controls; variant labels, date/format/duration and distinct expected effects render without page overflow. Viewport overrides were reset and the test account signed out.
 - After integration with main, the individual-login browser smoke check passed again with `DEMO_EMPLOYEE_LOGIN=false`: no shared-password hint, own Jury Demo profile, persisted 76.9% readiness, three recommendation variants, no HR actions, confirmed logout. A dev preview remains available at `http://127.0.0.1:3100/` using the separate ignored test database.
+- Docker Compose build, production startup and container healthcheck passed on revision `0c29cf6`. This supersedes the earlier local Docker-engine and direct `next start` limitations; it does not verify the subsequent full-name login/card changes.
 
-## Waiting for backend
+### Current full-name login change
 
-The current main has no career-goal mutation endpoint. The role/grade catalog is available, but a working goal editor and save action require the backend request/response contract and authorization rules. No fake save button or unsupported mutation has been added. This is the remaining dependent item from the frontend handoff.
+- The first Docker build containing the new login form passed.
+- The second Docker integration build passed at `0b1fa90`, including merged `main` at `cedd34d`; TypeScript passed and the container was recreated. No automated test suite was run for this change.
+- The form was confirmed in the Docker-served application: the field is labeled **Имя и фамилия**, and there is no instruction to enter an employee ID. This confirms the displayed form, not the complete login flow.
+- The current change's automated suite, duplicate-name cards and follow-up selection request have not yet been exercised.
 
-## Unverified environment gates
+## Remaining frontend integration
 
-- Docker CLI is installed, but Docker Desktop reported **unable to start** its engine on this host. The Compose workflow could not be exercised here; its configuration is unchanged.
-- After the successful production build, the automatic approval review rejected `next start` with the reason **blocked by policy**. Browser evidence above is from the dev server, not a claimed production-server run. The dev server was stopped before building.
+Integrated `main` at `cedd34d` now provides `PATCH /api/employees/:employeeId/career-goal`; it permits employees to update only their own goal and returns the updated `EmployeeDetail`. The remaining frontend work is the role/grade editor using `catalog.roleProfiles`, save/clear actions, validation and uncertain-result recovery, plus AI cancellation and profile replacement around the mutation. Clearing an explicit goal can restore the default next-grade target. The API contract and authorization rules are documented in [the completion and career-goal handoff](FRONTEND_COMPLETION_GOAL_HANDOFF.md); this is now frontend integration work, not a missing backend endpoint.
+
+## Remaining validation and scope
+
+- End-to-end full-name demo login, duplicate-name selection cards and the follow-up login request still need their checks. The Docker form inspection above does not replace those checks; earlier test counts are not results for this change.
 - Live OpenAI, corporate SSO/MFA, account recovery, peer-sharing consent and organization-specific access scopes are outside this frontend delivery.
 
 Local test credentials and SQLite data remain under ignored `.data/privacy-ui`; they are not included in Git or this report.

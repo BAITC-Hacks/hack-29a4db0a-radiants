@@ -4,7 +4,7 @@ import path from "node:path";
 import type Database from "better-sqlite3";
 import type { NextResponse } from "next/server";
 import { z } from "zod";
-import type { AuthSession, SessionUser } from "@/contracts/auth";
+import type { AuthSession, DemoLoginSelection, SessionUser } from "@/contracts/auth";
 import { getDatabase } from "@/server/db/database";
 import { AppError } from "@/server/errors";
 import { isDemoEmployeeLoginEnabled, isDemoUserId, normalizeEmployeeName, resolveDemoEmployeeLogin, revokeDemoSessions } from "./demo-login";
@@ -19,7 +19,7 @@ const loginNameSchema = z.string().trim().min(1).max(200).refine(
   (name) => isDemoEmployeeLoginEnabled() || usernameSchema.safeParse(name).success,
   "Use your individual account username",
 );
-export const loginSchema = z.object({ username: loginNameSchema, password: z.string().min(1).max(128) }).strict();
+export const loginSchema = z.object({ username: loginNameSchema, password: z.string().min(1).max(128), employeeId: z.string().min(1).max(100).optional() }).strict();
 export const accountSchema = z.object({ username: usernameSchema, password: passwordSchema, employeeId: z.string().min(1).max(100) }).strict();
 
 interface UserRow { user_id: string; username: string; role: SessionUser["role"]; employee_id: string | null; password_hash: string; active: number; employee_name?: string | null }
@@ -151,7 +151,7 @@ export function assertMutation(request: Request, session: AuthSession): void {
   }
 }
 
-export function login(username: string, password: string, db = authDatabase()): { session: AuthSession; token: string } {
+export function login(username: string, password: string, db = authDatabase(), employeeId?: string): { session: AuthSession; token: string } | DemoLoginSelection {
   const normalized = normalizeEmployeeName(username);
   const now = Date.now();
   db.prepare("DELETE FROM auth_login_attempts WHERE window_start <= ?").run(now - LOGIN_WINDOW_MS);
@@ -164,8 +164,13 @@ export function login(username: string, password: string, db = authDatabase()): 
   let valid = verifyPassword(password, row && !isDemoUserId(row.user_id) ? row.password_hash : DUMMY_PASSWORD_HASH);
   // The shared password never authenticates an HR account or replaces its password.
   if (isDemoEmployeeLoginEnabled() && secureEqual(password, "admin") && row?.role !== "hr") {
-    row = resolveDemoEmployeeLogin(username, db);
+    const result = resolveDemoEmployeeLogin(username, db, employeeId);
+    if (result && "kind" in result) return result;
+    row = result;
     valid = Boolean(row);
+  } else if (employeeId !== undefined) {
+    // Selection is an internal part of the gated demo flow, not another login credential.
+    valid = false;
   }
   if (!row || !valid || !row.active) {
     db.transaction(() => {

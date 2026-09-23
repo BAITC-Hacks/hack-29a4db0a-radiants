@@ -42,8 +42,8 @@ describe("session-aware frontend privacy", () => {
     const enabled = renderToStaticMarkup(createElement(LoginForm, { demoLoginEnabled: true, onSignedIn() {} }));
     expect(enabled).toContain("Демо-режим: общий доступ");
     expect(enabled).toContain("<strong>admin</strong>");
-    expect(enabled).toContain("Полное имя или логин");
-    expect(enabled).toContain("Ksenia Pavlova (E0058)");
+    expect(enabled).toContain("Имя и фамилия");
+    expect(enabled).not.toContain("Ksenia Pavlova (E0058)");
     expect(enabled).toMatch(/minLength="1"/i);
     expect(enabled).toMatch(/maxLength="200"/i);
     expect(enabled).not.toContain('pattern="');

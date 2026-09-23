@@ -23,7 +23,7 @@ describe("typed frontend API", () => {
     expect(apiErrorMessage(422, "EVENT_NOT_ELIGIBLE")).toContain("Условия завершения");
   });
   it("localizes demo login errors and preserves the server wait in minutes", () => {
-    expect(apiErrorMessage(409, "AMBIGUOUS_EMPLOYEE_NAME")).toContain("ID профиля в скобках");
+    expect(apiErrorMessage(409, "AMBIGUOUS_EMPLOYEE_NAME")).toContain("по подразделению и должности");
     expect(apiErrorMessage(409, "DEMO_ACCOUNT_CONFLICT")).toContain("Обратитесь к оператору");
     expect(apiErrorMessage(429, "LOGIN_RATE_LIMITED", { error: { message: "Too many login attempts. Try again in 15 minutes" } })).toContain("через 15 мин.");
   });

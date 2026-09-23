@@ -34,7 +34,7 @@ The UI is in Russian, with Career Quest branding and locally hosted Manrope. Dat
 
 ### Optional shared employee demo login
 
-`DEMO_EMPLOYEE_LOGIN=false` is the default. For a demonstration with synthetic data, set `DEMO_EMPLOYEE_LOGIN=true` in the ignored `.env`, then recreate the container with `docker compose up --build`. Employees can sign in with their full name exactly as listed in the dataset and password **admin**. For names shared by more than one profile, append the employee ID: `Ksenia Pavlova (E0058)`. Unicode names and spaces are accepted. Imported employee profiles work on login without a separate account-provisioning step.
+`DEMO_EMPLOYEE_LOGIN=false` is the default. For a demonstration with synthetic data, set `DEMO_EMPLOYEE_LOGIN=true` in the ignored `.env`, then recreate the container with `docker compose up --build`. Employees sign in with their full name exactly as listed in the dataset and password **admin**. If several employees share that name, the login screen shows profile cards with department, role and grade; select the matching card to finish signing in. No employee ID needs to be entered. Unicode names and spaces are accepted. Imported employee profiles work on login without a separate account-provisioning step.
 
 The login page and authenticated app show **Демо-режим: общий доступ к профилям сотрудников. Личные данные в этом режиме не защищены индивидуальным паролем.** Anyone with the shared password can access a named employee's demo profile, so this mode does not provide employee privacy. HR continues to use `hr-admin` with its individual generated password; `admin` does not grant HR access. Individual account passwords remain unchanged. Demo identity rows are labeled separately in HR access management and do not block creation of a personal account.
 
@@ -94,7 +94,7 @@ Every success is `{ data: ... }`; errors are `{ error: { code, message, details 
 | Endpoint | data |
 | --- | --- |
 | GET /api/health | status, schemaVersion, counts |
-| POST /api/auth/login | AuthSession; sets HttpOnly cookie |
+| POST /api/auth/login | AuthSession and HttpOnly cookie, or demo `employee_selection` choices for a shared full name |
 | GET /api/auth/session | AuthSession (user, expiresAt, csrfToken) |
 | POST /api/auth/logout | signedOut; revokes session and clears cookie |
 | GET /api/hr/accounts | HR-only account list without passwords |
